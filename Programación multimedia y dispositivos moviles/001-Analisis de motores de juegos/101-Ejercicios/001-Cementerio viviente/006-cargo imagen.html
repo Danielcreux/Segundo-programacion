@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+    <body>
+        <canvas width=512 height=512>
+        </canvas>
+        <script>
+            //Cargo imagen en Javascript
+            let rejilla = new Image();
+            rejilla.src = "spritesheet.png";
+            
+            //Coordenadas del jugador 
+            
+            let x = 200;
+            let y = 200;
+            
+            //Atrapo el lienzo y el contexto
+            const lienzo= document.querySelector("canvas");
+            const contexto = lienzo.getContext("2d");
+            contexto.fillStyle = "red";
+            
+            //Función reutilizable de pintar 
+            function pinta(){
+                contexto.clearRect(0,0,512,512);
+                contexto.drawImage(rejilla,x,y)
+            }
+            
+            //Atrapo la pulsación de teclas y actualizo el pintado
+            
+            document.querySelector("body").onkeydown = function(e){
+                switch(e.key){
+                    case "w":
+                       y -= 10;
+                       break;
+                    case "s":
+                        y += 10;
+                        break;
+                    case "a":
+                        x -= 10;
+                        break;
+                    case "d":
+                        x += 10;
+                        break;
+                    
+                        
+                }
+                pinta();
+            }
+        </script>
+    </body>
+</html>

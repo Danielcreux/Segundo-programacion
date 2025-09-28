@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+    <body>
+        <canvas width=1000 height=1000></canvas>
+        <script>
+            // Cargo imagen en Javascript
+            let rejilla = new Image();
+            rejilla.src = "spritesheet.png";
+            
+            
+            // Coordenadas del jugador 
+            let x = 300;
+            let y = 300;
+            let direccion =0;
+            let fotograma = 0;
+            velocidad = 4;
+            tamanosprite=125
+            
+            // Atrapo el lienzo y el contexto
+            const lienzo = document.querySelector("canvas");
+            const contexto = lienzo.getContext("2d");
+            
+            // Función reutilizable de pintar 
+            function pinta(){
+                contexto.clearRect(0, 0, 1000, 1000);
+                contexto.drawImage(
+                    rejilla,
+                    fotograma*tamanosprite,
+                    direccion*tamanosprite,
+                    tamanosprite,
+                    tamanosprite,
+                    x,
+                    y,
+                    tamanosprite,
+                    tamanosprite
+                );
+            }
+            
+            // Atrapo la pulsación de teclas y actualizo el pintado
+            document.querySelector("body").onkeydown = function(e){
+                fotograma++;
+                if(fotograma > 4){fotograma = 0;}
+                switch(e.key){
+                    case "w":
+                       y -= velocidad;
+                        direccion = 2;
+                       break;
+                    case "s":
+                        y += velocidad;
+                        direccion = 0.5;
+                        break;
+                    case "a":
+                        x -= velocidad;
+                        direccion = 3.45;
+                        break;
+                    case "d":
+                        x += velocidad;
+                        direccion = 5;
+                        break;
+                }
+                pinta();
+            }
+            
+            // Dibujar inicialmente (aunque la imagen podría no estar cargada aún)
+            pinta();
+        </script>
+    </body>
+</html>

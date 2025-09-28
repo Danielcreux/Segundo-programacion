@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+    <body>
+        <canvas width="1000" height="1000">
+        </canvas>
+        <script>
+            
+            /////////////////////// Definicion de funciones
+            
+            
+            function pintaEscenario(){
+            for(let x = 0; x<16;x++){
+                for(let y = 0; y<16;y++){
+                    if(escenario[y][x] == 1){
+                        contexto.fillStyle = "black"
+                        contexto.fillRect(
+                            x*anchurabloque,
+                            y*anchurabloque,
+                            anchurabloque,
+                            anchurabloque
+                        )
+                    }
+                    if(escenario[y][x] == 5){
+                        if(px == 0){px = x;}
+                        if(py == 0){py = y;}
+                        contexto.fillStyle = "red"
+                        contexto.beginPath();
+                        contexto.arc(
+                            x*anchurabloque+anchurabloque/2,
+                            y*anchurabloque+anchurabloque/2,
+                            anchurabloque/2,
+                            0,
+                            Math.PI*2
+                            )
+                        contexto.fill();
+                        
+                    }
+                    
+                  }
+                }
+            }
+            
+            function dibujaPersonaje(){
+                 contexto.fillStyle = "red"
+                  contexto.beginPath();
+                        contexto.arc(
+                            px*anchurabloque+anchurabloque/2,
+                            py*anchurabloque+anchurabloque/2,
+                            anchurabloque/2,
+                            0,
+                            Math.PI*2
+                            )
+                        contexto.fill();
+                
+            }
+            
+            /////////////// Definicion de variables globales
+            var anchurabloque = 32
+            let px = 0;
+            let py = 0;
+            let velocidad = 32;
+            const escenario = [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,4,0,0,0,0,0,1,1,0,0,0,0,0,0,1],
+                [1,0,1,1,0,1,1,1,1,1,1,0,1,1,0,1],
+                [1,0,1,0,0,0,0,0,0,0,0,0,0,1,2,1],
+                [1,0,1,0,1,1,1,1,1,1,1,1,0,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1],
+                [1,2,0,0,0,1,0,1,1,0,1,0,0,0,0,1],
+                [1,1,1,1,0,1,0,0,0,0,1,0,1,1,1,1],
+                [1,0,0,0,0,1,1,5,5,1,1,0,0,0,0,1],
+                [1,0,1,1,0,0,0,0,0,0,0,0,1,1,2,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            ];
+            const lienzo = document.querySelector("canvas");
+            const contexto = lienzo.getContext("2d");
+            
+            ////////////////// Funcion principal
+            
+             document.querySelector("body").onkeydown = function(e){
+                 console.log(px,py)
+                 switch(e.key){
+                    case "w":
+                       if(escenario[py-1][px] != 1){
+                         py -= 1;
+                        }
+                       break;
+                    case "s":
+                        if(escenario[py+1][px] != 1){
+                          py += 1;
+                        }
+                        
+                        break;
+                    case "a":
+                        if(escenario[py][px-1] != 1){
+                          px -= 1;
+                        }
+                        
+                        break;
+                    case "d":
+                        if(escenario[py][px+1] != 1){
+                         px += 1;
+                        }
+                        
+                        break;
+                }
+                 contexto.clearRect(0,0,1000,1000);
+                 pintaEscenario()
+                 dibujaPersonaje()
+            }     
+        </script>
+        
+    </body>
+</html>

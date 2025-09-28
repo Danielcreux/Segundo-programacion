@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Estilizar</title>
+        <style>
+            .jvinput{
+                padding:5px;
+                border:1px solid grey;
+                text-align: center;
+                border-top:0px solid grey;
+                border-left:1px solid grey;
+                border-right:1px solid grey;
+                border-bottom:0px solid grey;
+                border-radius: 5px;
+                animation:expande 1s;
+                animation-delay:3s;
+                animation-iteration-count:1;
+                animation-fill-mode: forwards;
+                width: 0px;
+                height: 0px;
+                padding: 0px;
+                font-family: monospace;
+                text-shadow:0px 2px 4px rgba(0,0,0,0.4);
+                background: rgba(240,240,240);
+                font-size: 10px;
+                box-shadow: 0px 2px 4px rgba(0,0,0,0.4) inset;
+                
+            }
+            @keyframes expande{
+                0%{width:0px; height: 0px;}
+                50%{width:0px; height: 20px;}
+                100%{width:100px; height: 20px;}
+            }
+        </style>
+    </head>
+    <body>
+        <input type="text" class="jvinput"> 
+    </body>
+</html>

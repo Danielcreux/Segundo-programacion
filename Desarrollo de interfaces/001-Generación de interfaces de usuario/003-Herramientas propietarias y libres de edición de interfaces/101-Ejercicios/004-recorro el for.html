@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Ejemplo datalist</title>
+        <style>
+            #contenedor{
+                width: 100%;
+                display: flex;
+                border: 1px solid grey;
+            }
+            #areadetrabajo{
+                flex: 3;
+                border: 1px solid grey;
+                
+            }
+            #componentes{
+                flex:1;
+                border: 1px solid grey;
+                box-sizing: border-box;
+            }
+            #componentes button{
+                width:100%;
+            }
+            #areadetrabajo input{
+                margin: 5px;
+                padding: 5px;
+                width: 90%;
+                box-sizing:border-box;
+                
+            }
+            
+        </style>
+    </head>
+    <body>
+        <h1>Diseñador de formularios</h1>
+        <div id="contenedor">
+            <div id="areadetrabajo"></div>
+            <div id="componentes">
+                <button value="text">Input text</button>
+                <button value="date">Input date</button>
+                <button value="password">Input password</button>
+                <button value="email">Input email</button>
+                <button value="number">Input number</button>
+                <button value="time">Input time</button>
+                <button value="datetime-local">Input datetime-local</button>
+                <button value="month">Input month</button>
+                <button value="color">Input color</button>
+                <button value="week">Input week</button>
+                
+                 </div>
+            </div>
+            <script>
+                let areadetrabajo = document.querySelector("#areadetrabajo")
+                document.querySelector("#componentes").onclick = function(e){
+                    if(e.target.tagName === "BUTTON"){
+                    areadetrabajo.innerHTML += "<input type='" +e.target.value+"'>"
+                    }
+                    
+                }
+            </script>
+    </body>
+</html>

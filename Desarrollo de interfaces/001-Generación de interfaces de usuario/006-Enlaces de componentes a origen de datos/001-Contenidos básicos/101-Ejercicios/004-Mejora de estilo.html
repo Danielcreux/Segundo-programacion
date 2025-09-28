@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Tabla de Clientes</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                margin: 0;
+                padding: 40px 20px;
+                min-height: 100vh;
+            }
+            
+            table {
+                width: 100%;
+                max-width: 1200px;
+                margin: 0 auto;
+                border-collapse: collapse;
+                background: white;
+                border-radius: 15px;
+                overflow: hidden;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                backdrop-filter: blur(10px);
+            }
+            
+            th {
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                color: white;
+                padding: 20px 15px;
+                text-align: left;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                font-size: 14px;
+                border-bottom: 3px solid rgba(255,255,255,0.2);
+            }
+            
+            td {
+                padding: 18px 15px;
+                border-bottom: 1px solid #f0f0f0;
+                color: #333;
+                transition: all 0.3s ease;
+            }
+            
+            tr:hover td {
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                color: white;
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            }
+            
+            tr:last-child td {
+                border-bottom: none;
+            }
+            
+            tr:nth-child(even) {
+                background-color: #f8f9fa;
+            }
+            
+            tr:hover {
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            }
+            
+            .activo-true {
+                color: #28a745;
+                font-weight: bold;
+            }
+            
+            .activo-false {
+                color: #dc3545;
+                font-weight: bold;
+            }
+            
+            th:first-child {
+                border-top-left-radius: 15px;
+            }
+            
+            th:last-child {
+                border-top-right-radius: 15px;
+            }
+            
+            tr:last-child td:first-child {
+                border-bottom-left-radius: 15px;
+            }
+            
+            tr:last-child td:last-child {
+                border-bottom-right-radius: 15px;
+            }
+            
+            /* Efectos de hover mejorados */
+            table {
+                transition: transform 0.3s ease;
+            }
+            
+            table:hover {
+                transform: translateY(-5px);
+            }
+        </style>
+    </head>
+    <body>
+        <table></table>
+        <script>
+            clientes = [
+                {
+                    "id": 1,
+                    "nombre": "Ana García López",
+                    "email": "ana.garcia@email.com",
+                    "telefono": "+34 612 345 678",
+                    "direccion": "Calle Principal 123, Madrid, España",
+                    "fecha_alta": "2023-05-15",
+                    "activo": true
+                },
+                {
+                    "id": 2,
+                    "nombre": "Carlos Rodríguez Méndez",
+                    "email": "c.rodriguez@empresa.com",
+                    "telefono": "+34 699 887 766",
+                    "direccion": "Avenida Central 45, Barcelona, España",
+                    "fecha_alta": "2022-11-30",
+                    "activo": true
+                },
+                {
+                    "id": 3,
+                    "nombre": "María Fernández Ruiz",
+                    "email": "maria.fernandez@correo.es",
+                    "telefono": "+34 655 443 322",
+                    "direccion": "Plaza Mayor 67, Valencia, España",
+                    "fecha_alta": "2024-01-10",
+                    "activo": false
+                },
+                {
+                    "id": 4,
+                    "nombre": "Javier Martínez Soler",
+                    "email": "j.martinez@servicio.com",
+                    "telefono": "+34 677 998 811",
+                    "direccion": "Calle Secundaria 89, Sevilla, España",
+                    "fecha_alta": "2023-08-22",
+                    "activo": true
+                }
+            ];
+            
+            let tabla = document.querySelector("table");
+            let primerelemento = clientes[0];
+            let claves = Object.keys(primerelemento);
+            
+            // Mejorar los nombres de las columnas
+            let nombresColumnas = {
+                'id': 'ID',
+                'nombre': 'Nombre Completo',
+                'email': 'Email',
+                'telefono': 'Teléfono',
+                'direccion': 'Dirección',
+                'fecha_alta': 'Fecha de Alta',
+                'activo': 'Estado'
+            };
+            
+            cadena = "<tr>";
+            claves.forEach(function(clave){
+                cadena += "<th>" + (nombresColumnas[clave] || clave) + "</th>";   
+            });
+            cadena += "</tr>";
+            
+            clientes.forEach(function(cliente){
+                cadena += "<tr>";
+                for(let clave in cliente){
+                    if (clave === 'activo') {
+                        cadena += "<td class='activo-" + cliente[clave] + "'>" + 
+                                 (cliente[clave] ? '✅ Activo' : '❌ Inactivo') + "</td>";
+                    } else {
+                        cadena += "<td>" + cliente[clave] + "</td>";
+                    }
+                }
+                cadena += "</tr>";
+            });
+            
+            tabla.innerHTML = cadena;
+        </script>
+    </body>
+</html>

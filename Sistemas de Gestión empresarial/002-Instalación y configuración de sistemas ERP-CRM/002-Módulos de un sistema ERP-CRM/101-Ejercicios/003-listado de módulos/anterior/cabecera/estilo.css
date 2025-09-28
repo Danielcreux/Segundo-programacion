@@ -1,0 +1,20 @@
+#superior{
+  background:var(--solido-fondo);
+  padding:20px;
+  color:var(--solido-frente);
+  font-weight:bold;
+  display:flex;
+  justify-content: space-between;
+}
+#inferior{
+  background:white;
+  padding:20px;
+  color:black;
+  font-weight:bold;
+  display:flex;
+  justify-content: space-between;
+  border-bottom:1px solid var(--solido-fondo);
+}
+#inferior nav{
+  display:flex;
+}

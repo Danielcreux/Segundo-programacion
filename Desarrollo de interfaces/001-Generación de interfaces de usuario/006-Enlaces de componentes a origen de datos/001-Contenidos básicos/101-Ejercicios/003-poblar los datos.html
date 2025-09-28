@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Estilizar</title>
+        <style>
+      
+        </style>
+    </head>
+    <body>
+        <table></table>
+        <script>
+        clientes=[
+  {
+    "id": 1,
+    "nombre": "Ana García López",
+    "email": "ana.garcia@email.com",
+    "telefono": "+34 612 345 678",
+    "direccion": "Calle Principal 123, Madrid, España",
+    "fecha_alta": "2023-05-15",
+    "activo": true
+  },
+  {
+    "id": 2,
+    "nombre": "Carlos Rodríguez Méndez",
+    "email": "c.rodriguez@empresa.com",
+    "telefono": "+34 699 887 766",
+    "direccion": "Avenida Central 45, Barcelona, España",
+    "fecha_alta": "2022-11-30",
+    "activo": true
+  },
+  {
+    "id": 3,
+    "nombre": "María Fernández Ruiz",
+    "email": "maria.fernandez@correo.es",
+    "telefono": "+34 655 443 322",
+    "direccion": "Plaza Mayor 67, Valencia, España",
+    "fecha_alta": "2024-01-10",
+    "activo": false
+  },
+  {
+    "id": 4,
+    "nombre": "Javier Martínez Soler",
+    "email": "j.martinez@servicio.com",
+    "telefono": "+34 677 998 811",
+    "direccion": "Calle Secundaria 89, Sevilla, España",
+    "fecha_alta": "2023-08-22",
+    "activo": true
+  }
+]
+  
+            
+            let tabla = document.querySelector("table")
+            let primerelemento = clientes[0]
+            let claves = Object.keys(primerelemento)
+            
+            cadena = "<tr>";
+            claves.forEach(function(clave){
+               cadena += "<th>"+clave+"</th>";   
+            })
+            cadena += "</tr>";
+            clientes.forEach(function(cliente){
+              cadena += "<tr>";
+              for(let clave in cliente){
+                cadena += "<td>"+cliente[clave]+"</td>"
+              }
+              cadena += "</tr>";
+              
+            })
+            tabla.innerHTML = cadena;
+            
+        </script>
+    </body>
+</html>

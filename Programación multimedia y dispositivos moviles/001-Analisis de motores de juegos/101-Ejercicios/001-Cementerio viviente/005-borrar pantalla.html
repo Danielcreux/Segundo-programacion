@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+    <body>
+        <canvas width=512 height=512>
+        </canvas>
+        <script>
+            
+            //Coordenadas del jugador 
+            
+            let x = 200;
+            let y = 200;
+            
+            //Atrapo el lienzo y el contexto
+            const lienzo= document.querySelector("canvas");
+            const contexto = lienzo.getContext("2d");
+            contexto.fillStyle = "red";
+            
+            //Función reutilizable de pintar 
+            function pinta(){
+                contexto.clearRect(0,0,512,512)
+                contexto.beginPath();
+                contexto.arc(x,y,30,0,Math.PI*2,true);  
+                contexto.fill();
+            }
+            
+            //Atrapo la pulsación de teclas y actualizo el pintado
+            
+            document.querySelector("body").onkeydown = function(e){
+                switch(e.key){
+                    case "w":
+                       y -= 10;
+                       break;
+                    case "s":
+                        y += 10;
+                        break;
+                    case "a":
+                        x -= 10;
+                        break;
+                    case "d":
+                        x += 10;
+                        break;
+                    
+                        
+                }
+                pinta();
+            }
+        </script>
+    </body>
+</html>
+

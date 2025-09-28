@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StegoTexto - Codificador de Texto en Imágenes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔐 StegoTexto</h1>
+            <p>Codifica tus datos personales en imágenes RGB</p>
+        </header>
+
+        <div class="app-container">
+            <form id="userForm" class="form-container">
+                <h2>📝 Datos del Usuario</h2>
+                
+                <div class="form-group">
+                    <label for="name">Nombre:</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="surname">Apellido:</label>
+                    <input type="text" id="surname" name="surname" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Teléfono:</label>
+                    <input type="tel" id="phone" name="phone" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="filename">Nombre del archivo:</label>
+                    <input type="text" id="filename" name="filename" value="datos_usuario" required>
+                    <span class="file-extension">.png</span>
+                </div>
+
+                <button type="submit" class="btn-encode">🔒 Codificar en Imagen</button>
+            </form>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Codificando datos en imagen...</p>
+            </div>
+
+            <div id="result" class="result-container hidden">
+                <h2>✅ Datos Codificados Exitosamente</h2>
+                
+                <div class="image-container">
+                    <img id="encodedImage" src="" alt="Imagen con datos codificados">
+                </div>
+
+                <div class="image-info">
+                    <p><strong>Archivo:</strong> <span id="imageName"></span></p>
+                    <p><strong>Tamaño:</strong> <span id="imageSize"></span></p>
+                    <p><strong>Datos codificados:</strong> <span id="dataLength"></span> caracteres</p>
+                </div>
+
+                <div class="actions">
+                    <button id="downloadBtn" class="btn-download">📥 Descargar Imagen</button>
+                    <button id="newEncodeBtn" class="btn-new">🔄 Nuevo Código</button>
+                </div>
+            </div>
+
+            <div id="error" class="error-container hidden">
+                <h2>❌ Error</h2>
+                <p id="errorMessage"></p>
+                <button onclick="hideError()" class="btn-retry">🔄 Intentar Nuevamente</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>StegoTexto v1.0 - Tus datos están seguros en esta imagen</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

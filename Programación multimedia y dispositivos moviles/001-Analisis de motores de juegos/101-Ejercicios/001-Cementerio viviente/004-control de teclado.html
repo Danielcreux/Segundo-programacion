@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <body>
+        <canvas width=512 height=512>
+        </canvas>
+        <script>
+            
+            //Coordenadas del jugador 
+            
+            let x = 200;
+            let y = 200;
+            const lienzo= document.querySelector("canvas");
+            const contexto = lienzo.getContext("2d");
+            contexto.fillStyle = "red";
+            function pinta(){
+            contexto.beginPath();
+            contexto.arc(x,y,30,0,Math.PI*2,true);  
+            contexto.fill();
+            }
+            
+            document.querySelector("body").onkeydown = function(e){
+                switch(e.key){
+                    case "w":
+                       y -= 10;
+                       break;
+                    case "s":
+                        y += 10;
+                        break;
+                    case "a":
+                        x -= 10;
+                        break;
+                    case "d":
+                        x += 10;
+                        break;
+                    
+                        
+                }
+                pinta();
+            }
+        </script>
+    </body>
+</html>
+

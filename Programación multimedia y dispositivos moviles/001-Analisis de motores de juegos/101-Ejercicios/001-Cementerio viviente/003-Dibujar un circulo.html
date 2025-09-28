@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+    <body>
+        <canvas width=512 height=512>
+        </canvas>
+        <script>
+            const lienzo= document.querySelector("canvas");
+            const contexto = lienzo.getContext("2d");
+            contexto.fillStyle = "red";
+            contexto.beginPath();
+            contexto.arc(50,50,30,0,Math.PI*2,true);  
+            contexto.fill();
+        </script>
+    </body>
+</html>
+

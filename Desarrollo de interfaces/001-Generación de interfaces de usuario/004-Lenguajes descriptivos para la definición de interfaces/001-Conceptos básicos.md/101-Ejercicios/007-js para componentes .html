@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Estilizar</title>
+        <style>
+            .jvinput{
+                padding:5px;
+                border:1px solid grey;
+                outline:none;
+                text-align: center;
+                border-top:0px solid grey;
+                border-left:1px solid grey;
+                border-right:1px solid grey;
+                border-bottom:0px solid grey;
+                border-radius: 5px;
+                animation:expande 1s;
+                animation-delay:3s;
+                animation-iteration-count:1;
+                animation-fill-mode: forwards;
+                width: 0px;
+                height: 0px;
+                padding: 0px;
+                font-family: monospace;
+                text-shadow:0px 1px 2px rgba(0,0,0,0.4);
+                background: rgba(250,250,250);
+                font-size: 10px;
+                box-shadow: 0px 2px 6px rgba(0,0,0,0.1) inset;
+              
+                
+            }
+            @keyframes expande{
+                0%{width:0px; height: 0px; transform:translateX(50px);margin-left:50px;margin-right:50px;}
+                50%{width:0px; height: 20px; transform:translateX(50px);margin-left:50px;margin-right:50px;}
+                100%{width:100px; height: 20px;transform:translateX(0px);margin-left:0px;margin-right:0px;}
+            }
+        </style>
+    </head>
+    <body>
+        <input type="text" class="jvinput" placeholder="nombre">
+        <input type="text" class="jvinput" placeholder="apellidos">
+        <input type="text" class="jvinput" placeholder="telefono">
+        <input type="text" class="jvinput" placeholder="direccion">
+        <input type="text" class="jvinput" placeholder="email">
+       <script>
+           let tiempos = 0;
+            let elementos =document.querySelectorAll(".jvinput")
+            elementos.forEach(function(elemento){
+            elemento.style.color = "red"
+                elemento.style.animationDelay = tiempo+"s"
+                tiempo +=1
+            })
+            }
+        </script>
+        
+        
+    </body>
+</html>

@@ -1,0 +1,9 @@
+#listadodemodulo{
+    display:flex;
+}
+#listadodemodulo nav{
+    flex: 1;
+}
+#listadodemodulo section{
+    flex: 4;
+}

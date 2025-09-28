@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+    <body>
+        <canvas width="1000" height="1000">
+        </canvas>
+        <script>
+            var anchurabloque = 32
+            let x = 0;
+            let y = 0;
+            let velocidad = 32;
+            const escenario = [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,4,0,0,0,0,0,1,1,0,0,0,0,0,0,1],
+                [1,0,1,1,0,1,1,1,1,1,1,0,1,1,0,1],
+                [1,0,1,0,0,0,0,0,0,0,0,0,0,1,2,1],
+                [1,0,1,0,1,1,1,1,1,1,1,1,0,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1],
+                [1,2,0,0,0,1,0,1,1,0,1,0,0,0,0,1],
+                [1,1,1,1,0,1,0,0,0,0,1,0,1,1,1,1],
+                [1,0,0,0,0,1,1,5,5,1,1,0,0,0,0,1],
+                [1,0,1,1,0,0,0,0,0,0,0,0,1,1,2,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            ];
+            const lienzo = document.querySelector("canvas");
+            const contexto = lienzo.getContext("2d");
+            
+            for(let x = 0; x<16;x++){
+                for(let y = 0; y<16;y++){
+                    if(escenario[y][x] == 1){
+                        contexto.fillRect(
+                            x*anchurabloque,
+                            y*anchurabloque,
+                            anchurabloque,
+                            anchurabloque
+                        )
+                    }
+                    if(escenario[y][x] == 5){
+                        px = x;
+                        py = y;
+                        contexto.fillStyle = "red"
+                        contexto.beginPath();
+                        contexto.arc(
+                            x*anchurabloque+anchurabloque/2,
+                            y*anchurabloque+anchurabloque/2,
+                            anchurabloque/2,
+                            0,
+                            Math.PI*2
+                            )
+                        contexto.fill();
+                        
+                    }
+                    
+                }
+                
+            }
+             document.querySelector("body").onkeydown = function(e){
+                 switch(e.key){
+                    case "w":
+                       py -= 1;
+                       
+                       break;
+                    case "s":
+                        py += 1;
+                        
+                        break;
+                    case "a":
+                        px -= 1;
+                        
+                        break;
+                    case "d":
+                        px += 1;
+                        
+                        break;
+                }
+                  contexto.beginPath();
+                        contexto.arc(
+                            px*anchurabloque+anchurabloque/2,
+                            py*anchurabloque+anchurabloque/2,
+                            anchurabloque/2,
+                            0,
+                            Math.PI*2
+                            )
+                        contexto.fill();
+                        
+                    }
+                 
+                 
+        </script>
+        
+    </body>
+</html>
