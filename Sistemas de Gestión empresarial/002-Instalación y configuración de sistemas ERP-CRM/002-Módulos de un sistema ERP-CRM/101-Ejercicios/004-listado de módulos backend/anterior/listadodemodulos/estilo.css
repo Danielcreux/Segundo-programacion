@@ -24,7 +24,7 @@
 #listadodemodulos section article{
     background: white;
     min-width: 300px;
-    width: 90%;
+    width: 95%;
     height: 110px;
     display: flex;
     flex-direction: row;
@@ -37,8 +37,9 @@
     border:1px solid var(--solido-fondo);
 }
 
+
 #listadodemodulos section article .logo{
-    font-size:40px;
+    font-size:30px;
     flex:1;
 }
 
