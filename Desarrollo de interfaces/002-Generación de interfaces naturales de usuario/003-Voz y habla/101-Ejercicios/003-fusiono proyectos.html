@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+  <meta charset="utf-8" />
+  <title>Speech Recognition (mínimo)</title>
+  <button id="start">🎙️ Escuchar</button>
+  <div id="out"></div>
+  <script>
+    // Configuración inicial de la sintesis de voz
+    let voices = [];
+    function pickVoice() {
+      // intenta una voz española; si no, usa la primera disponible
+      const v = voices.find(v => /es-|Spanish/i.test(v.lang)) || voices[0];
+      return v || null;
+    }
+    function loadVoices() {
+      voices = speechSynthesis.getVoices();
+    }
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+
+    
+  
+  
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SpeechRecognition();
+    rec.lang = "es-ES";
+    rec.interimResults = false;
+    
+    rec.onresult = function(e){ 
+    
+      // Primero escribe lo que has oido
+      document.getElementById("out").textContent = e.results[0][0].transcript;
+      
+      // Y ahora hablalo
+      const u = new SpeechSynthesisUtterance(e.results[0][0].transcript);
+      const v = pickVoice();
+      if (v) u.voice = v;
+      u.lang = (v && v.lang) || 'es-ES';
+      speechSynthesis.cancel(); // por si había algo en cola
+      speechSynthesis.speak(u);
+      
+    }
+    
+    document.getElementById("start").onclick = () => rec.start();
+  </script>
+</html>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+  <meta charset="utf-8" />
+  <title>Speech Synthesis (mínimo)</title>
+  <textarea id="t" rows="3" style="width:100%">Hola, esto es una prueba de síntesis de voz en español.</textarea>
+  <br>
+  <button id="s">🔊 Hablar</button>
+  <script>
+    let voices = [];
+    function pickVoice() {
+      // intenta una voz española; si no, usa la primera disponible
+      const v = voices.find(v => /es-|Spanish/i.test(v.lang)) || voices[0];
+      return v || null;
+    }
+    function loadVoices() {
+      voices = speechSynthesis.getVoices();
+    }
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+
+    document.getElementById('s').onclick = () => {
+      const u = new SpeechSynthesisUtterance(document.getElementById('t').value);
+      const v = pickVoice();
+      if (v) u.voice = v;
+      u.lang = (v && v.lang) || 'es-ES';
+      speechSynthesis.cancel(); // por si había algo en cola
+      speechSynthesis.speak(u);
+    };
+  </script>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MediaPipe Pose — tiniest demo</title>
+  <style>canvas{max-width:100%;height:auto}</style>
+  <!-- MediaPipe legacy JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+  <video class="input_video" autoplay playsinline muted style="display:none"></video>
+  <canvas class="output_canvas" width="640" height="480"></canvas>
+
+  <script>
+    const video  = document.querySelector('.input_video');
+    const canvas = document.querySelector('.output_canvas');
+    const ctx    = canvas.getContext('2d');
+
+    function onResults(results){
+      ctx.save();
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+      if (results.poseLandmarks) {
+        drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS,
+                       {color: 'aqua', lineWidth: 2});
+        drawLandmarks(ctx, results.poseLandmarks,
+                      {color: 'red', radius: 3});
+      }
+      ctx.restore();
+    }
+
+    const pose = new Pose({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+    });
+    pose.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      enableSegmentation: false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    pose.onResults(onResults);
+
+    const camera = new Camera(video, {
+      onFrame: async () => { await pose.send({image: video}); },
+      width: 640, height: 480
+    });
+    camera.start();
+  </script>
+</body>
+</html>

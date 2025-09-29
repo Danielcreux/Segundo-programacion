@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+  <meta charset="utf-8" />
+  <title>Speech Recognition (mínimo)</title>
+  <button id="start">🎙️ Escuchar</button>
+  <div id="out"></div>
+  <div id="contenedor"></div>
+  <script>
+    // Datos iniciales
+    
+    clientes = [
+      {"nombre":"joshue","apellidos":"Freire Sanchez" ,"email":"info@danielcreux.com"},
+      {"nombre":"Diego","apellidos":"Ortiz","email":"info@Ortiz.com"},
+      {"nombre":"Alberto","apellidos":"Quiroz","email":"info@Quiroz.com"}
+    ]
+    
+    function pintaTabla(){
+      let cadena = "<table><tr><th>Nombre</th><th>Apellidos</th><th>Email</th></tr>"
+      clientes.forEach(function(cliente){
+        cadena += "<tr><td>"+cliente.nombre+"</td><td>"+cliente.apellidos+"</td><td>"+cliente.email+"</td></tr>"
+      })
+      cadena += "</table>"
+      document.querySelector("#contenedor").innerHTML = cadena
+    }
+    pintaTabla()
+    // Configuración inicial de la sintesis de voz
+    let voices = [];
+    function pickVoice() {
+      // intenta una voz española; si no, usa la primera disponible
+      const v = voices.find(v => /es-|Spanish/i.test(v.lang)) || voices[0];
+      return v || null;
+    }
+    function loadVoices() {
+      voices = speechSynthesis.getVoices();
+    }
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+
+    
+  
+  
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SpeechRecognition();
+    rec.lang = "es-ES";
+    rec.interimResults = false;
+    
+    rec.onresult = function(e){ 
+      let reconocido = e.results[0][0].transcript
+      // Primero escribe lo que has oido
+      document.getElementById("out").textContent = reconocido;
+      
+      // Y ahora hablalo
+      const u = new SpeechSynthesisUtterance(reconocido);
+      const v = pickVoice();
+      if (v) u.voice = v;
+      u.lang = (v && v.lang) || 'es-ES';
+      speechSynthesis.cancel(); // por si había algo en cola
+      speechSynthesis.speak(u);
+      var operacion = reconocido.split(" ")[0]
+      switch(operacion){
+         case "eliminar":
+          console.log("Vamos a eliminar");
+          let numero = reconocido.split(" ")[1]
+          switch(numero){
+            case "cero":clientes.splice(0,1);break;
+            case "uno":clientes.splice(1,1);break;
+            case "dos":clientes.splice(2,1);break;
+            case "tres":clientes.splice(3,1);break;
+            case "cuatro":clientes.splice(4,1);break;
+            case "cinco":clientes.splice(5,1);break;
+          }
+          pintaTabla()
+          break;
+         case "insertar":console.log("Vamos a insertar");break;
+         case "actualizar":console.log("Vamos a actualizar");break;
+         case "leer":console.log("Vamos a leer");break;
+      }
+      
+    }
+    
+    document.getElementById("start").onclick = () => rec.start();
+  </script>
+</html>

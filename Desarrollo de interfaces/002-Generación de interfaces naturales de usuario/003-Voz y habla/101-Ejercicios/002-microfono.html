@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="es">
+  <meta charset="utf-8" />
+  <title>Speech Recognition (mínimo)</title>
+  <button id="start">🎙️ Escuchar</button>
+  <div id="out"></div>
+  <script>
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SpeechRecognition();
+    rec.lang = "es-ES";
+    rec.interimResults = false;
+    
+    rec.onresult = function(e){ 
+      document.getElementById("out").textContent = e.results[0][0].transcript;
+      
+      
+    }
+    
+    document.getElementById("start").onclick = () => rec.start();
+  </script>
+</html>

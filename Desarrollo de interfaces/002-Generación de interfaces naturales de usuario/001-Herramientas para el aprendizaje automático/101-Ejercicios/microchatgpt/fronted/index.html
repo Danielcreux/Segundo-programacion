@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Micro ChatGPT with Ollama</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Micro ChatGPT</h1>
+            <div class="status" id="status">
+                <span class="status-dot"></span>
+                <span>Checking Ollama connection...</span>
+            </div>
+        </header>
+
+        <div class="controls">
+            <select id="modelSelect">
+                <option value="">Loading models...</option>
+            </select>
+            <button id="refreshModels">🔄</button>
+        </div>
+
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="message bot-message">
+                    <div class="avatar">🤖</div>
+                    <div class="content">
+                        Hello! I'm your AI assistant powered by Ollama. How can I help you today?
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-container">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="Type your message here..." 
+                        rows="3"
+                    ></textarea>
+                    <button id="sendButton">Send</button>
+                </div>
+                <div class="hint">
+                    Press Enter to send, Shift+Enter for new line
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

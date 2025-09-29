@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            canvas{
+                border:1px solid grey;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas width=512 height=512></canvas>
+        <script>
+            const lienzo = document.querySelector("canvas");
+            const contexto = lienzo.getContext("2d");
+            
+           
+            class Particula{
+                
+                constructor(){ 
+                this.posx = Math.random()*512;
+                this.posy = Math.random()*512;
+                this.direccion = Math.random()*Math.PI*2;
+                }
+                
+                dibuja(){
+                  contexto.beginPath();
+                   contexto.arc(this.posx,this.posy,5,0,Math.PI*2)
+                  contexto.fill()
+                }
+                mueve(){
+                    this.direccion += (Math.random()-0.5)*0.5
+                    this.posx += Math.cos(this.direccion)
+                    this.posy += Math.sin(this.direccion)
+                }
+            
+            }
+            
+            var particulas = []
+            var numeroparticulas = 100;
+            for(let i=0;i<numeroparticulas;i++){
+                particulas.push(new Particula())
+            }
+            
+            var temporizador = setTimeout("bucle()",1000)
+            
+            function bucle(){
+                contexto.clearRect(0,0,512,512)
+                
+                particulas.forEach(function(particula){
+                    particula.mueve();
+                    particula.dibuja();              
+                })
+                // Vuelvo a ejecutar 
+                clearTimeout(temporizador)
+                temporizador = setTimeout("bucle()",10)
+            }
+        </script>
+    </body>
+</html>

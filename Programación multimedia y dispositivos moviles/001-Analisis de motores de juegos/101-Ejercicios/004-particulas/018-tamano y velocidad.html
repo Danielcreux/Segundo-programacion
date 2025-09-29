@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+  <head>
+    <style>canvas{border:0px solid grey;}html,body{padding:0px;margin:0px;overflow:hidden;}</style>
+  </head>
+  <body>
+    <canvas width=512 height=512></canvas>
+    <script>
+      const anchuraventana = window.innerWidth
+      const alturaventana = window.innerHeight
+      const lienzo = document.querySelector("canvas");
+      lienzo.width = anchuraventana
+      lienzo.height = alturaventana
+      const contexto = lienzo.getContext("2d");
+        
+      class Particula{
+        
+        constructor(){
+          this.posx = Math.random() * anchuraventana;
+          this.posy = Math.random() * alturaventana;
+          this.direccion = Math.random() * Math.PI * 2;
+          this.rojo = Math.round(Math.random()*255)
+          this.verde = Math.round(Math.random()*255)
+          this.azul = Math.round(Math.random()*255)
+          this.velocidad = Math.random()*0.5;
+          this.tamanio = Math.random()*10+1
+        }
+        
+        dibuja(){
+          contexto.fillStyle = "rgb("+this.rojo+","+this.verde+","+this.azul+")"
+          contexto.beginPath();
+          contexto.arc(this.posx,this.posy,this.tamanio,0,Math.PI*2)
+          contexto.fill()
+        }
+        
+        mueve(){
+          this.direccion += (Math.random()-0.5)*0.5
+          this.posx += Math.cos(this.direccion)*this.velocidad
+          this.posy += Math.sin(this.direccion)*this.velocidad
+        }
+        
+        colision(){
+          if(
+            this.posx < 0 || 
+            this.posx > anchuraventana || 
+            this.posy < 0 || 
+            this.posy > alturaventana){
+              this.direccion += Math.PI
+            }
+        }
+        
+        getPosicion(){
+          return {"x":this.posx,"y":this.posy}
+        }
+        
+      }
+      
+      var particulas = []
+      var numeroparticulas = 100;
+      for(let i = 0;i<numeroparticulas;i++){
+        particulas.push(new Particula())
+      }
+      
+      
+      var temporizador = setTimeout("bucle()",1000)
+      
+      function bucle(){ 
+        contexto.fillStyle = "rgba(255,255,255,0.1)"
+        contexto.fillRect(0,0,anchuraventana,alturaventana)
+        
+        particulas.forEach(function(particula){
+          particula.colision();
+          particula.mueve();
+          particula.dibuja();
+        })
+        for(let i = 0;i<particulas.length;i++){
+          for(let j = 0;j<particulas.length;j++){
+            if(i != j){
+              if(
+              Math.abs(particulas[i].getPosicion().x - particulas[j].getPosicion().x) < 10
+              &&
+              Math.abs(particulas[i].getPosicion().y - particulas[j].getPosicion().y) < 10
+            ){
+              particulas[i].direccion += Math.PI
+              particulas[j].direccion += Math.PI
+              }
+              if(
+              Math.abs(particulas[i].getPosicion().x - particulas[j].getPosicion().x) < 50
+              &&
+              Math.abs(particulas[i].getPosicion().y - particulas[j].getPosicion().y) < 50
+            ){
+            contexto.strokeStyle = "rgb(127,127,127)"
+              contexto.beginPath()
+              contexto.moveTo(
+                particulas[i].getPosicion().x,
+                particulas[i].getPosicion().y)
+                contexto.lineTo(
+              particulas[j].getPosicion().x,
+                particulas[j].getPosicion().y
+               )
+               contexto.stroke()
+              }
+              
+            }
+          }
+        }
+       
+        // Vuelvo a ejecutar
+        clearTimeout(temporizador)
+        temporizador = setTimeout("bucle()",10)
+      }
+      
+      // Ahora interactuo con el proyecto
+      lienzo.onclick = function(event){
+        particulas.push(new Particula())
+        particulas[particulas.length-1].posx = event.x
+        particulas[particulas.length-1].posy = event.y
+      }
+      lienzo.onmousemove = function(event){
+        particulas.forEach(function(particula){
+          if(
+            Math.abs(event.x - particula.posx) < 100 &&
+            Math.abs(event.y - particula.posy) < 100
+          ){
+            
+            angulo = angleBetweenPoints(
+                          event.x, 
+                          event.y, 
+                          particula.posx, 
+                          particula.posy
+                         )
+            
+            particula.direccion = angulo.radians
+            particula.posx += Math.cos(particula.direccion)*1
+            particula.posy += Math.sin(particula.direccion)*1
+          }
+        })
+      }
+      
+      function angleBetweenPoints(x1, y1, x2, y2) {
+        // Calculate deltas
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        
+        // atan2 gives angle in radians between -π and π
+        let angleRadians = Math.atan2(dy, dx);
+        
+        // Convert to degrees (optional)
+        let angleDegrees = angleRadians * (180 / Math.PI);
+
+        return {
+          radians: angleRadians,
+          degrees: angleDegrees
+        };
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            canvas{
+                border:1px solid grey;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas width=512 height=512></canvas>
+        <script>
+            const lienzo = document.querySelector("canvas");
+            const contexto = lienzo.getContext("2d");
+            
+            var posx = 256
+            var posy = 256
+            
+            contexto.beginPath();
+            contexto.arc(posx,posy,20,0,Math.PI*2)
+            contexto.fill()
+        </script>
+    </body>
+</html>

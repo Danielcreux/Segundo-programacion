@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head>
+    <style></style>
+  </head>
+  <body>
+    <canvas width=512 height=512></canvas>
+    <script>
+      // Declarar las clases reutilizable (objetos del juego)
+      
+      class Jugador{
+         constructor(){
+            this.posx = 256;
+            this.posy = 256;
+            this.angulo = 0
+         }
+         dibuja(){
+            contexto.fillStyle = "red"
+            contexto.beginPath()
+            contexto.arc(this.posx,this.posy,5,0,Math.PI*2)
+            contexto.fill()
+         }
+      }
+      
+      class Roca{
+      
+      }
+      
+      class Bala{
+        
+      }
+    
+      // Condiciones de inicio
+      const lienzo = document.querySelector("canvas");
+      const contexto = lienzo.getContext("2d");
+      // Instancio las clases necesarias
+      var jugador = new Jugador()
+      
+      // Entramos en el bucle
+      
+      var temporizador = setTimeout("bucle()",1000)
+      
+      function bucle(){
+        contexto.clearRect(0,0,512,512)
+        jugador.dibuja()
+        console.log("Estoy en el bucle")
+        clearTimeout(temporizador)
+        temporizador = setTimeout("bucle()",1000)
+      }
+    </script>
+  </body>
+</html>

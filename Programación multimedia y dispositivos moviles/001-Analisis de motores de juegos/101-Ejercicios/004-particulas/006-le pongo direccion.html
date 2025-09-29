@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            canvas{
+                border:1px solid grey;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas width=512 height=512></canvas>
+        <script>
+            const lienzo = document.querySelector("canvas");
+            const contexto = lienzo.getContext("2d");
+            
+            var posx = 256
+            var posy = 256
+            var direccion = 0
+           
+            
+            var temporizador = setTimeout("bucle()",1000)
+            
+            function bucle(){
+                contexto.clearRect(0,0,512,512)
+                // Actualizo posiciones
+                direccion += (Math.random()-0.5)*0.5
+                posx += Math.cos(direccion)
+                posy += Math.sin(direccion)
+                //Dibujo
+                contexto.beginPath();
+                contexto.arc(posx,posy,5,0,Math.PI*2)
+                contexto.fill()
+                
+                // Vuelvo a ejecutar 
+                clearTimeout(temporizador)
+                temporizador = setTimeout("bucle()",10)
+            }
+        </script>
+    </body>
+</html>

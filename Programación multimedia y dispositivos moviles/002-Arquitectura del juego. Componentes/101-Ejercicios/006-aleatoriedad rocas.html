@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+  <head>
+    <style></style>
+  </head>
+  <body>
+    <canvas width=512 height=512></canvas>
+    <script>
+      // Declarar las clases reutilizable (objetos del juego)
+      
+      class Jugador{
+         constructor(){
+            this.posx = 256;
+            this.posy = 256;
+            this.angulo = 0
+         }
+         dibuja(){
+            contexto.fillStyle = "red"
+            contexto.beginPath()
+            contexto.arc(this.posx,this.posy,5,0,Math.PI*2)
+            contexto.fill()
+         }
+      }
+      
+      class Roca{
+        constructor(){
+            this.posx = Math.random()*512;
+            this.posy = Math.random()*512;
+            this.angulo = 0
+            this.lados = Math.round(Math.random()*20+5)
+            this.radio = Math.random()*20+10
+            const rugosidad = 0.4;
+            this.puntas = Array.from({length:this.lados}, () => 1 + (Math.random()*2 - 1) * rugosidad);
+
+         }
+         dibuja(){
+            contexto.beginPath();
+            for(let i = 0; i < this.lados; i++){
+              const ang = (i/this.lados)*Math.PI*2 + this.angulo;
+              const r   = this.radio * this.puntas[i];
+              const x   = this.posx + Math.cos(ang)*r;
+              const y   = this.posy + Math.sin(ang)*r;
+              if(i===0) contexto.moveTo(x,y); else contexto.lineTo(x,y);
+            }
+            contexto.closePath();
+            contexto.strokeStyle = "#333";
+            contexto.stroke();
+           }
+      }
+      
+      class Bala{
+        
+      }
+    
+      // Condiciones de inicio
+      const lienzo = document.querySelector("canvas");
+      const contexto = lienzo.getContext("2d");
+      // Instancio las clases necesarias
+      var jugador = new Jugador()
+      var rocas = []
+      var numerorocas = 10;
+      for(let i = 0;i<numerorocas;i++){
+        rocas.push(new Roca())
+      }
+      
+      // Entramos en el bucle
+      
+      var temporizador = setTimeout("bucle()",1000)
+      
+      function bucle(){
+        contexto.clearRect(0,0,512,512)
+        jugador.dibuja()
+        console.log("Estoy en el bucle")
+        rocas.forEach(function(roca){
+          roca.dibuja()
+        })
+        clearTimeout(temporizador)
+        temporizador = setTimeout("bucle()",1000)
+      }
+    </script>
+  </body>
+</html>

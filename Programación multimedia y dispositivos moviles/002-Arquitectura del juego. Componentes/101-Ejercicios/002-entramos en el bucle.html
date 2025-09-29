@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+  <head>
+    <style></style>
+  </head>
+  <body>
+    <canvas width=512 height=512></canvas>
+    <script>
+      // Declarar las clases reutilizable (objetos del juego)
+    
+      // Condiciones de inicio
+      
+      // Entramos en el bucle
+      
+      var temporizador = setTimeout("bucle()",1000)
+      
+      function bucle(){
+        console.log("Estoy en el bucle")
+        clearTimeout(temporizador)
+        temporizador = setTimeout("bucle()",1000)
+      }
+    </script>
+  </body>
+</html>
