@@ -1,6 +1,6 @@
 import os
 
-ruta = "/var/www/html/dam2526"
+ruta = "C:\\xampp\\htdocs\\Segundo-programacion"
 
 for directorio, subdirectorios, archivos in os.walk(ruta):
     # Calculate the level by counting separators relative to the root

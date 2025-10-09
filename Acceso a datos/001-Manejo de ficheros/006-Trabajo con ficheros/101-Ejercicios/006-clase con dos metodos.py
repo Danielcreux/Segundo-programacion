@@ -21,9 +21,9 @@ class GestorCSV:
 gestor = GestorCSV()
 
 # Escribir una tupla
-gestor.escribir(("Jose Vicente", "Carratala", "info@jocarsa.com"))
+gestor.escribir(("Joshue Daniel", "Freire", "info@joshue.com"))
 
 # Leer la primera línea como tupla
 resultado = gestor.leer()
-print(resultado)        # ('Jose Vicente', 'Carratala', 'info@jocarsa.com')
+print(resultado)      
 print(type(resultado))  # <class 'tuple'>

@@ -4,5 +4,4 @@ archivo = open("clientes.csv",'a')
 cadena = ""
 for campo in tupla:
     cadena += campo+","
-    archivo.write(tupla)
-    archivo.close()
+archivo.write(tupla)
