@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+  <body>
+    <div id="output"></div>
+    <script>
+      let numerodenucleos = navigator.hardwareConcurrency
+      let workers = [];
+      let numeroworkers = numerodenucleos;
+      console.log(numerodenucleos)
+      
+      let paquete = "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga antigua, rocín flaco y galgo corredor. Una olla de algo más vaca que carnero, salpicón las más noches, duelos y quebrantos los sábados, lentejas los viernes, algún palomino de añadidura los domingos, consumían las tres partes de su hacienda. El resto della concluían sayo de velarte, calzas de velludo para las fiestas con sus pantuflos de lo mismo, y los días de entresemana se honraba con su vellorí de lo más fino. Tenía en su casa una ama que pasaba de los cuarenta, y una sobrina que no llegaba a los veinte, y un mozo de campo y plaza, que así ensillaba el rocín como tomaba la podadera. Frisaba la edad de nuestro hidalgo con los cincuenta años; era de complexión recia, seco de carnes, enjuto de rostro, gran madrugador y amigo de la caza."
+      
+      let tokens = paquete.split(" ")
+      console.log(tokens)
+      let longitud = tokens.length
+      console.log(longitud)
+      let bloque = Math.ceil(longitud/numerodenucleos);
+      console.log(bloque);
+      let paquetes = []
+      
+      for(let i = 0;i<numerodenucleos;i++){
+        let copia = tokens
+        paquetes.push(copia.splice(i*bloque,bloque))
+      }
+      //console.log(paquetes)
+      
+      let semaforo = 0;
+      let recomponemos = []
+      
+      for(let i=0;i<numeroworkers;i++){
+        workers[i] = new Worker("007worker.js");
+        
+        // Canal de vuelta
+        workers[i].onmessage = e => {
+          console.log(e.data);
+          semaforo++;
+          recomponemos[i] = e.data 
+          if(semaforo == numerodenucleos){
+            console.log("hemos acabado")
+            console.log("ahora recomponemos los datos")
+            console.log(recomponemos)
+            let cadena = ""
+            for(let j = 0;j<recomponemos.length;j++){
+              for(let k = 0;k<recomponemos[j].length;k++){
+                cadena += recomponemos[j][k]+" "
+              }
+            }
+            console.log("hola:",cadena)
+          }
+        };
+        // Canal de ida
+        workers[i].postMessage(paquetes[i]);
+        
+      }
+       
+      
+      
+    </script>
+  </body>
+</html>

@@ -3,7 +3,7 @@ import hashlib
 import json
 
 try:
-    os.mkdir("secuenciales")
+    os.mkdir("hash")
     
 except:
      pass

@@ -1,0 +1,48 @@
+#listadodemodulos{
+    display:flex;
+}
+#listadodemodulos nav{
+    flex:1;
+    padding: 20px;
+    overflow-y:scroll;
+}
+
+#listadodemodulos nav ul{
+    list-style-type:none;
+    padding-left:30px;
+}
+
+#listadodemodulos nav ul li{
+    padding:10px;
+}
+#listadodemodulos section{
+    flex: 4;
+    display:grid;
+    grid-template-columns: auto auto auto;
+    gap:10px;
+}
+#listadodemodulos section article{
+    background: white;
+    min-width: 300px;
+    width: 95%;
+    height: 110px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    align-content: stretch;
+    padding: 10px;
+    margin: 10px;
+    border:1px solid var(--solido-fondo);
+}
+
+
+#listadodemodulos section article .logo{
+    font-size:30px;
+    flex:1;
+}
+
+#listadodemodulos section article .texto{
+    flex:4;
+}

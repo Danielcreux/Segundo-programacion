@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <body>
+    <div id="output"></div>
+    <script>
+      let workers = [];
+      let numeroworkers = 8;
+      
+      for(let i=0;i<numeroworkers;i++){
+        workers[i] = new Worker("005worker.js");
+        
+        // Canal de vuelta
+        workers[i].onmessage = e => {
+          console.log(e.data);
+        };
+        // Canal de ida
+        workers[i].postMessage("Hola desde el hilo principal al worker");
+        
+      }
+       
+      
+      
+    </script>
+  </body>
+</html>

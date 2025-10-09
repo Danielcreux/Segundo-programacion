@@ -13,6 +13,7 @@ lineas = archivo.readlines()
 for linea in lineas:
     print(linea)
     
+    
 #Archivo aprendizamos en archivos 
 
 archivo = open("clientes.txt",'a')

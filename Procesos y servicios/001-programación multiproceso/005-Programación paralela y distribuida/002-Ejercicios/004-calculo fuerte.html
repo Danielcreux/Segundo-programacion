@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <body>
+    <div id="output"></div>
+    <script>
+      let worker;
+
+      worker = new Worker("004worker.js");
+      // Canal de vuelta
+      worker.onmessage = e => {
+        console.log(e.data);
+      };
+      // Canal de ida
+      worker.postMessage("Hola desde el hilo principal al worker");
+      
+    </script>
+  </body>
+</html>

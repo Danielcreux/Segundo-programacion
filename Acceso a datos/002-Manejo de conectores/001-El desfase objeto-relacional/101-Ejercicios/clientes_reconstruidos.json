@@ -1,0 +1,139 @@
+{
+  "clientes": [
+    {
+      "id": "CLI-001",
+      "informacion_personal": {
+        "nombre": "Ana García",
+        "apellidos": "López Martínez",
+        "dni": "12345678A",
+        "edad": 34,
+        "fecha_nacimiento": "1990-05-15",
+        "genero": "Femenino",
+        "nacionalidad": "Española"
+      },
+      "contacto": {
+        "emails": [
+          {
+            "tipo": "personal",
+            "direccion": "ana.garcia@email.com",
+            "verificado": true,
+            "fecha_verificacion": "2023-01-10",
+            "preferido": true
+          }
+        ],
+        "telefonos": [
+          {
+            "tipo": "movil",
+            "numero": "+34 612 345 678",
+            "pais": "ES",
+            "operadora": "Movistar",
+            "activo": true,
+            "fecha_activacion": "2022-03-15"
+          }
+        ],
+        "redes_sociales": [
+          {
+            "plataforma": "LinkedIn",
+            "usuario": "ana-garcia-lopez",
+            "url": "https://linkedin.com/in/ana-garcia-lopez",
+            "seguidores": 450,
+            "verificada": true
+          }
+        ]
+      },
+      "direcciones": [
+        {
+          "tipo": "principal",
+          "calle": "Calle Gran Vía 123",
+          "piso": "4ºB",
+          "codigo_postal": "28013",
+          "ciudad": "Madrid",
+          "provincia": "Madrid",
+          "pais": "España",
+          "coordenadas": {
+            "latitud": 40.419954,
+            "longitud": -3.703795
+          },
+          "fecha_registro": "2020-06-01",
+          "activa": true
+        }
+      ],
+      "empleo": {
+        "empresa_actual": {
+          "nombre": "TechSolutions S.L.",
+          "cargo": "Desarrolladora Senior",
+          "departamento": "Tecnología",
+          "fecha_inicio": "2020-09-01",
+          "salario_anual": 55000,
+          "moneda": "EUR",
+          "tipo_contrato": "Indefinido",
+          "jornada": "Completa",
+          "direccion_oficina": {
+            "edificio": "Torre Negra",
+            "calle": "Paseo de la Castellana 89",
+            "ciudad": "Madrid",
+            "codigo_postal": "28046"
+          },
+          "beneficios": ["Seguro médico", "Ticket restaurante"]
+        },
+        "historial_laboral": [
+          {
+            "empresa": "DigitalMind Corp",
+            "cargo": "Desarrolladora Full-Stack",
+            "fecha_inicio": "2018-03-01",
+            "fecha_fin": "2020-08-31",
+            "motivo_salida": "Oferta mejor remunerada"
+          }
+        ]
+      },
+      "educacion": {
+        "nivel_maximo": "Universidad",
+        "estudios": [
+          {
+            "titulacion": "Grado en Ingeniería Informática",
+            "institucion": "Universidad Politécnica de Madrid",
+            "fecha_inicio": "2012-09-01",
+            "fecha_fin": "2016-06-30",
+            "puntuacion": 8.2,
+            "especialidad": "Ingeniería del Software"
+          }
+        ],
+        "certificaciones": [
+          {
+            "nombre": "AWS Solutions Architect",
+            "institucion": "Amazon Web Services",
+            "fecha_obtencion": "2022-03-15",
+            "fecha_expiracion": "2025-03-15",
+            "id_certificacion": "AWS-SA-12345"
+          }
+        ]
+      },
+      "preferencias": {
+        "comunicacion": {
+          "canal_preferido": "email",
+          "frecuencia_newsletter": "semanal",
+          "acepta_marketing": true,
+          "idioma": "es-ES",
+          "zona_horaria": "Europe/Madrid"
+        },
+        "productos_interes": ["tecnologia", "libros"],
+        "categorias_favoritas": [
+          {
+            "categoria": "Tecnología",
+            "nivel_interes": 5,
+            "ultima_visita": "2024-01-15"
+          }
+        ]
+      },
+      "metadatos": {
+        "fecha_registro": "2020-01-15T10:30:00Z",
+        "fecha_ultima_actualizacion": "2024-01-20T14:25:00Z",
+        "usuario_registro": "sistema",
+        "ip_registro": "192.168.1.100",
+        "estado": "activo",
+        "puntuacion_riesgo": 25,
+        "segmento": "premium"
+      }
+    }
+  ]
+}

@@ -1,0 +1,342 @@
+
+/* 1) Reset sutil + tipografía */
+[data-namespace="erp"] *, 
+[data-namespace="erp"] *::before, 
+[data-namespace="erp"] *::after { box-sizing: border-box; }
+[data-namespace="erp"] html, 
+[data-namespace="erp"] body { height: 100%; }
+[data-namespace="erp"] body {
+  margin: 0;
+  font-family: 'Ubuntu', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--erp-bg);
+  color: var(--erp-fg);
+  overflow: hidden; /* app layout */
+}
+
+/* 2) Paleta, elevación y motion — namespaced tokens */
+[data-namespace="erp"] {
+  /* Base */
+  --erp-brand: #4682b4;          /* steelblue */
+  --erp-brand-600: #3e74a0;
+  --erp-brand-700: #355f83;
+  --erp-brand-800: #2b4a66;
+
+  --erp-bg: #f3f5f9;
+  --erp-bg-2: #ffffff;
+  --erp-fg: #1f2937;
+  --erp-muted: #6b7280;
+  --erp-border: #d6dde8;
+
+  /* Estados */
+  --erp-ok: #10b981;
+  --erp-warn: #f59e0b;
+  --erp-info: #3b82f6;
+  --erp-danger: #ef4444;
+
+  /* Sombras y radios */
+  --erp-radius: 14px;
+  --erp-shadow-1: 0 6px 18px rgba(0,0,0,.08);
+  --erp-shadow-2: 0 10px 30px rgba(0,0,0,.12);
+
+  /* Header sólido (compat con tu CSS) */
+  --solido-fondo: var(--erp-brand);
+  --solido-frente: #ffffff;
+
+  /* Accesibilidad motion */
+  --erp-ease: cubic-bezier(.2,.7,.2,1);
+  --erp-speed: .18s;
+}
+
+/* 2.1) Dark mode (opcional) usando data-theme o preferencia del SO */
+@media (prefers-color-scheme: dark) {
+  [data-namespace="erp"]:not([data-theme="light"]) {
+    --erp-bg: #0f172a;
+    --erp-bg-2: #0b1324;
+    --erp-fg: #e5e7eb;
+    --erp-muted: #94a3b8;
+    --erp-border: #243145;
+    --solido-fondo: #1e3a8a;
+    --solido-frente: #e5e7eb;
+    --erp-shadow-1: 0 6px 18px rgba(0,0,0,.45);
+    --erp-shadow-2: 0 10px 30px rgba(0,0,0,.6);
+  }
+}
+[data-namespace="erp"][data-theme="light"] { /* fuerza claro */ }
+[data-namespace="erp"][data-theme="dark"] {
+  --erp-bg: #0f172a;
+  --erp-bg-2: #0b1324;
+  --erp-fg: #e5e7eb;
+  --erp-muted: #94a3b8;
+  --erp-border: #243145;
+  --solido-fondo: #1e3a8a;
+  --solido-frente: #e5e7eb;
+}
+
+/* 3) Elementos comunes */
+[data-namespace="erp"] a { color: var(--erp-brand); text-decoration: none; }
+[data-namespace="erp"] a:hover { text-decoration: underline; }
+[data-namespace="erp"] button, 
+[data-namespace="erp"] input, 
+[data-namespace="erp"] select {
+  font: inherit;
+}
+
+/* Botones */
+[data-namespace="erp"] button {
+  border: 0; 
+  padding: .7rem 1rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--erp-brand), var(--erp-brand-700));
+  color: #fff;
+  box-shadow: var(--erp-shadow-1);
+  cursor: pointer;
+  transition: transform var(--erp-speed) var(--erp-ease), box-shadow var(--erp-speed) var(--erp-ease), filter var(--erp-speed);
+}
+[data-namespace="erp"] button:hover { transform: translateY(-1px); box-shadow: var(--erp-shadow-2); }
+[data-namespace="erp"] button:active { transform: translateY(0); filter: saturate(.95); }
+
+/* Inputs */
+[data-namespace="erp"] input[type="text"],
+[data-namespace="erp"] input[type="password"],
+[data-namespace="erp"] input[type="search"],
+[data-namespace="erp"] select {
+  width: 100%;
+  border: 1px solid var(--erp-border);
+  background: var(--erp-bg-2);
+  color: var(--erp-fg);
+  padding: .65rem .8rem;
+  border-radius: 10px;
+  outline: none;
+  transition: box-shadow var(--erp-speed), border-color var(--erp-speed);
+}
+[data-namespace="erp"] input:focus,
+[data-namespace="erp"] select:focus {
+  border-color: color-mix(in srgb, var(--erp-brand) 50%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--erp-brand) 20%, transparent);
+}
+
+/* 4) Cabecera (compat con #superior y #inferior) */
+[data-namespace="erp"] #superior {
+  background: linear-gradient(135deg, var(--solido-fondo), color-mix(in srgb, var(--solido-fondo) 75%, #0000));
+  color: var(--solido-frente);
+  padding: 16px 22px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 700;
+  letter-spacing: .2px;
+  box-shadow: var(--erp-shadow-1);
+}
+[data-namespace="erp"] #superior nav { display: flex; gap: 14px; align-items: center; }
+
+[data-namespace="erp"] #inferior {
+  background: var(--erp-bg-2);
+  color: var(--erp-fg);
+  padding: 12px 18px;
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--erp-border);
+  position: sticky; top: 0; z-index: 8;
+}
+[data-namespace="erp"] #inferior nav { display: flex; gap: 14px; align-items: center; }
+[data-namespace="erp"] #inferior input[type="search"] {
+  min-width: 260px;
+  background: color-mix(in srgb, var(--erp-bg-2) 85%, #ffffff 15%);
+}
+
+/* Paginación y vista */
+[data-namespace="erp"] #paginacion { display:flex; gap:.5rem; align-items:center; font-weight:600; }
+[data-namespace="erp"] #vista { display:flex; gap:.35rem; font-size:1.1rem; }
+
+/* 5) Listado de módulos (compat con #listadodemodulos) */
+[data-namespace="erp"] #listadodemodulos {
+  display: grid; grid-template-columns: 280px 1fr;
+  gap: 18px; height: calc(100vh - 120px); /* vista app */
+  padding: 18px; 
+}
+@media (max-width: 900px) {
+  [data-namespace="erp"] #listadodemodulos { grid-template-columns: 1fr; height: auto; overflow: visible; }
+}
+
+[data-namespace="erp"] #listadodemodulos nav {
+  padding: 18px;
+  background: var(--erp-bg-2);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius);
+  overflow: auto;
+  box-shadow: var(--erp-shadow-1);
+}
+[data-namespace="erp"] #listadodemodulos nav ul { list-style: none; padding-left: 0; margin: 0; }
+[data-namespace="erp"] #listadodemodulos nav ul li {
+  padding: .6rem .75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--erp-fg);
+  transition: background var(--erp-speed), transform var(--erp-speed);
+}
+[data-namespace="erp"] #listadodemodulos nav ul li:hover {
+  background: color-mix(in srgb, var(--erp-brand) 10%, var(--erp-bg));
+  transform: translateX(2px);
+}
+
+[data-namespace="erp"] #listadodemodulos section {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  overflow: auto;
+  padding-right: 4px;
+}
+[data-namespace="erp"] #listadodemodulos section article {
+  background: var(--erp-bg-2);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius);
+  box-shadow: var(--erp-shadow-1);
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  min-height: 110px;
+  padding: 12px 14px;
+  transition: transform var(--erp-speed) var(--erp-ease), box-shadow var(--erp-speed);
+}
+[data-namespace="erp"] #listadodemodulos section article:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--erp-shadow-2);
+}
+[data-namespace="erp"] #listadodemodulos section article .logo {
+  font-size: 40px; display: grid; place-items: center;
+  width: 56px; height: 56px; border-radius: 14px;
+  background: color-mix(in srgb, var(--erp-brand) 12%, var(--erp-bg));
+  border: 1px solid color-mix(in srgb, var(--erp-brand) 25%, var(--erp-border));
+}
+[data-namespace="erp"] #listadodemodulos section article .texto h3 {
+  margin: 0 0 .25rem; font-size: 1.05rem;
+}
+[data-namespace="erp"] #listadodemodulos section article .texto p {
+  margin: 0 0 .6rem; color: var(--erp-muted); line-height: 1.35;
+}
+
+/* 6) Kanban (compat con #kanban) */
+[data-namespace="erp"] #kanban {
+  width: 100%; height: calc(100vh - 120px);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px; padding: 18px;
+  overflow: auto;
+}
+@media (max-width: 1200px) {
+  [data-namespace="erp"] #kanban { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  [data-namespace="erp"] #kanban { grid-template-columns: 1fr; }
+}
+
+[data-namespace="erp"] #kanban .columna {
+  background: var(--erp-bg-2);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius);
+  padding: 12px;
+  box-shadow: var(--erp-shadow-1);
+  display: flex; flex-direction: column; gap: 10px;
+  min-height: 240px;
+  transition: border-color var(--erp-speed), box-shadow var(--erp-speed), transform var(--erp-speed);
+  position: relative;
+}
+[data-namespace="erp"] #kanban .columna::before {
+  content: attr(data-title);
+  position: sticky; top: 0; left: 0; right: 0;
+  display: block;
+  padding: 6px 8px 10px;
+  font-weight: 700; color: var(--erp-muted); text-transform: uppercase; letter-spacing: .4px;
+  background: linear-gradient(0deg, transparent 0%, color-mix(in srgb, var(--erp-bg-2) 70%, transparent) 100%);
+  backdrop-filter: blur(2px);
+  z-index: 2;
+}
+[data-namespace="erp"] #kanban .columna.over {
+  border-color: color-mix(in srgb, var(--erp-brand) 50%, var(--erp-border));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--erp-brand) 20%, transparent), var(--erp-shadow-1);
+  transform: translateY(-2px);
+}
+
+[data-namespace="erp"] #kanban .tarjeta {
+  background: var(--erp-bg-2);
+  border: 1px solid var(--erp-border);
+  border-radius: 12px;
+  padding: 12px 12px 28px;
+  min-height: 90px;
+  box-shadow: var(--erp-shadow-1);
+  position: relative;
+  transition: transform var(--erp-speed), box-shadow var(--erp-speed), border-color var(--erp-speed);
+  line-height: 1.35;
+  color: var(--erp-fg);
+}
+[data-namespace="erp"] #kanban .tarjeta:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--erp-shadow-2);
+}
+[data-namespace="erp"] #kanban .tarjeta:active { transform: translateY(0); }
+[data-namespace="erp"] #kanban .tarjeta input[type="color"]{
+  appearance: none;
+  border: 1px solid var(--erp-border);
+  outline: none;
+  width: 18px; height: 18px;
+  border-radius: 6px;
+  position: absolute; top: 10px; right: 10px;
+  background: transparent; padding: 0;
+  cursor: pointer;
+}
+
+/* 7) Login card (compat con /iniciarsesion) */
+[data-namespace="erp"] body.login {
+  display: grid; place-items: center;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--erp-brand) 15%, transparent), transparent 60%),
+    radial-gradient(1000px 500px at 120% 10%, color-mix(in srgb, var(--erp-info) 15%, transparent), transparent 60%),
+    var(--erp-bg);
+}
+[data-namespace="erp"] body.login main {
+  width: min(95vw, 360px);
+  background: var(--erp-bg-2);
+  padding: 22px;
+  border-radius: var(--erp-radius);
+  box-shadow: var(--erp-shadow-2);
+  border: 1px solid var(--erp-border);
+  display: grid; gap: 12px; text-align: center;
+}
+[data-namespace="erp"] body.login h1 { margin: 0; }
+[data-namespace="erp"] #estado { color: var(--erp-danger); min-height: 1.2em; }
+
+/* 8) Utilidades */
+[data-namespace="erp"] .card {
+  background: var(--erp-bg-2);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius);
+  box-shadow: var(--erp-shadow-1);
+  padding: 14px;
+}
+[data-namespace="erp"] .muted { color: var(--erp-muted); }
+[data-namespace="erp"] .row { display: flex; gap: 10px; align-items: center; }
+[data-namespace="erp"] .spacer { flex: 1; }
+
+/* 9) Scrollbar bonita (WebKit y compatibles) */
+[data-namespace="erp"] * {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--erp-brand) 35%, var(--erp-border)) transparent;
+}
+[data-namespace="erp"] *::-webkit-scrollbar { height: 10px; width: 10px; }
+[data-namespace="erp"] *::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--erp-brand) 35%, var(--erp-border));
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+[data-namespace="erp"] *::-webkit-scrollbar-track { background: transparent; }
+
+/* 10) Micro-animaciones de entrada */
+@keyframes erp-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+[data-namespace="erp"] #listadodemodulos section article,
+[data-namespace="erp"] #kanban .tarjeta,
+[data-namespace="erp"] #listadodemodulos nav {
+  animation: erp-fade-up .28s var(--erp-ease) both;
+}

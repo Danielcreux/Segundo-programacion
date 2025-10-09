@@ -1,0 +1,297 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Asteroids-lite</title>
+    <style>
+      html,body{margin:0;padding:0;overflow:hidden;background:#000}
+      canvas{display:block}
+    </style>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script>
+      // ========== Utilidades ==========
+      function distancia(x1, y1, x2, y2) {
+        const dx = x2 - x1, dy = y2 - y1;
+        return Math.hypot(dx, dy);
+      }
+      function rand(min, max){ return Math.random()*(max-min)+min }
+
+      // ========== Clases ==========
+      class Jugador{
+        constructor(){
+          this.posx = anchura/2;
+          this.posy = altura/2;
+          this.angulo = 0;
+          this.velx = 0;
+          this.vely = 0;
+          this.aceleracion = 0.18;
+          this.rozamiento = 0.995;
+          this.velMax = 8;
+        }
+        dibuja(){
+          // Triángulo
+          const noseLen = 22, baseLen = 14, spread = Math.PI*0.75;
+          const noseX = this.posx + Math.cos(this.angulo)*noseLen;
+          const noseY = this.posy + Math.sin(this.angulo)*noseLen;
+          const leftX = this.posx + Math.cos(this.angulo + spread)*baseLen;
+          const leftY = this.posy + Math.sin(this.angulo + spread)*baseLen;
+          const rightX= this.posx + Math.cos(this.angulo - spread)*baseLen;
+          const rightY= this.posy + Math.sin(this.angulo - spread)*baseLen;
+
+          contexto.fillStyle = "white";
+          contexto.beginPath();
+          contexto.moveTo(noseX,noseY);
+          contexto.lineTo(leftX,leftY);
+          contexto.lineTo(rightX,rightY);
+          contexto.closePath();
+          contexto.fill();
+
+          // Punto rojo
+          contexto.fillStyle = "red";
+          contexto.beginPath();
+          contexto.arc(this.posx,this.posy,5,0,Math.PI*2);
+          contexto.fill();
+        }
+        aplicaThrust(on){
+          if(!on) return;
+          this.velx += Math.cos(this.angulo)*this.aceleracion;
+          this.vely += Math.sin(this.angulo)*this.aceleracion;
+          const v = Math.hypot(this.velx, this.vely);
+          if(v > this.velMax){
+            const f = this.velMax / v;
+            this.velx *= f; this.vely *= f;
+          }
+        }
+        mueve(){
+          this.velx *= this.rozamiento;
+          this.vely *= this.rozamiento;
+          this.posx += this.velx;
+          this.posy += this.vely;
+
+          // Mantenemos wrap para el jugador
+          if (this.posx < 0) this.posx += anchura;
+          if (this.posx > anchura) this.posx -= anchura;
+          if (this.posy < 0) this.posy += altura;
+          if (this.posy > altura) this.posy -= altura;
+        }
+      }
+
+      class Bala{
+        constructor(x,y,a){
+          this.posx = x; this.posy = y; this.angulo = a;
+          this.velocidad = 12;
+        }
+        dibuja(){
+          contexto.fillStyle = "dodgerblue";
+          contexto.beginPath();
+          contexto.arc(this.posx,this.posy,3,0,Math.PI*2);
+          contexto.fill();
+        }
+        mueve(){
+          this.posx += Math.cos(this.angulo)*this.velocidad;
+          this.posy += Math.sin(this.angulo)*this.velocidad;
+        }
+      }
+
+      class Estrella{
+        constructor(){
+          this.posx = Math.random()*anchura;
+          this.posy = Math.random()*altura;
+        }
+        dibuja(){
+          contexto.fillStyle = "white";
+          contexto.beginPath();
+          contexto.arc(this.posx,this.posy,1,0,Math.PI*2);
+          contexto.fill();
+        }
+      }
+
+      class Roca{
+        constructor(){
+          this.radio = Math.random()*20+10;
+          // Evitar spawnear demasiado cerca del jugador
+          let ok = false;
+          while(!ok){
+            this.posx = Math.random()*anchura;
+            this.posy = Math.random()*altura;
+            ok = distancia(this.posx,this.posy,jugador?.posx||anchura/2,jugador?.posy||altura/2) > 80;
+          }
+          this.angulo = Math.random()*Math.PI*2;
+          this.lados = Math.round(Math.random()*20+5);
+          const rugosidad = 0.4;
+          this.puntas = Array.from({length:this.lados}, () => 1 + (Math.random()*2 - 1) * rugosidad);
+          // Velocidad inicial
+          const v = Math.random()*1.6+0.4;
+          const dir = Math.random()*Math.PI*2;
+          this.vx = Math.cos(dir)*v;
+          this.vy = Math.sin(dir)*v;
+          this.rot = (Math.random()-0.5)*0.04;
+        }
+        dibuja(){
+          contexto.fillStyle = "grey";
+          contexto.beginPath();
+          for(let i=0;i<this.lados;i++){
+            const ang = (i/this.lados)*Math.PI*2 + this.angulo;
+            const r = this.radio * this.puntas[i];
+            const x = this.posx + Math.cos(ang)*r;
+            const y = this.posy + Math.sin(ang)*r;
+            if(i===0) contexto.moveTo(x,y); else contexto.lineTo(x,y);
+          }
+          contexto.closePath();
+          contexto.strokeStyle = "#333";
+          contexto.fill();
+        }
+        mueve(){
+          this.angulo += this.rot;
+          this.posx += this.vx;
+          this.posy += this.vy;
+
+          // Ricochet en bordes (considerando el radio)
+          if (this.posx - this.radio < 0){
+            this.posx = this.radio;
+            this.vx = -this.vx;
+          } else if (this.posx + this.radio > anchura){
+            this.posx = anchura - this.radio;
+            this.vx = -this.vx;
+          }
+          if (this.posy - this.radio < 0){
+            this.posy = this.radio;
+            this.vy = -this.vy;
+          } else if (this.posy + this.radio > altura){
+            this.posy = altura - this.radio;
+            this.vy = -this.vy;
+          }
+        }
+      }
+
+      // ========== Setup ==========
+      const anchura = window.innerWidth;
+      const altura  = window.innerHeight;
+      const lienzo = document.querySelector("canvas");
+      lienzo.width = anchura; lienzo.height = altura;
+      const contexto = lienzo.getContext("2d");
+
+      const jugador = new Jugador();
+
+      let estrellas = Array.from({length:100}, ()=>new Estrella());
+      let balas = [];
+
+      // Niveles
+      let level = 1;
+      let rocksPerLevel = 10; // base
+      let rocas = [];
+      let levelMessageTimer = 0; // frames restantes para mostrar “LEVEL N”
+
+      function spawnRocas(n){
+        for(let i=0;i<n;i++) rocas.push(new Roca());
+      }
+      function startLevel(){
+        rocas.length = 0;
+        spawnRocas(rocksPerLevel);
+        levelMessageTimer = 120; // ~2s a 60fps
+      }
+      startLevel();
+
+      // ========== Controles ==========
+      let giro = 0;       // -1 izq, 1 der
+      let thrust = false; // W
+
+      document.body.onkeydown = (e)=>{
+        switch(e.key){
+          case "a": giro = -1; break;
+          case "d": giro = 1;  break;
+          case "w": thrust = true; break;
+        }
+        if(e.code === "Space"){
+          balas.push(new Bala(jugador.posx, jugador.posy, jugador.angulo));
+        }
+      };
+      document.body.onkeyup = (e)=>{
+        switch(e.key){
+          case "a": if(giro === -1) giro = 0; break;
+          case "d": if(giro === 1)  giro = 0; break;
+          case "w": thrust = false; break;
+        }
+      };
+
+      // ========== Bucle ==========
+      let temporizador = null;
+      function drawLevelText(){
+        if(levelMessageTimer <= 0) return;
+        contexto.save();
+        contexto.font = "bold 48px sans-serif";
+        contexto.textAlign = "center";
+        contexto.textBaseline = "middle";
+        contexto.fillStyle = "white";
+        contexto.strokeStyle = "rgba(0,0,0,0.6)";
+        contexto.lineWidth = 6;
+        const msg = `LEVEL ${level}`;
+        contexto.strokeText(msg, anchura/2, altura*0.2);
+        contexto.fillText(msg, anchura/2, altura*0.2);
+        contexto.restore();
+        levelMessageTimer--;
+      }
+
+      function bucle(){
+        // Input
+        jugador.angulo += giro * 0.08;
+        jugador.aplicaThrust(thrust);
+
+        // Fondo
+        contexto.fillStyle = "black";
+        contexto.fillRect(0,0,anchura,altura);
+
+        // Estrellas
+        estrellas.forEach(e=>e.dibuja());
+
+        // Entidades
+        rocas.forEach(r=>{ r.dibuja(); r.mueve(); });
+        balas.forEach(b=>{ b.dibuja(); b.mueve(); });
+
+        // Jugador
+        jugador.mueve();
+        jugador.dibuja();
+
+        // Colisiones bala-roca
+        for(let i=rocas.length-1;i>=0;i--){
+          const roca = rocas[i];
+          for(let j=balas.length-1;j>=0;j--){
+            const bala = balas[j];
+            if(distancia(bala.posx,bala.posy,roca.posx,roca.posy) < roca.radio){
+              rocas.splice(i,1);
+              balas.splice(j,1);
+              break;
+            }
+          }
+        }
+
+        // Borrar balas fuera
+        for(let j=balas.length-1;j>=0;j--){
+          if(balas[j].posx<0 || balas[j].posx>anchura || balas[j].posy<0 || balas[j].posy>altura){
+            balas.splice(j,1);
+          }
+        }
+
+        // ¿Nivel completado?
+        if(rocas.length === 0){
+          level++;
+          rocksPerLevel *= 2; // duplicar
+          startLevel();
+        }
+
+        // HUD nivel (esquina)
+        contexto.fillStyle = "white";
+        contexto.font = "16px monospace";
+        contexto.fillText(`Level: ${level}`, 12, 22);
+
+        // Cartel de inicio de nivel
+        drawLevelText();
+
+        temporizador = setTimeout(bucle, 16); // ~60fps
+      }
+      temporizador = setTimeout(bucle, 16);
+    </script>
+  </body>
+</html>

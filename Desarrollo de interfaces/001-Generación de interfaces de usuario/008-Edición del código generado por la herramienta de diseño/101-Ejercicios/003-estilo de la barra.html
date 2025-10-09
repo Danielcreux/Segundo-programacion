@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Gráfica</title>
+        <style>
+        table{
+            font-family:sans-serif;
+        }
+        table td:first-child{
+            text-align: right;
+        }
+        .barra{
+            min-width:0px;
+            height:10px;
+            background: red;
+            border-radius: 5px;
+            padding: 5px;
+            color: white;
+            font-size: 10px;
+            line-height: 10px;
+            font-weight: bold;
+        }
+        </style>
+    </head>
+    <body>
+        <table>
+            <thead>
+                <tr>
+                    <th>Valor</th>
+                    <th>Gráfica</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>15</td>
+                    <td><div class="barra" style="width: 200px;">Etiqueta 1</div></td>
+                </tr>
+                <tr>
+                    <td>25</td>
+                    <td><div class="barra" style="width: 250px;">Etiqueta 2</div></td>
+                </tr>
+                <tr>
+                    <td>135</td>
+                    <td><div class="barra" style="width: 125px;">Etiqueta 3</div></td>
+                </tr>
+                <tr>
+                    <td>132</td>
+                    <td><div class="barra" style="width: 215px;">Etiqueta 4</div></td>
+                </tr>   
+            </tbody>
+        </table>
+    </body>
+</html>

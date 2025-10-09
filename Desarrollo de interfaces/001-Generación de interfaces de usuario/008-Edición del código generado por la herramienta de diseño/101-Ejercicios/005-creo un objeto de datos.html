@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Gráfica</title>
+        <style>
+        table{
+            font-family:sans-serif;
+        }
+        table td:first-child{
+            text-align: right;
+        }
+        .barra{
+            min-width:0px;
+            height:10px;
+            background: red;
+            border-radius: 5px;
+            padding: 5px;
+            color: white;
+            font-size: 10px;
+            line-height: 10px;
+            font-weight: bold;
+        }
+        </style>
+    </head>
+    <body>
+        <div class="grafica"></div>
+        <script>
+            let datos = [
+                {
+                "Etiqueta":"España",
+                "Valor":34
+                },
+                 {
+                "Etiqueta":"Francia",
+                "Valor":78  
+                },
+                 {
+                "Etiqueta":"Alemania",
+                "Valor":76
+                },
+                 {
+                "Etiqueta":"Austria",
+                "Valor":87
+                },
+                 {
+                "Etiqueta":"Italia",
+                "Valor":98
+                },
+                
+            ]
+            let grafica = document.querySelector(".grafica");
+            
+            let tabla = document.createElement("table");
+            grafica.appendChild(tabla)
+            
+            let cabecera = document.createElement("thead");
+            tabla.appendChild(cabecera)
+            
+            let filacabecera = document.createElement("tr");
+            filacabecera.innerHTML = "<th>Valor<th><th>Grafica</th>"
+            cabecera.appendChild(filacabecera)
+
+            let cuerpo = document.createElement("tbody");
+            tabla.appendChild(cuerpo);
+            
+            datos.forEach(function(dato){
+            
+                let fila = document.createElement("tr")
+                cuerpo.appendChild(fila);
+                
+                let valor = document.createElement("td")
+                valor.textContent = dato.Valor
+                fila.appendChild(valor)
+                let contienebarra = document.createElement("td")
+                let barra = document.createElement("div")
+                barra.classList.add("barra")
+                barra.textContent = dato.Etiqueta
+                barra.style.width = dato.Valor+"px"
+                contienebarra.appendChild(barra)
+                fila.appendChild(valor)
+                fila.appendChild(contienebarra)
+            
+            })
+        </script>
+    </body>
+</html>

@@ -1,0 +1,224 @@
+<!doctype html>
+<html>
+  <head>
+    <style></style>
+  </head>
+  <body>
+    <canvas width=512 height=512></canvas>
+    <script>
+      // Declarar las clases reutilizables (objetos del juego) ///////////////////////////////////////////////
+      function distancia(x1, y1, x2, y2) {
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      class Jugador{
+         constructor(){
+            this.posx = anchura/2;
+            this.posy = altura/2;
+            this.angulo = 0
+         }
+         dibuja(){
+            // Dibujo el circulo central
+            contexto.fillStyle = "red"
+            contexto.beginPath()
+            contexto.arc(this.posx,this.posy,5,0,Math.PI*2)
+            contexto.fill()
+            // Geometría del triángulo (nariz + 2 vértices traseros)
+            const noseLen = 22;     // largo hacia la “nariz”
+            const baseLen = 14;     // radio de los vértices traseros
+            const spread  = Math.PI * 0.75; // 135° de apertura respecto a la nariz
+
+            const noseX  = this.posx + Math.cos(this.angulo) * noseLen;
+            const noseY  = this.posy + Math.sin(this.angulo) * noseLen;
+
+            const leftX  = this.posx + Math.cos(this.angulo + spread) * baseLen;
+            const leftY  = this.posy + Math.sin(this.angulo + spread) * baseLen;
+
+            const rightX = this.posx + Math.cos(this.angulo - spread) * baseLen;
+            const rightY = this.posy + Math.sin(this.angulo - spread) * baseLen;
+
+            // Dibujo del triángulo
+            contexto.beginPath();
+            contexto.moveTo(noseX, noseY);
+            contexto.lineTo(leftX, leftY);
+            contexto.lineTo(rightX, rightY);
+            contexto.closePath();
+            contexto.lineWidth = 2;
+            contexto.strokeStyle = "#000";
+            contexto.stroke();
+         }
+         mueve(){
+          this.posx += Math.cos(this.angulo)
+          this.posy += Math.sin(this.angulo)
+         }
+      }
+      class Bala{
+        constructor(xinicial,yinicial,anguloinicial){
+            this.posx = xinicial;
+            this.posy = yinicial;
+            this.angulo = anguloinicial
+            this.velocidad = 5;
+         }
+         dibuja(){
+            // Dibujo el circulo central
+            contexto.fillStyle = "blue"
+            contexto.beginPath()
+            contexto.arc(this.posx,this.posy,5,0,Math.PI*2)
+            contexto.fill()
+         }
+         mueve(){
+          this.posx += Math.cos(this.angulo)*this.velocidad
+          this.posy += Math.sin(this.angulo)*this.velocidad
+         }
+      }
+      class Roca{
+        // Clase roca que crea rocas en la pantalla las cuales tenemos que destruir
+        constructor(){
+            // El constructor define siempre las condiciones de inicio de la clase
+            this.posx = Math.random()*anchura;
+            this.posy = Math.random()*altura;
+            this.angulo = Math.random()*Math.PI*2
+            this.lados = Math.round(Math.random()*20+5)
+            this.radio = Math.random()*20+10
+            const rugosidad = 0.4;
+            this.puntas = Array.from({length:this.lados}, () => 1 + (Math.random()*2 - 1) * rugosidad);
+
+         }
+         // Ahora creamos tantos métodos como sea necesario para definir el comportamiento de la clase
+         dibuja(){
+            contexto.beginPath();
+            for(let i = 0; i < this.lados; i++){
+              const ang = (i/this.lados)*Math.PI*2 + this.angulo;
+              const r   = this.radio * this.puntas[i];
+              const x   = this.posx + Math.cos(ang)*r;
+              const y   = this.posy + Math.sin(ang)*r;
+              if(i===0) contexto.moveTo(x,y); else contexto.lineTo(x,y);
+            }
+            contexto.closePath();
+            contexto.strokeStyle = "#333";
+            contexto.stroke();
+           }
+         mueve(){
+          this.angulo += (Math.random()-0.5)*0.1
+          this.posx += Math.cos(this.angulo)
+          this.posy += Math.sin(this.angulo)
+         }
+      }
+      
+     
+    
+      // Condiciones de inicio ///////////////////////////////////////////////////////////////////
+      // Variables globales a todo el programa
+      
+      const anchura = window.innerWidth
+      const altura = window.innerHeight
+      var giro = 0
+      var mueve = 0
+      
+      // Primero seleccionarmos el lienzo donde vamos a pintar
+      
+      const lienzo = document.querySelector("canvas");
+      lienzo.width = anchura
+      lienzo.height = altura
+      const contexto = lienzo.getContext("2d");
+      
+      // Instancio las clases necesarias 
+      
+      var jugador = new Jugador()
+      var rocas = []
+      var numerorocas = 10;
+      for(let i = 0;i<numerorocas;i++){
+        rocas.push(new Roca())
+      }
+      var balas = []
+      
+      // Controles de teclado
+      
+      document.querySelector("body").onkeydown = function(e){
+        switch(e.key){
+        
+          case "w":
+            mueve = 1
+            break;
+          case "s":
+            
+            break;
+          case "a":
+            giro = -1
+            break;
+          case "d":
+            giro = 1
+            break;
+          
+        }
+        switch(e.code){
+          case "Space":
+            balas.push(new Bala(jugador.posx,jugador.posy,jugador.angulo))
+            break;
+        }
+      }
+      document.querySelector("body").onkeyup = function(e){
+        switch(e.key){
+          case "w":
+            mueve = 0
+            break;
+          case "a":
+            giro = 0
+            break;
+          case "d":
+            giro = 0
+            break;
+          
+        }
+        
+      }
+      
+      // Entramos en el bucle ///////////////////////////////////////////////////////////////////////
+      
+      // Definimos un temporizador
+      
+      var temporizador = setTimeout("bucle()",1000)
+      
+      function bucle(){
+        // Controlamos el giro
+        jugador.angulo += giro/10
+        if(mueve == 1){
+          jugador.mueve()
+        }
+        // De una forma u otra, borro la pantalla para dibujar el siguiente fotograma
+        contexto.clearRect(0,0,anchura,altura)
+        // Generalmente, primero llamo al jugador (suele haber 1)
+        jugador.dibuja()
+        // Y a continuación llamo a NPC, props, lo que sea
+        rocas.forEach(function(roca){
+          roca.dibuja()
+          roca.mueve()
+        })
+        balas.forEach(function(bala){
+          bala.dibuja()
+          bala.mueve()
+        })
+        for(let i = rocas.length - 1; i >= 0; i--){
+          let roca = rocas[i];
+          for(let j = balas.length - 1; j >= 0; j--){
+            let bala = balas[j]
+            let midistancia = distancia(bala.posx, bala.posy, roca.posx, roca.posy);
+            if(midistancia < roca.radio){
+              rocas.splice(i,1); // quito la roca del array
+              balas.splice(j,1)
+            }
+          }
+        }
+        for(let j = balas.length - 1; j >= 0; j--){
+          if(balas[j].posx < 0 || balas[j].posx > anchura || balas[j].posy < 0 || balas[j].posy > altura){
+            balas.splice(j,1)
+          }
+        }
+        clearTimeout(temporizador)
+        temporizador = setTimeout("bucle()",100)
+      }
+    </script>
+  </body>
+</html>

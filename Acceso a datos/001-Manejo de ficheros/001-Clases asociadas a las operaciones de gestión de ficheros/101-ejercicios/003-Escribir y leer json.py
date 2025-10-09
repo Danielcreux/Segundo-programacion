@@ -15,4 +15,6 @@ agenda =[
 ]
 
 archivo = open("agenda.json",'w')
-json.dump("agenda",archivo,indent=4)
+json.dump(agenda,archivo,indent=4)
+
+archivo.close()
