@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafica</title>
+    <style>
+       
+    </style>
+</head>
+<body>
+    <div class="grafica"></div>
+    <script>
+        let datos1 = [
+             {
+                "Etiqueta":"España",
+                "Valor":34
+                },
+                 {
+                "Etiqueta":"Francia",
+                "Valor":78  
+                },
+                 {
+                "Etiqueta":"Alemania",
+                "Valor":76
+                },
+                 {
+                "Etiqueta":"Austria",
+                "Valor":87
+                },
+                 {
+                "Etiqueta":"Italia",
+                "Valor":98
+                },
+        ]
+        let grafica = document.querySelector(."grafica")
+        grafica.style.position = "relative"
+        grafica.width = "240px"
+        grafica.style.aspectRadio = 1
+        grafica.style.borderRadius = "50%";
+        grafica.style.background = 
+          conic-gradient(
+                #ff6b6b 0deg 90deg,    /* 25% - Red */
+                #4ecdc4 90deg 180deg,  /* 25% - Teal */
+                #45b7d1 180deg 270deg, /* 25% - Blue */
+                #96ceb4 270deg 360deg  /* 25% - Green */
+            );
+    </script>
+</body>
+</html>

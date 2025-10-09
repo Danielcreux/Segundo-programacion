@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafica</title>
+   
+</head>
+<body>
+    <div class="grafica1"></div>
+    <div class="grafica2"></div>
+    <div class="grafica3"></div>
+    <div class="grafica4"></div>
+    <script>
+        let datos1 = [
+             {
+                "Etiqueta":"España",
+                "Valor":56
+                },
+                 {
+                "Etiqueta":"Francia",
+                "Valor":78  
+                },
+                 {
+                "Etiqueta":"Alemania",
+                "Valor":76
+                },
+                 {
+                "Etiqueta":"Austria",
+                "Valor":87
+                },
+                 {
+                "Etiqueta":"Italia",
+                "Valor":98
+                },
+                
+            ]
+           let datos2 = [
+               {
+                   "Etiqueta": "Fútbol",
+                   "Valor": 92
+               },
+               {
+                   "Etiqueta": "Baloncesto",
+                   "Valor": 75
+               },
+               {
+                   "Etiqueta": "Tenis",
+                   "Valor": 63
+               },
+               {
+                   "Etiqueta": "Natación", 
+                   "Valor": 58
+               },
+               {
+                   "Etiqueta": "Ciclismo",
+                   "Valor": 71
+               }
+           ]
+           let datos3 = [
+               {
+                   "Etiqueta": "Rojo",
+                   "Valor": 81
+               },
+               {
+                   "Etiqueta": "Azul",
+                   "Valor": 66
+               },
+               {
+                   "Etiqueta": "Verde", 
+                   "Valor": 59
+               },
+               {
+                   "Etiqueta": "Amarillo",
+                   "Valor": 72
+               },
+               {
+                   "Etiqueta": "Morado",
+                   "Valor": 48
+               }
+           ]
+           let datos4 = [
+               {
+                   "Etiqueta": "Manzana",
+                   "Valor": 45
+               },
+               {
+                   "Etiqueta": "Plátano", 
+                   "Valor": 67
+               },
+               {
+                   "Etiqueta": "Naranja",
+                   "Valor": 52
+               },
+               {
+                   "Etiqueta": "Uva",
+                   "Valor": 78
+               },
+               {
+                   "Etiqueta": "Fresa",
+                   "Valor": 89
+               }
+            ]
+     function getRandomHexColor(){
+      return "#" + Math.floor(Math.random()* 16777215).toString(16).padStart(6,"0");
+     }
+     
+     function jdgraficatarta(selector,datos1){
+      let suma= 0;
+      for(let i=0; i<datos1.length;i++){
+       suma += datos1[i].Valor
+      }
+      console.log("La suma es:",suma)
+      let cursor = 0
+      let cadena = ""
+      console.log(datos1)
+     for(let i = 0; i<datos1.length;i++){
+       inicio = cursor*100+"%"
+       cursor += (datos1[i].Valor)/suma
+       final = cursor*100+"%"
+       cadena += getRandomHexColor() + " " + inicio + " " + final + ",";
+      }
+      console.log(cadena)
+      cadena = cadena.slice(0, -1);
+      let grafica = document.querySelector(selector);
+      grafica.style.position = "relative";
+      grafica.style.width = "240px";
+      grafica.style.aspectRatio = "1";
+      grafica.style.borderRadius = "50%";
+      grafica.style.background = 
+        `conic-gradient(`+ cadena +`)`;
+      }
+     jdgraficatarta(".grafica1",datos1)
+     jdgraficatarta(".grafica2",datos2)
+     jdgraficatarta(".grafica3",datos3)
+     jdgraficatarta(".grafica4",datos4)
+    </script>
+</body>
+</html>

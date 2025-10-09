@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Gráfica</title>
+        <style>
+        
+        </style>
+    </head>
+    <body>
+        <div class="grafica1"></div>
+        <div class="grafica2"></div>
+        <div class="grafica3"></div>
+        <div class="grafica4"></div>
+        <link rel="stylesheet" href="https://danielcreux.github.io/jdgraficabarras/jdgraficabarras.css">
+        <script src="https://danielcreux.github.io/jdgraficabarras/jdgraficabarras.js"></script>
+        <script>
+            let datos1 = [
+                {
+                "Etiqueta":"España",
+                "Valor":34
+                },
+                 {
+                "Etiqueta":"Francia",
+                "Valor":78  
+                },
+                 {
+                "Etiqueta":"Alemania",
+                "Valor":76
+                },
+                 {
+                "Etiqueta":"Austria",
+                "Valor":87
+                },
+                 {
+                "Etiqueta":"Italia",
+                "Valor":98
+                },
+                
+            ]
+            let datos2 = [
+                {
+                    "Etiqueta": "Fútbol",
+                    "Valor": 92
+                },
+                {
+                    "Etiqueta": "Baloncesto",
+                    "Valor": 75
+                },
+                {
+                    "Etiqueta": "Tenis",
+                    "Valor": 63
+                },
+                {
+                    "Etiqueta": "Natación", 
+                    "Valor": 58
+                },
+                {
+                    "Etiqueta": "Ciclismo",
+                    "Valor": 71
+                }
+            ]
+            let datos3 = [
+                {
+                    "Etiqueta": "Rojo",
+                    "Valor": 81
+                },
+                {
+                    "Etiqueta": "Azul",
+                    "Valor": 66
+                },
+                {
+                    "Etiqueta": "Verde", 
+                    "Valor": 59
+                },
+                {
+                    "Etiqueta": "Amarillo",
+                    "Valor": 72
+                },
+                {
+                    "Etiqueta": "Morado",
+                    "Valor": 48
+                }
+            ]
+            let datos4 = [
+                {
+                    "Etiqueta": "Manzana",
+                    "Valor": 45
+                },
+                {
+                    "Etiqueta": "Plátano", 
+                    "Valor": 67
+                },
+                {
+                    "Etiqueta": "Naranja",
+                    "Valor": 52
+                },
+                {
+                    "Etiqueta": "Uva",
+                    "Valor": 78
+                },
+                {
+                    "Etiqueta": "Fresa",
+                    "Valor": 89
+                }
+            ]
+            
+            
+            graficaBarras(".grafica1",datos1, "red")
+            graficaBarras(".grafica2",datos2, "green")
+            graficaBarras(".grafica3",datos3, "blue")
+            graficaBarras(".grafica4",datos4, "brown")
+        </script>
+    </body>
+</html>

@@ -1,0 +1,311 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Gráficas</title>
+    <meta charset="utf-8">
+    <style>
+      .grafica1, .grafica2, .grafica3, .grafica4{
+        position: relative;
+        width: 240px;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        display: inline-block;
+        margin: 8px;
+        /* reservamos espacio bajo el pastel para el título */
+        margin-bottom: 36px;
+      }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .overlay path {
+        fill: transparent;
+        pointer-events: all;
+      }
+      /* Tooltip */
+      .tooltip {
+        position: absolute;
+        transform: translate(-50%, -120%);
+        padding: 6px 10px;
+        border-radius: 8px;
+        background: rgba(17, 24, 39, 0.9);
+        color: white;
+        font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+        white-space: nowrap;
+        box-shadow: 0 6px 18px rgba(0,0,0,.25);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity .12s ease;
+        z-index: 2;
+      }
+      .tooltip b{ font-weight: 700; }
+      .tooltip.visible{ opacity: 1; }
+
+      /* Leyendas estáticas */
+      .label {
+        font: 11px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+        fill: #111827;
+        paint-order: stroke;
+        stroke: white;
+        stroke-width: 3px;
+        stroke-linejoin: round;
+        text-anchor: middle;
+        pointer-events: none;
+      }
+      .leader {
+        stroke: rgba(0,0,0,.4);
+        stroke-width: 1;
+        fill: none;
+        pointer-events: none;
+      }
+
+      /* Título de la gráfica */
+      .chart-title{
+        position: absolute;
+        left: 50%;
+        bottom: -26px; /* lo situamos bajo el círculo */
+        transform: translateX(-50%);
+        font: 600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+        color: #111827;
+        text-align: center;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grafica1"></div>
+    <div class="grafica2"></div>
+    <div class="grafica3"></div>
+    <div class="grafica4"></div>  
+    <script>
+      let datos1 = [
+        {"Etiqueta":"España","Valor":34},
+        {"Etiqueta":"Francia","Valor":78},
+        {"Etiqueta":"Alemania","Valor":76},
+        {"Etiqueta":"Austria","Valor":87},
+        {"Etiqueta":"Italia","Valor":127}
+      ];
+      let datos2 = [
+        {"Etiqueta":"Valencia","Valor":56},
+        {"Etiqueta":"Madrid","Valor":102},
+        {"Etiqueta":"Barcelona","Valor":88},
+        {"Etiqueta":"Sevilla","Valor":74},
+        {"Etiqueta":"Bilbao","Valor":61}
+      ];
+      let datos3 = [
+        {"Etiqueta":"Python","Valor":120},
+        {"Etiqueta":"JavaScript","Valor":98},
+        {"Etiqueta":"C++","Valor":77},
+        {"Etiqueta":"Java","Valor":110},
+        {"Etiqueta":"Go","Valor":45}
+      ];
+      let datos4 = [
+        {"Etiqueta":"Manzana","Valor":34},
+        {"Etiqueta":"Plátano","Valor":52},
+        {"Etiqueta":"Naranja","Valor":46},
+        {"Etiqueta":"Uva","Valor":29},
+        {"Etiqueta":"Sandía","Valor":67}
+      ];
+
+      function randomLightnessVariation(hex, min = 0.7, max = 1.3) {
+        let r = parseInt(hex.slice(1, 3), 16) / 255;
+        let g = parseInt(hex.slice(3, 5), 16) / 255;
+        let b = parseInt(hex.slice(5, 7), 16) / 255;
+        let maxC = Math.max(r, g, b), minC = Math.min(r, g, b);
+        let l = (maxC + minC) / 2;
+        let s, h;
+        if (maxC === minC) { s = h = 0; }
+        else {
+          let d = maxC - minC;
+          s = l > 0.5 ? d / (2 - maxC - minC) : d / (maxC + minC);
+          switch (maxC) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+          }
+          h /= 6;
+        }
+        let L = l * (min + Math.random() * (max - min));
+        L = Math.max(0, Math.min(1, L));
+        function hue2rgb(p, q, t) {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1/6) return p + (q - p) * 6 * t;
+          if (t < 1/2) return q;
+          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+          return p;
+        }
+        let q = L < 0.5 ? L * (1 + s) : L + s - L * s;
+        let p = 2 * L - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+        return "#" +
+          Math.round(r * 255).toString(16).padStart(2, "0") +
+          Math.round(g * 255).toString(16).padStart(2, "0") +
+          Math.round(b * 255).toString(16).padStart(2, "0");
+      }
+
+      function arcoPath(cx, cy, r, angInicio, angFin){
+        const a1 = angInicio - Math.PI/2;
+        const a2 = angFin   - Math.PI/2;
+        const x1 = cx + r * Math.cos(a1);
+        const y1 = cy + r * Math.sin(a1);
+        const x2 = cx + r * Math.cos(a2);
+        const y2 = cy + r * Math.sin(a2);
+        const largeArc = (angFin - angInicio) > Math.PI ? 1 : 0;
+        return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+      }
+
+      const defaultLabelFormatter = (d, fraccion) => `${d.Etiqueta} (${d.Valor})`;
+
+      // Ahora acepta: selector, datos, colorBase, titulo, options
+      function jdgraficatarta(selector, datos, colorBase, titulo = "", {
+        labelFormatter = defaultLabelFormatter,
+        insideMinFraction = 0.08,
+        innerRadiusRatio = 0.55,
+        outerLineStart = 0.72,
+        outerLineEnd = 0.92,
+        outerLabelRadius = 1.02
+      } = {}){
+        const suma = datos.reduce((acc, d) => acc + d.Valor, 0);
+
+        // Paleta + conic-gradient
+        const colores = datos.map(() => randomLightnessVariation(colorBase));
+        let cursor = 0, grad = "";
+        for (let i=0;i<datos.length;i++){
+          const inicio = (cursor * 100).toFixed(6) + "%";
+          cursor += datos[i].Valor / suma;
+          const fin = (cursor * 100).toFixed(6) + "%";
+          grad += `${colores[i]} ${inicio} ${fin},`;
+        }
+        grad = grad.slice(0,-1);
+
+        const grafica = document.querySelector(selector);
+        grafica.style.background = `conic-gradient(${grad})`;
+        grafica.setAttribute("role","img");
+        grafica.setAttribute("aria-label", titulo ? `Gráfica de tarta: ${titulo}` : "Gráfica de tarta");
+
+        // Título (crear/actualizar)
+        let titleEl = grafica.querySelector(".chart-title");
+        if(!titleEl){
+          titleEl = document.createElement("div");
+          titleEl.className = "chart-title";
+          grafica.appendChild(titleEl);
+        }
+        titleEl.textContent = titulo || "";
+
+        // Tooltip (crear/rehusar)
+        let tooltip = grafica.querySelector(".tooltip");
+        if(!tooltip){
+          tooltip = document.createElement("div");
+          tooltip.className = "tooltip";
+          grafica.appendChild(tooltip);
+        }
+
+        // SVG overlay (regenerar)
+        let overlay = grafica.querySelector("svg.overlay");
+        if(overlay) overlay.remove();
+
+        const size = grafica.clientWidth || 240;
+        const cx = size/2, cy = size/2, r = size/2;
+
+        overlay = document.createElementNS("http://www.w3.org/2000/svg","svg");
+        overlay.setAttribute("class","overlay");
+        overlay.setAttribute("viewBox", `0 0 ${size} ${size}`);
+        overlay.setAttribute("preserveAspectRatio","xMidYMid meet");
+
+        const gSlices = document.createElementNS("http://www.w3.org/2000/svg","g");
+        const gLeaders = document.createElementNS("http://www.w3.org/2000/svg","g");
+        const gLabels  = document.createElementNS("http://www.w3.org/2000/svg","g");
+        overlay.appendChild(gSlices);
+        overlay.appendChild(gLeaders);
+        overlay.appendChild(gLabels);
+
+        overlay.addEventListener("mousemove", (e) => {
+          const rect = grafica.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          tooltip.style.left = x + "px";
+          tooltip.style.top  = y + "px";
+        });
+        overlay.addEventListener("mouseleave", () => {
+          tooltip.classList.remove("visible");
+        });
+
+        let angAcum = 0;
+        for (let i=0;i<datos.length;i++){
+          const fr = datos[i].Valor / suma;
+          const angInicio = angAcum;
+          const angFin = angAcum + fr * Math.PI * 2;
+          const angMid = (angInicio + angFin) / 2;
+          angAcum = angFin;
+
+          // Path para hover
+          const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+          path.setAttribute("d", arcoPath(cx, cy, r, angInicio, angFin));
+          gSlices.appendChild(path);
+
+          path.addEventListener("mouseenter", () => {
+            tooltip.innerHTML = `<b>${datos[i].Etiqueta}</b><br>${datos[i].Valor}`;
+            tooltip.classList.add("visible");
+          });
+          path.addEventListener("mouseleave", () => {
+            tooltip.classList.remove("visible");
+          });
+
+          // Etiquetas estáticas
+          const text = document.createElementNS("http://www.w3.org/2000/svg","text");
+          text.setAttribute("class","label");
+          text.textContent = labelFormatter(datos[i], fr);
+          const a = angMid - Math.PI/2;
+
+          if (fr >= insideMinFraction){
+            const rx = r * innerRadiusRatio;
+            const x = cx + rx * Math.cos(a);
+            const y = cy + rx * Math.sin(a);
+            text.setAttribute("x", x);
+            text.setAttribute("y", y);
+            text.setAttribute("text-anchor","middle");
+            gLabels.appendChild(text);
+          } else {
+            const x1 = cx + r * outerLineStart * Math.cos(a);
+            const y1 = cy + r * outerLineStart * Math.sin(a);
+            const x2 = cx + r * outerLineEnd   * Math.cos(a);
+            const y2 = cy + r * outerLineEnd   * Math.sin(a);
+            const line = document.createElementNS("http://www.w3.org/2000/svg","path");
+            line.setAttribute("class","leader");
+            const side = Math.cos(a) >= 0 ? 1 : -1;
+            const x2b = x2 + side * 8;
+            const y2b = y2;
+            line.setAttribute("d", `M ${x1} ${y1} L ${x2} ${y2} L ${x2b} ${y2b}`);
+            gLeaders.appendChild(line);
+
+            const xText = cx + r * outerLabelRadius * Math.cos(a) + side * 14;
+            const yText = cy + r * outerLabelRadius * Math.sin(a);
+            text.setAttribute("x", xText);
+            text.setAttribute("y", yText);
+            text.setAttribute("text-anchor", side === 1 ? "start" : "end");
+            gLabels.appendChild(text);
+          }
+        }
+
+        grafica.appendChild(overlay);
+      }
+
+      // Render con títulos
+      jdgraficatarta(".grafica1", datos1, "#c02424", "Países");
+      jdgraficatarta(".grafica2", datos2, "#2acb71", "Ciudades");
+      jdgraficatarta(".grafica3", datos3, "#4e61cd", "Lenguajes de programación");
+      jdgraficatarta(".grafica4", datos4, "#cdab5a", "Frutas");
+
+      // Ejemplo alternativo con porcentaje en etiquetas:
+      // jdgraficatarta(".grafica1", datos1, "#c02424", "Países", {
+      //   labelFormatter: (d, fr) => `${d.Etiqueta} (${(fr*100).toFixed(1)}%)`
+      // });
+    </script>
+  </body>
+</html>
