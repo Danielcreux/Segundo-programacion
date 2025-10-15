@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WebSocket Test</title>
+</head>
+<body>
+  <script>
+    let ws;
+    let reconnectTimer;
+    const url = "wss://freire-sanchez-valencia.es/socket";
+      
+    function connect() {
+      ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        console.log("✅ Connected to server");
+        ws.send("hello from client");
+      };
+
+      ws.onmessage = e => {
+        console.log("📩 Message:", e.data);
+      };
+
+      ws.onclose = e => {
+        console.warn("❌ Connection closed:", e.code, e.reason);
+        scheduleReconnect();
+      };
+
+      ws.onerror = e => {
+        console.error("⚠️ WebSocket error:", e);
+        ws.close();
+      };
+    }
+
+    function scheduleReconnect() {
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        console.log("🔄 Reconnecting…");
+        reconnectTimer = null;
+        connect();
+      }, 3000); // 3s before retry
+    }
+
+    // optional: send heartbeat every 25s
+    setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send("ping");
+      }
+    }, 25000);
+
+    // Start
+    connect();
+  </script>
+</body>
+</html>

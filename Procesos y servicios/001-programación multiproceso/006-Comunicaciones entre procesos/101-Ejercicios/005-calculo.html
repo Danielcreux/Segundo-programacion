@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WS Compute Client</title>
+</head>
+<body>
+  <script>
+    const url = "wss://freire-sanchez-valencia.es/socket";
+    let ws, reconnectTimer;
+
+    function connect() {
+      ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        console.log("✅ Connected");
+      };
+
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === "task" && msg.op === "repeat_multiply") {
+            const { task_id, initial, factor, times } = msg;
+            console.log("🧮 Task received:", msg);
+
+            const t0 = performance.now();
+            // Compute: initial * (factor ** times)
+            // (Exponentiation is equivalent to repeated multiplication and far faster.)
+            const result = initial * Math.pow(factor, times);
+            const duration_ms = Math.round(performance.now() - t0);
+
+            const reply = {
+              type: "result",
+              task_id,
+              result,
+              duration_ms,
+              agent: navigator.userAgent
+            };
+            ws.send(JSON.stringify(reply));
+            console.log("📤 Result sent:", reply);
+          } else {
+            console.log("📩 Message:", msg);
+          }
+        } catch (err) {
+          console.log("📩 Raw message:", e.data);
+        }
+      };
+
+      ws.onclose = (e) => {
+        console.warn("❌ Closed:", e.code, e.reason);
+        scheduleReconnect();
+      };
+
+      ws.onerror = (e) => {
+        console.error("⚠️ Error:", e);
+        // Let onclose handle reconnect
+      };
+    }
+
+    function scheduleReconnect() {
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        console.log("🔄 Reconnecting…");
+        connect();
+      }, 3000);
+    }
+
+    connect();
+  </script>
+</body>
+</html>

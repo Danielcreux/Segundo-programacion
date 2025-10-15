@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+    </head>
+    <body>
+        <script>
+            const ws = new WebSocket("wss://freire-sanchez-valencia.es/socket");
+            ws.onopen = () => {
+                console.log("Conectado - enviando Hello");
+                ws.send('Hello');
+            };
+            ws.onmessage = (event) => console.log("He recibido un mensaje", event.data);
+            ws.onclose = () => console.log("closed");
+            ws.onerror = e => console.error("ws.error:", e);
+        </script>
+    </body>
+</html>
