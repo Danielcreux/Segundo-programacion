@@ -1,0 +1,49 @@
+:root{
+  --solido-fondo: Powderblue;
+  --solido-frente: white;
+  --color-primario: Powderblue;
+  
+ /* Tonos pastel suaves */
+  --powderblue-pastel-1: #e6f7ff;
+  --powderblue-pastel-2: #d4f0ff;
+  --powderblue-pastel-3: #b3e0ff;
+  --powderblue-pastel-4: #87ceeb;
+  
+   /* Tonos oscuros */
+  --powderblue-dark-1: #add8e6; /* Powderblue original */
+  --powderblue-dark-2: #8bcae4;
+  --powderblue-dark-3: #6ab7d8;
+  --powderblue-dark-4: #4a9fc7;
+  --powderblue-dark-5: #2a87b0;
+}
+@font-face {
+  font-family: 'Ubuntu';
+  src: url('Ubuntu-R.ttf');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Ubuntu';
+  src: url('Ubuntu-B.ttf');
+  font-weight: 700;
+  font-style: normal;
+}
+
+body, html {
+  height: 100%;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  font-family: 'Ubuntu', sans-serif;
+  background: rgb(240,240,240);
+}
+
+button{
+  border:none;
+  padding:10px 20px;
+  border-radius: 10px;
+  background: var(--solido-fondo);
+  color:var(--solido-frente);
+  margin:5px;
+}
