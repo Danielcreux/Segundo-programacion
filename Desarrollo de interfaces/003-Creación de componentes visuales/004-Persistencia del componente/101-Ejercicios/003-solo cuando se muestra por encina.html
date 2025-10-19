@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <style>
+      .contenedorplantillaboton {
+        position: relative;
+        display: inline-block;
+        margin: 20px;
+      }
+
+      .contenedorplantillaboton .tooltip {
+        background: black;
+        color: white;
+        padding: 5px;
+        border-radius: 0px 5px 5px 5px;
+        width: 30px;
+        height: 10px;
+        font-size: 10px;
+        text-align: center;
+        line-height: 10px;
+        position: absolute;
+        bottom: -8px;
+        right: -23px;
+        display: none; /* Oculto por defecto */
+      }
+
+      /* Mostrar solo cuando se pasa el ratón por encima del botón */
+      .contenedorplantillaboton:hover .tooltip {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="contenedor"></div>
+
+    <template id="plantillaboton">
+      <div class="contenedorplantillaboton">
+        <button class="miboton">Púlsame</button>
+        <div class="tooltip">Hola</div>
+      </div>
+    </template>
+
+    <script>
+      const contenedor = document.querySelector("#contenedor");
+      const plantilla = document.querySelector("#plantillaboton");
+
+      const clon1 = plantilla.content.cloneNode(true);
+      contenedor.appendChild(clon1);
+
+      const clon2 = plantilla.content.cloneNode(true);
+      contenedor.appendChild(clon2);
+    </script>
+  </body>
+</html>
+

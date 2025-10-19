@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      #arrastrable {
+        width: 100px;
+        height: 100px;
+        background: red;
+        position: absolute;
+        left: 50px;
+        top: 50px;
+        cursor: grab;
+      }
+      #objetivo {
+        width: 100px;
+        height: 100px;
+        background: green;
+        position: absolute;
+        left: 300px;
+        top: 100px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="arrastrable"></div>
+    <div id="objetivo"></div>
+
+    <script>
+      const arrastrable = document.querySelector("#arrastrable");
+      const objetivo = document.querySelector("#objetivo");
+
+      let offsetX = 0, offsetY = 0;
+      let arrastrando = false;
+
+      arrastrable.addEventListener("mousedown", e => {
+        arrastrando = true;
+        offsetX = e.offsetX;
+        offsetY = e.offsetY;
+        arrastrable.style.cursor = "grabbing";
+      });
+
+      document.addEventListener("mousemove", e => {
+        if (arrastrando) {
+          arrastrable.style.left = (e.pageX - offsetX) + "px";
+          arrastrable.style.top = (e.pageY - offsetY) + "px";
+        }
+      });
+
+      document.addEventListener("mouseup", e => {
+        if (arrastrando) {
+          arrastrando = false;
+          arrastrable.style.cursor = "grab";
+
+          const rectA = arrastrable.getBoundingClientRect();
+          const rectB = objetivo.getBoundingClientRect();
+
+          if (!(rectA.right < rectB.left || rectA.left > rectB.right || rectA.bottom < rectB.top || rectA.top > rectB.bottom)) {
+            console.log("✅ lo has soltado sobre el objetivo");
+          } else {
+            console.log("❌ lo has soltado fuera");
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

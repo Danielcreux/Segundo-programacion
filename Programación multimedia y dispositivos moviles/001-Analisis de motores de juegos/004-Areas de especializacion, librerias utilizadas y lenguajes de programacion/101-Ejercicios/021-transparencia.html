@@ -1,0 +1,37 @@
+<html>
+  <head>
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Textures -->
+      <a-assets>
+        <img id="texturatierra" src="nasatierra.jpg">
+        <img id="rugosidadtierra" src="rugosidad.jpg">
+        <img id="nubes" src="nasanubes.png">
+      </a-assets>
+
+      <!-- Inner Earth sphere -->
+      <a-sphere 
+        position="0 1.25 -5" 
+        radius="3" 
+        material="src: #texturatierra; metalness: 0.2; roughness: 0.5; roughnessMap: #rugosidadtierra"
+      ></a-sphere>
+
+      <!-- Outer cloud layer -->
+      <a-sphere 
+        position="0 1.25 -5" 
+        radius="3.05"
+        segments-width="64"
+        segments-height="64"
+        material="src: #nubes; alphaMap: #nubes; transparent: true; side: double; metalness: 0; roughness: 1"
+      ></a-sphere>
+
+      <!-- Sky and lighting -->
+      <a-sky color="#000000"></a-sky>
+      <a-entity light="type: ambient; intensity: 0.2"></a-entity>
+      <a-entity light="type: directional; intensity: 2" position="2 4 0"></a-entity>
+    </a-scene>
+  </body>
+</html>
+

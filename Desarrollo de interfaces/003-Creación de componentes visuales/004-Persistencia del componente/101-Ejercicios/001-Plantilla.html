@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <div id="contenedor">
+      
+    </div>
+    
+    
+    <template id="plantillaboton">
+      <button class="miboton">Pulsame</button>
+      <div id="tooltip">Hola</div>
+    </template>
+    <script>
+      var contenedor = document.querySelector("#contenedor");
+      var plantilla = document.querySelector("#plantillaboton");
+      
+      var clon = plantilla.content.cloneNode(true);
+      contenedor.appendChild(clon)
+    </script>
+  </body>
+</html>

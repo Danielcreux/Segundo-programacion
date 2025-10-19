@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CSS3D Portfolio • Parallax + Layered Depth</title>
+<style>
+  :root{
+    --bg: #0b0f14;
+    --card: #0f1720;
+    --ink: #e6eef9;
+    --muted: #a9b6c7;
+    --ring: #4da3ff;
+    --gap: 24px;
+    --pad: 32px;
+    --radius: 18px;
+    --perspective: 1400px;
+
+    /* Camera rotations (set by JS) */
+    --rx: 0deg;
+    --ry: 0deg;
+
+    /* Mouse normalized position (set by JS, -1..1) */
+    --mx: 0;
+    --my: 0;
+
+    /* Slight zoom-out to keep everything inside viewport while rotating */
+    --stageScale: .96;
+  }
+
+  html, body { height: 100%; }
+  body{
+    margin:0; color:var(--ink); overflow:hidden;
+    background:
+      radial-gradient(1200px 1200px at 80% -20%, #15314d 0%, #0b0f14 60%) fixed;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans";
+  }
+
+  /* Scene gives us perspective (camera) */
+  .scene{
+    height: 100vh; padding: var(--pad); box-sizing: border-box;
+    perspective: var(--perspective);
+    perspective-origin: 50% 75%;
+    display: grid; grid-template-rows: auto 1fr; gap: var(--gap);
+  }
+
+  header{ display:flex; align-items:baseline; justify-content:space-between; }
+  h1{ margin:0; font-weight:700; letter-spacing:.2px; font-size: clamp(18px, 2.2vw, 32px); }
+  .subtitle{ color:var(--muted); font-size: clamp(12px, 1.2vw, 16px); }
+
+  /* Stage holds everything that rotates in 3D */
+  .stage{
+    position: relative; width:100%; height:100%;
+    transform-style: preserve-3d;
+    transform:
+      translateZ(0)
+      rotateX(var(--rx))
+      rotateY(var(--ry))
+      scale(var(--stageScale));
+    transform-origin: 50% 80%;
+    will-change: transform;
+  }
+
+  /* BACKGROUND DEPTH LAYERS (SVG masks punch real transparent holes) */
+  .depth-layer{
+    position:absolute; inset:0;
+    transform-style: preserve-3d;
+    pointer-events:none;
+    will-change: transform;
+    /* Each layer uses its own --z, --px, --py (set inline) */
+    transform:
+      translate3d(
+        calc(var(--mx) * var(--px)),
+        calc(var(--my) * var(--py)),
+        var(--z)
+      )
+      rotateX(0deg) rotateY(0deg) scale(3,3);
+  }
+
+  /* A soft floor shadow to sell depth */
+  .floor-shadow{
+    position:absolute; inset:-6% -10% -25% -10%;
+    background:
+      radial-gradient(120% 35% at 50% 100%,
+        rgba(0,0,0,.42) 0%,
+        rgba(0,0,0,.24) 35%,
+        rgba(0,0,0,0) 70%);
+    transform: translateZ(-220px) rotateX(90deg);
+    pointer-events:none;
+  }
+
+  /* GRID */
+  .grid{
+    position:relative; width:100%; height:100%;
+    display:grid; gap: var(--gap);
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    transform-style: preserve-3d;
+  }
+
+  /* CARDS */
+  .card{
+    position:relative; border-radius: var(--radius); overflow:hidden;
+    background: var(--card);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.05) inset,
+      0 10px 30px rgba(0,0,0,0.35);
+    transform-style: preserve-3d;
+    transition:
+      transform .25s ease,
+      box-shadow .25s ease,
+      filter .25s ease;
+    will-change: transform, box-shadow, filter;
+    --dz: 0px;               /* depth from pointer proximity (JS) */
+    transform: translateZ(var(--dz));
+  }
+  .card:hover{
+    transform:
+      translateZ(calc(var(--dz) + 70px))
+      rotateX(-2deg)
+      rotateY(2deg);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.06) inset,
+      0 22px 60px rgba(0,0,0,0.5);
+    filter: saturate(1.08);
+  }
+
+  .thumb{
+    position:absolute; inset:0;
+    background:
+      linear-gradient(to bottom right, rgba(255,255,255,0.06), rgba(255,255,255,0.0)),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 2px, transparent 2px 6px),
+      radial-gradient(120% 120% at 0% 0%, #204a72 0%, #132336 45%, #0f1720 80%);
+    transform: translateZ(1px);
+  }
+  .veil{
+    position:absolute; inset:0;
+    background: linear-gradient(to top, rgba(0,0,0,.55) 0 35%, rgba(0,0,0,0) 60%);
+    transform: translateZ(2px);
+    pointer-events:none;
+  }
+  .meta{
+    position:absolute; left:16px; right:16px; bottom:14px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    transform: translateZ(8px);
+  }
+  .title{
+    font-weight:650; font-size: clamp(12px, 1.1vw, 18px);
+    text-shadow: 0 1px 2px rgba(0,0,0,.6);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tag{
+    font-size: clamp(10px, .9vw, 13px);
+    padding: 6px 10px; border-radius: 999px;
+    background: rgba(77,163,255,.14); color: #cfe5ff;
+    border: 1px solid rgba(77,163,255,.25);
+    backdrop-filter: blur(4px);
+  }
+  .card:focus-visible{ outline: 3px solid var(--ring); outline-offset: 3px; }
+
+  @media (max-aspect-ratio: 16/10), (max-width: 1200px){
+    :root{ --gap:16px; --pad:16px; --perspective: 1100px; }
+  }
+</style>
+</head>
+<body>
+  <div class="scene" id="scene">
+    <header>
+      <h1>CSS3D Parallax Portfolio</h1>
+      <div class="subtitle">Move mouse: camera parallax • Hover: 3D pop • Layered depth background</div>
+    </header>
+
+    <div class="stage" id="stage">
+      <!-- Depth layers (SVG masks create transparent “holes”) -->
+      <!-- FAR layer -->
+      <svg class="depth-layer" style="--z:-220px; --px:16px; --py:22px" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <mask id="mask-far">
+            <rect x="0" y="0" width="1920" height="1080" fill="white"/>
+            <!-- holes (black = transparent in mask) -->
+            <circle cx="200" cy="180" r="80" fill="black"/>
+            <circle cx="520" cy="260" r="55" fill="black"/>
+            <circle cx="860" cy="160" r="70" fill="black"/>
+            <circle cx="1280" cy="230" r="85" fill="black"/>
+            <circle cx="1650" cy="160" r="65" fill="black"/>
+            <circle cx="320" cy="520" r="95" fill="black"/>
+            <circle cx="720" cy="620" r="60" fill="black"/>
+            <circle cx="1120" cy="560" r="75" fill="black"/>
+            <circle cx="1520" cy="580" r="90" fill="black"/>
+            <circle cx="420" cy="900" r="80" fill="black"/>
+            <circle cx="980" cy="880" r="65" fill="black"/>
+            <circle cx="1500" cy="880" r="78" fill="black"/>
+          </mask>
+        </defs>
+        <rect x="0" y="0" width="1920" height="1080"
+              fill="rgba(77,163,255,0.10)" mask="url(#mask-far)"/>
+      </svg>
+
+      <!-- MID layer -->
+      <svg class="depth-layer" style="--z:-180px; --px:28px; --py:36px" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <mask id="mask-mid">
+            <rect x="0" y="0" width="1920" height="1080" fill="white"/>
+            <circle cx="160" cy="140" r="70" fill="black"/>
+            <circle cx="460" cy="200" r="42" fill="black"/>
+            <circle cx="780" cy="140" r="58" fill="black"/>
+            <circle cx="1180" cy="210" r="72" fill="black"/>
+            <circle cx="1700" cy="180" r="52" fill="black"/>
+            <circle cx="260" cy="500" r="75" fill="black"/>
+            <circle cx="640" cy="640" r="48" fill="black"/>
+            <circle cx="1010" cy="560" r="62" fill="black"/>
+            <circle cx="1400" cy="620" r="78" fill="black"/>
+            <circle cx="360" cy="900" r="72" fill="black"/>
+            <circle cx="920" cy="900" r="54" fill="black"/>
+            <circle cx="1440" cy="880" r="66" fill="black"/>
+          </mask>
+        </defs>
+        <rect x="0" y="0" width="1920" height="1080"
+              fill="rgba(77,163,255,0.14)" mask="url(#mask-mid)"/>
+      </svg>
+
+      <!-- NEAR layer -->
+      <svg class="depth-layer" style="--z:-40px; --px:44px; --py:54px" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <mask id="mask-near">
+            <rect x="0" y="0" width="1920" height="1080" fill="white"/>
+            <circle cx="120" cy="120" r="56" fill="black"/>
+            <circle cx="420" cy="220" r="36" fill="black"/>
+            <circle cx="740" cy="160" r="52" fill="black"/>
+            <circle cx="1140" cy="240" r="58" fill="black"/>
+            <circle cx="1740" cy="220" r="44" fill="black"/>
+            <circle cx="220" cy="520" r="62" fill="black"/>
+            <circle cx="600" cy="660" r="40" fill="black"/>
+            <circle cx="980" cy="600" r="54" fill="black"/>
+            <circle cx="1340" cy="660" r="62" fill="black"/>
+            <circle cx="320" cy="920" r="60" fill="black"/>
+            <circle cx="880" cy="920" r="46" fill="black"/>
+            <circle cx="1380" cy="900" r="56" fill="black"/>
+          </mask>
+        </defs>
+        <rect x="0" y="0" width="1920" height="1080"
+              fill="rgba(77,163,255,0.18)" mask="url(#mask-near)"/>
+      </svg>
+
+      <div class="floor-shadow"></div>
+
+      <!-- GRID (front content) -->
+      <section class="grid" id="grid" aria-label="Portfolio items">
+        <!-- 12 cards -->
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">Landing Page Redesign</div><div class="tag">Web</div></div></article>
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">E-commerce UI Kit</div><div class="tag">UI</div></div></article>
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">Motion Graphics Reel</div><div class="tag">Motion</div></div></article>
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">Brand System “Aurora”</div><div class="tag">Branding</div></div></article>
+
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">Mobile App Dashboard</div><div class="tag">App</div></div></article>
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">3D Product Shots</div><div class="tag">3D</div></div></article>
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">Data Viz Suite</div><div class="tag">Analytics</div></div></article>
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">Illustration Pack</div><div class="tag">Art</div></div></article>
+
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">Marketing Microsite</div><div class="tag">Web</div></div></article>
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">Icon Set “Orbit”</div><div class="tag">Icons</div></div></article>
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">Corporate Templates</div><div class="tag">Docs</div></div></article>
+        <article class="card" tabindex="0"><div class="thumb"></div><div class="veil"></div><div class="meta"><div class="title">Photography Series</div><div class="tag">Photo</div></div></article>
+      </section>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const scene = document.getElementById('scene');
+  const stage = document.getElementById('stage');
+  const cards = Array.from(document.querySelectorAll('.card'));
+
+  // Camera config
+  const maxRotateX = 10;   // deg up/down
+  const maxRotateY = 14;   // deg left/right
+  const ease = 0.12;       // camera easing
+  const maxCardDepth = 30; // px forward based on pointer proximity
+
+  let targetRX = 0, targetRY = 0;
+  let curRX = 0, curRY = 0;
+
+  // Cache card rects
+  const measure = () => cards.map(el => {
+    const r = el.getBoundingClientRect();
+    return { el, cx: r.left + r.width/2, cy: r.top + r.height/2, w: r.width, h: r.height };
+  });
+  let cached = measure();
+  window.addEventListener('resize', () => { cached = measure(); });
+
+  // Normalize pointer to [-1,1]
+  const norm = (x, y) => {
+    const r = scene.getBoundingClientRect();
+    return {
+      nx: Math.max(-1, Math.min(1, (x - (r.left + r.width/2)) / (r.width/2))),
+      ny: Math.max(-1, Math.min(1, (y - (r.top + r.height/2)) / (r.height/2)))
+    };
+  };
+
+  function onMove(e){
+    const p = e.touches ? e.touches[0] : e;
+    const { nx, ny } = norm(p.clientX, p.clientY);
+
+    // Update CSS vars for parallax layers
+    stage.style.setProperty('--mx', nx.toFixed(4));
+    stage.style.setProperty('--my', ny.toFixed(4));
+
+    // Camera target rotations (center => 0/0)
+    targetRY = -nx * maxRotateY;
+    targetRX =  ny * maxRotateX;
+
+    // Depth per card relative to pointer proximity
+    cached.forEach(({ el, cx, cy, w, h }) => {
+      const dx = (p.clientX - cx) / (w * 0.5);
+      const dy = (p.clientY - cy) / (h * 0.5);
+      const d = Math.hypot(dx, dy);
+      const influence = Math.max(0, 1 - d);  // 1 at center of card
+      el.style.setProperty('--dz', `${(influence * maxCardDepth).toFixed(1)}px`);
+    });
+  }
+
+  function reset(){
+    targetRX = 0; targetRY = 0;
+    stage.style.setProperty('--mx', '0');
+    stage.style.setProperty('--my', '0');
+    cards.forEach(el => el.style.setProperty('--dz', `0px`));
+  }
+
+  window.addEventListener('pointermove', onMove, { passive:true });
+  window.addEventListener('touchmove', onMove, { passive:true });
+  window.addEventListener('pointerleave', reset);
+  window.addEventListener('blur', reset);
+
+  // RAF camera easing
+  (function tick(){
+    curRX += (targetRX - curRX) * ease;
+    curRY += (targetRY - curRY) * ease;
+    stage.style.setProperty('--rx', `${curRX.toFixed(3)}deg`);
+    stage.style.setProperty('--ry', `${curRY.toFixed(3)}deg`);
+    requestAnimationFrame(tick);
+  })();
+
+  // Accessibility: focus bump
+  cards.forEach(c => {
+    c.addEventListener('focus', () => c.style.setProperty('--dz', `40px`));
+    c.addEventListener('blur',  () => c.style.setProperty('--dz', `0px`));
+  });
+})();
+</script>
+</body>
+</html>
+

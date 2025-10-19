@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <canvas id="lienzo" width=512 height=512></canvas>
+    <script>
+      class Particula{
+        constructor(x,y,v,a){
+          this.x = x;
+          this.y = y;
+          this.v = v;
+          this.a = a;
+        } 
+        dibuja(){
+          contexto.fillRect(this.x,this.y,1,1)
+        }
+        mueve(){
+          this.x += Math.cos(this.a)*this.v
+          this.y += Math.sin(this.a)*this.v
+        }
+      }
+      class Emisor{
+        constructor(x,y,a,v,apertura){
+          this.x = x;
+          this.y = y;
+          this.a = a;
+          this.v = v;
+          this.apertura = apertura
+        }
+      }
+      
+      // Variables globales
+      var lienzo = document.querySelector("canvas")
+      var contexto = lienzo.getContext("2d")
+      var temporizador;
+      var numeroparticulas = 500
+      var particulas = []
+      var emisores = []
+      
+      inicio();
+      
+      function inicio(){
+        emisores.push(new Emisor(256,256,0,2,0.2))
+        for(let i = 0;i<numeroparticulas;i++){
+          particulas.push(
+            new Particula(
+              emisores[0].x,
+              emisores[0].y,
+              emisores[0].v,
+              emisores[0].a,
+            )
+          )
+        }
+        temporizador = setTimeout("bucle()",1000)
+      }
+      
+      function bucle(){
+        particulas.forEach(function(particula){
+          particula.mueve()
+          particula.dibuja()
+        })
+        clearTimeout(temporizador)
+        temporizador = setTimeout("bucle()",1000)
+      }
+    </script>
+  </body>
+</html>

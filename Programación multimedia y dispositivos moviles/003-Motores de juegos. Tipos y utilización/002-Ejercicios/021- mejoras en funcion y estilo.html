@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Emisores + Colisiones con líneas</title>
+    <style>
+      :root{
+        --bg:#f7f7fb;
+        --panel:#ffffff;
+        --ink:#1b1f24;
+        --muted:#6b7280;
+        --accent:#2563eb;
+        --border:#e5e7eb;
+      }
+      *{box-sizing:border-box}
+      body{
+        margin:0;
+        font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Arial,sans-serif;
+        background:linear-gradient(180deg,var(--bg),#eef2ff 180px);
+        color:var(--ink);
+      }
+      header{
+        padding:16px 20px;
+        font-weight:700;
+        letter-spacing:.2px;
+      }
+      .wrap{
+        display:grid;
+        grid-template-columns: 360px 1fr;
+        gap:16px;
+        padding:0 20px 24px;
+        align-items:start;
+      }
+      .panel{
+        background:var(--panel);
+        border:1px solid var(--border);
+        border-radius:16px;
+        box-shadow:0 10px 20px rgba(0,0,0,.04);
+        padding:16px;
+      }
+      .controls h2{
+        margin:0 0 8px;
+        font-size:15px;
+        color:var(--muted);
+        font-weight:600;
+      }
+      .row{
+        margin:10px 0 14px;
+      }
+      .row label{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        font-size:14px;
+        color:var(--ink);
+        margin-bottom:6px;
+      }
+      .row input[type="range"]{
+        width:100%;
+      }
+      .row input[type="color"]{
+        width:100%;
+        height:36px;
+        padding:0;
+        border:1px solid var(--border);
+        border-radius:8px;
+        background:#fff;
+      }
+      .btnbar{
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        margin-top:8px;
+      }
+      button{
+        appearance:none;
+        border:1px solid var(--border);
+        background:#fff;
+        padding:8px 12px;
+        border-radius:10px;
+        cursor:pointer;
+        font-weight:600;
+      }
+      button:hover{ border-color:#cbd5e1 }
+      .primary{
+        background:var(--accent);
+        color:#fff;
+        border-color:transparent;
+      }
+      .toggle.active{
+        background:#e0ecff;
+        border-color:#bcd6ff;
+        color:#0b57d0;
+      }
+      canvas{
+        width:512px;
+        height:512px;
+        image-rendering: pixelated;
+        border-radius:16px;
+        background:#fff;
+        border:1px solid var(--border);
+        box-shadow:0 20px 30px rgba(0,0,0,.06);
+        cursor: crosshair;
+      }
+      .meta{
+        font-size:12px;
+        color:var(--muted);
+        margin-top:8px;
+        display:flex;
+        gap:16px;
+        flex-wrap:wrap;
+      }
+      .legend{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        font-size:12px;
+        color:var(--muted);
+      }
+      .chip{
+        display:inline-block;
+        padding:2px 8px;
+        border-radius:999px;
+        background:#eef2ff;
+        border:1px solid #dbe4ff;
+        color:#334155;
+        font-size:12px;
+      }
+      .hint{
+        margin-top:6px;
+        font-size:12px;
+        color:#475569;
+      }
+      .canvas-wrap{
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+      }
+      .cursor-draw canvas{ cursor: crosshair; }
+      .cursor-emit canvas{ cursor: cell; }
+    </style>
+  </head>
+  <body>
+    <header>Emisores de partículas · colisiones con líneas</header>
+    <div class="wrap">
+      <div class="panel controls">
+        <h2>Parámetros del emisor activo</h2>
+
+        <div class="row">
+          <label>Ángulo <span class="chip" id="val-angulo">0.00</span></label>
+          <input type="range" id="angulo" min="0" max="6.283185307" step="0.01" value="0">
+        </div>
+
+        <div class="row">
+          <label>Radio (anillo) <span class="chip" id="val-radio">25.00</span></label>
+          <input type="range" id="radio" min="1" max="50" step="0.01" value="25">
+        </div>
+
+        <div class="row">
+          <label>Velocidad <span class="chip" id="val-vel">5</span></label>
+          <input type="range" id="velocidad" min="0" max="10" step="0.1" value="5">
+        </div>
+
+        <div class="row">
+          <label>Apertura (rad) <span class="chip" id="val-ap">1.00</span></label>
+          <input type="range" id="amplitud" min="0" max="2" step="0.01" value="1">
+        </div>
+
+        <div class="row">
+          <label>Color</label>
+          <input type="color" id="color" value="#0ea5e9">
+          <div class="hint">Pulsa en el canvas para crear emisores con estos parámetros.</div>
+        </div>
+
+        <div class="row">
+          <label>Nº partículas por tick <span class="chip" id="val-np">50</span></label>
+          <input type="range" id="nump" min="1" max="200" step="1" value="50">
+        </div>
+
+        <div class="btnbar">
+          <button id="toggle-draw" class="toggle">✏️ Dibujar líneas</button>
+          <button id="clear-lines">🧹 Borrar líneas</button>
+          <button id="clear-emitters">🚫 Borrar emisores</button>
+          <button id="clear-particles">💨 Limpiar partículas</button>
+          <button id="pause" class="primary">⏸️ Pausa</button>
+        </div>
+
+        <div class="meta">
+          <div>Emisores: <span id="meta-emisores">0</span></div>
+          <div>Líneas: <span id="meta-lineas">0</span></div>
+          <div>Partículas: <span id="meta-particulas">0</span></div>
+        </div>
+      </div>
+
+      <div class="panel canvas-wrap" id="canvas-wrap">
+        <canvas id="lienzo" width="512" height="512"></canvas>
+        <div class="legend">
+          <span class="chip">Click = añadir emisor</span>
+          <span class="chip">Dibujar líneas: activar botón y arrastrar</span>
+          <span class="chip">Colisión elástica contra las líneas</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ====================== Utilidades geométricas ======================
+      function dot(ax, ay, bx, by){ return ax*bx + ay*by; }
+      function len(ax, ay){ return Math.hypot(ax, ay); }
+      function norm(ax, ay){
+        const L = len(ax, ay) || 1;
+        return {x: ax / L, y: ay / L};
+      }
+      // Refleja vector v sobre recta definida por segmento (x1,y1)-(x2,y2)
+      function reflect(vx, vy, x1, y1, x2, y2){
+        const tx = x2 - x1, ty = y2 - y1;
+        const t = norm(tx, ty);             // tangente
+        const n = {x: -t.y, y: t.x};        // normal
+        const vdotn = dot(vx, vy, n.x, n.y);
+        const rx = vx - 2 * vdotn * n.x;
+        const ry = vy - 2 * vdotn * n.y;
+        return {x: rx, y: ry};
+      }
+      // Intersección de segmentos p1p2 con p3p4 (devuelve punto o null)
+      function segIntersect(p1, p2, p3, p4){
+        const x1=p1.x, y1=p1.y, x2=p2.x, y2=p2.y;
+        const x3=p3.x, y3=p3.y, x4=p4.x, y4=p4.y;
+        const den = (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
+        if(Math.abs(den) < 1e-9) return null;
+        const px = ((x1*y2 - y1*x2)*(x3 - x4)-(x1 - x2)*(x3*y4 - y3*x4))/den;
+        const py = ((x1*y2 - y1*x2)*(y3 - y4)-(y1 - y2)*(x3*y4 - y3*x4))/den;
+        const within = (px>=Math.min(x1,x2)-1e-6 && px<=Math.max(x1,x2)+1e-6 &&
+                        py>=Math.min(y1,y2)-1e-6 && py<=Math.max(y1,y2)+1e-6 &&
+                        px>=Math.min(x3,x4)-1e-6 && px<=Math.max(x3,x4)+1e-6 &&
+                        py>=Math.min(y3,y4)-1e-6 && py<=Math.max(y3,y4)+1e-6);
+        return within ? {x:px, y:py} : null;
+      }
+
+      // ====================== Clases ======================
+      class Particula{
+        constructor(x,y,v,a,color){
+          this.x = x;
+          this.y = y;
+          this.v = v;
+          this.a = a;
+          this.color = color;
+        }
+        dibuja(ctx){
+          ctx.fillStyle = this.color;
+          ctx.fillRect(this.x, this.y, 1, 1);
+        }
+      }
+
+      class Emisor{
+        constructor(x,y,a,v,apertura,color,radio){
+          this.x = x;
+          this.y = y;
+          this.a = a;
+          this.v = v;
+          this.apertura = apertura;
+          this.color = color;
+          this.radio = radio;
+        }
+      }
+
+      // ====================== Estado global ======================
+      const lienzo = document.querySelector("#lienzo");
+      const ctx = lienzo.getContext("2d");
+      const wrap = document.getElementById("canvas-wrap");
+
+      let running = true;
+      let numeroparticulas = 50;
+      let particulas = [];
+      let emisores = [];
+      let lineas = []; // [{x1,y1,x2,y2}]
+      let drawMode = false;
+      let drawing = false;
+      let tempStart = null;
+      const fade = "rgba(255,255,255,0.40)";
+      const anchura = lienzo.width;
+      const altura = lienzo.height;
+
+      // ====================== UI refs ======================
+      const RangoAng = document.querySelector("#angulo");
+      const RangoRad = document.querySelector("#radio");
+      const RangoVel = document.querySelector("#velocidad");
+      const RangoAmp = document.querySelector("#amplitud");
+      const ColorInp = document.querySelector("#color");
+      const NumP = document.querySelector("#nump");
+
+      const ValAng = document.querySelector("#val-angulo");
+      const ValRad = document.querySelector("#val-radio");
+      const ValVel = document.querySelector("#val-vel");
+      const ValAmp = document.querySelector("#val-ap");
+      const ValNP  = document.querySelector("#val-np");
+
+      const MetaE = document.querySelector("#meta-emisores");
+      const MetaL = document.querySelector("#meta-lineas");
+      const MetaP = document.querySelector("#meta-particulas");
+
+      const BtnDraw = document.querySelector("#toggle-draw");
+      const BtnClearLines = document.querySelector("#clear-lines");
+      const BtnClearEmit = document.querySelector("#clear-emitters");
+      const BtnClearPart = document.querySelector("#clear-particles");
+      const BtnPause = document.querySelector("#pause");
+
+      function syncLabels(){
+        ValAng.textContent = (+RangoAng.value).toFixed(2);
+        ValRad.textContent = (+RangoRad.value).toFixed(2);
+        ValVel.textContent = (+RangoVel.value).toFixed(0);
+        ValAmp.textContent = (+RangoAmp.value).toFixed(2);
+        ValNP.textContent  = (+NumP.value).toFixed(0);
+      }
+      syncLabels();
+
+      [RangoAng,RangoRad,RangoVel,RangoAmp,NumP,ColorInp].forEach(el=>{
+        el.addEventListener("input", ()=>{
+          syncLabels();
+          previsualizacion();
+        });
+      });
+
+      // ====================== Dibujo de emisores / líneas ======================
+      lienzo.addEventListener("mousedown", (ev)=>{
+        const rect = lienzo.getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+
+        if(drawMode){
+          drawing = true;
+          tempStart = {x, y};
+        }else{
+          emisores.push(new Emisor(
+            x, y,
+            +RangoAng.value,
+            +RangoVel.value,
+            +RangoAmp.value,
+            ColorInp.value,
+            +RangoRad.value
+          ));
+          MetaE.textContent = emisores.length;
+        }
+      });
+
+      lienzo.addEventListener("mousemove", (ev)=>{
+        if(!drawing) return;
+        previsualizacion(); // redibuja para ver la línea fantasma
+        const rect = lienzo.getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+
+        // Línea temporal de vista previa
+        ctx.save();
+        ctx.strokeStyle = "#111827";
+        ctx.setLineDash([6,6]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(tempStart.x, tempStart.y);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      window.addEventListener("mouseup", (ev)=>{
+        if(!drawing) return;
+        const rect = lienzo.getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        drawing = false;
+        lineas.push({x1: tempStart.x, y1: tempStart.y, x2: x, y2: y});
+        tempStart = null;
+        MetaL.textContent = lineas.length;
+      });
+
+      BtnDraw.addEventListener("click", ()=>{
+        drawMode = !drawMode;
+        BtnDraw.classList.toggle("active", drawMode);
+        wrap.classList.toggle("cursor-draw", drawMode);
+        wrap.classList.toggle("cursor-emit", !drawMode);
+      });
+      BtnClearLines.addEventListener("click", ()=>{
+        lineas = [];
+        MetaL.textContent = "0";
+      });
+      BtnClearEmit.addEventListener("click", ()=>{
+        emisores = [];
+        MetaE.textContent = "0";
+      });
+      BtnClearPart.addEventListener("click", ()=>{
+        particulas = [];
+        MetaP.textContent = "0";
+      });
+      BtnPause.addEventListener("click", ()=>{
+        running = !running;
+        BtnPause.textContent = running ? "⏸️ Pausa" : "▶️ Reanudar";
+      });
+
+      // ====================== Previsualización (ángulo y anillo) ======================
+      function previsualizacion(){
+        // Fondo semitransparente para no borrar todo
+        ctx.fillStyle = fade;
+        ctx.fillRect(0,0,anchura,altura);
+
+        // Dibujo líneas permanentes
+        drawWalls();
+
+        // Sector de apertura y anillo en el centro
+        ctx.strokeStyle = ColorInp.value;
+        ctx.lineWidth = 1.5;
+
+        ctx.beginPath();
+        ctx.moveTo(anchura/2, altura/2);
+        ctx.lineTo(
+          anchura/2 + Math.cos(+RangoAng.value - +RangoAmp.value/2) * (+RangoVel.value) * 5,
+          altura/2  + Math.sin(+RangoAng.value - +RangoAmp.value/2) * (+RangoVel.value) * 5
+        );
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(anchura/2, altura/2);
+        ctx.lineTo(
+          anchura/2 + Math.cos(+RangoAng.value + +RangoAmp.value/2) * (+RangoVel.value) * 5,
+          altura/2  + Math.sin(+RangoAng.value + +RangoAmp.value/2) * (+RangoVel.value) * 5
+        );
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(anchura/2, altura/2, +RangoRad.value, 0, Math.PI*2);
+        ctx.stroke();
+      }
+
+      function drawWalls(){
+        if(lineas.length===0) return;
+        ctx.save();
+        ctx.strokeStyle = "#111827";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        lineas.forEach(L=>{
+          ctx.beginPath();
+          ctx.moveTo(L.x1, L.y1);
+          ctx.lineTo(L.x2, L.y2);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+
+      // ====================== Bucle principal ======================
+      let prevT = performance.now();
+      function tick(now){
+        const dt = Math.min(32, now - prevT); // ms
+        prevT = now;
+
+        if(running){
+          step(dt);
+          render();
+        }
+        requestAnimationFrame(tick);
+      }
+
+      function spawnFromEmitters(){
+        const nPerTick = numeroparticulas;
+        emisores.forEach(emisor=>{
+          for(let i=0;i<nPerTick;i++){
+            const angle = emisor.a + (Math.random()-0.5)*emisor.apertura;
+            const rx = Math.cos(Math.random()*Math.PI*2)*emisor.radio;
+            const ry = Math.sin(Math.random()*Math.PI*2)*emisor.radio;
+            particulas.push(new Particula(
+              emisor.x + rx,
+              emisor.y + ry,
+              emisor.v,
+              angle,
+              emisor.color
+            ));
+          }
+        });
+      }
+
+      function step(dt){
+        numeroparticulas = +NumP.value;
+
+        // Spawn
+        spawnFromEmitters();
+
+        // Movimiento + colisiones
+        const eps = 0.01;
+        const w = anchura, h = altura;
+
+        for(let p of particulas){
+          const vx = Math.cos(p.a)*p.v;
+          const vy = Math.sin(p.a)*p.v;
+          let nx = p.x + vx;
+          let ny = p.y + vy;
+
+          // Colisión con paredes dibujadas
+          let collided = false;
+          if(lineas.length){
+            const segMoveA = {x:p.x, y:p.y};
+            const segMoveB = {x:nx, y:ny};
+            for(let L of lineas){
+              const hit = segIntersect(segMoveA, segMoveB, {x:L.x1,y:L.y1}, {x:L.x2,y:L.y2});
+              if(hit){
+                // Reflect
+                const r = reflect(vx, vy, L.x1, L.y1, L.x2, L.y2);
+                const na = Math.atan2(r.y, r.x);
+                p.a = na;
+                // reubicar ligeramente después del punto de choque
+                p.x = hit.x + r.x*eps;
+                p.y = hit.y + r.y*eps;
+                collided = true;
+                break;
+              }
+            }
+          }
+
+          if(!collided){
+            p.x = nx;
+            p.y = ny;
+          }
+
+          // Colisión con bordes del canvas (rebote)
+          if(p.x <= 0 || p.x >= w){
+            p.a = Math.atan2(Math.sin(p.a), -Math.cos(p.a));
+            p.x = Math.max(0, Math.min(w, p.x));
+          }
+          if(p.y <= 0 || p.y >= h){
+            p.a = Math.atan2(-Math.sin(p.a), Math.cos(p.a));
+            p.y = Math.max(0, Math.min(h, p.y));
+          }
+        }
+
+        // Recorte de partículas fuera del canvas (por si acaso)
+        particulas = particulas.filter(pt=> pt.x>=-2 && pt.x<=w+2 && pt.y>=-2 && pt.y<=h+2 );
+
+        // Meta
+        MetaP.textContent = particulas.length.toString();
+      }
+
+      function render(){
+        // Fundido para estelas
+        ctx.fillStyle = fade;
+        ctx.fillRect(0,0,anchura,altura);
+
+        // Paredes
+        drawWalls();
+
+        // Vista previa del emisor (sutil)
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = ColorInp.value;
+        ctx.beginPath();
+        ctx.arc(anchura/2, altura/2, +RangoRad.value, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Partículas
+        for(let p of particulas){
+          p.dibuja(ctx);
+        }
+      }
+
+      // ====================== Inicio ======================
+      previsualizacion();
+      NumP.addEventListener("input", ()=> numeroparticulas = +NumP.value );
+
+      // Arranca animación
+      requestAnimationFrame(tick);
+
+      // Estado inicial UI
+      wrap.classList.add("cursor-emit");
+      MetaE.textContent = "0";
+      MetaL.textContent = "0";
+      MetaP.textContent = "0";
+    </script>
+  </body>
+</html>

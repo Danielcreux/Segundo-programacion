@@ -1,0 +1,305 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Buscar y seleccionar (select estático + dropdown)</title>
+    <style>
+      :root { --b: #ddd; --bg: #fff; --hover: #f2f2f2; }
+      body { font-family: system-ui, sans-serif; margin: 1.5rem; }
+      #contenedor { position: relative; width: 420px; display: grid; gap: .5rem; }
+
+      /* El <select> nativo: permanece en el DOM para el backend, pero no estorba */
+      #city {
+        position: absolute;
+        left: -9999px;       /* oculto pero presente (se enviará en el form) */
+        width: 0; height: 0; /* no ocupa espacio */
+      }
+
+      #buscador {
+        padding: .6rem .7rem;
+        border: 1px solid var(--b);
+        border-radius: .5rem;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .dropdown {
+        position: relative;
+      }
+      .dropdown-panel {
+        position: absolute;
+        top: 100%;
+        left: 0; right: 0;
+        background: var(--bg);
+        border: 1px solid var(--b);
+        border-radius: .5rem;
+        margin-top: .25rem;
+        max-height: 260px;
+        overflow: auto;
+        display: block;             /* siempre “desplegado” mientras escribes */
+        z-index: 10;
+      }
+      .opcion {
+        padding: .55rem .7rem;
+        cursor: pointer;
+        user-select: none;
+        line-height: 1.2;
+      }
+      .opcion:hover,
+      .opcion[aria-selected="true"] {
+        background: var(--hover);
+      }
+      .no-results {
+        padding: .55rem .7rem;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Ejemplo de formulario real -->
+    <form id="form-ciudad" action="/procesar.php" method="post">
+      <div id="contenedor">
+        <input type="search" id="buscador" autocomplete="off" placeholder="Escribe para filtrar ciudades…" />
+
+        <!-- Select nativo: MANTENIDO tal cual (estático) -->
+        <select name="city" id="city">
+          <option value="">-- Selecciona una ciudad --</option>
+          <option>Almería</option>
+          <option>Cádiz</option>
+          <option>Córdoba</option>
+          <option>Granada</option>
+          <option>Huelva</option>
+          <option>Jaén</option>
+          <option>Málaga</option>
+          <option>Sevilla</option>
+          <option>Jerez de la Frontera (Cádiz)</option>
+          <option>Marbella (Málaga)</option>
+          <option>Algeciras (Cádiz)</option>
+          <option>Dos Hermanas (Sevilla)</option>
+          <option>Estepona (Málaga)</option>
+          <option>Roquetas de Mar (Almería)</option>
+          <option>Motril (Granada)</option>
+          <option>Zaragoza</option>
+          <option>Huesca</option>
+          <option>Teruel</option>
+          <option>Calatayud (Zaragoza)</option>
+          <option>Monzón (Huesca)</option>
+          <option>Ejea de los Caballeros (Zaragoza)</option>
+          <option>Oviedo</option>
+          <option>Gijón</option>
+          <option>Avilés</option>
+          <option>Mieres</option>
+          <option>Langreo</option>
+          <option>Palma de Mallorca</option>
+          <option>Ibiza</option>
+          <option>Manacor (Mallorca)</option>
+          <option>Inca (Mallorca)</option>
+          <option>Ciutadella de Menorca</option>
+          <option>Las Palmas de Gran Canaria</option>
+          <option>Santa Cruz de Tenerife</option>
+          <option>La Laguna (Tenerife)</option>
+          <option>Arrecife (Lanzarote)</option>
+          <option>Puerto del Rosario (Fuerteventura)</option>
+          <option>San Bartolomé de Tirajana (Gran Canaria)</option>
+          <option>Santander</option>
+          <option>Torrelavega</option>
+          <option>Castro-Urdiales</option>
+          <option>Valladolid</option>
+          <option>Salamanca</option>
+          <option>León</option>
+          <option>Burgos</option>
+          <option>Ávila</option>
+          <option>Palencia</option>
+          <option>Segovia</option>
+          <option>Soria</option>
+          <option>Zamora</option>
+          <option>Ponferrada (León)</option>
+          <option>Aranda de Duero (Burgos)</option>
+          <option>Albacete</option>
+          <option>Ciudad Real</option>
+          <option>Cuenca</option>
+          <option>Guadalajara</option>
+          <option>Toledo</option>
+          <option>Talavera de la Reina (Toledo)</option>
+          <option>Puertollano (Ciudad Real)</option>
+          <option>Barcelona</option>
+          <option>Tarragona</option>
+          <option>Lleida</option>
+          <option>Girona</option>
+          <option>Sabadell (Barcelona)</option>
+          <option>Terrassa (Barcelona)</option>
+          <option>L’Hospitalet de Llobregat (Barcelona)</option>
+          <option>Badalona (Barcelona)</option>
+          <option>Reus (Tarragona)</option>
+          <option>Manresa (Barcelona)</option>
+          <option>Badajoz</option>
+          <option>Cáceres</option>
+          <option>Mérida</option>
+          <option>Plasencia</option>
+          <option>Santiago de Compostela (A Coruña)</option>
+          <option>A Coruña</option>
+          <option>Vigo (Pontevedra)</option>
+          <option>Ourense</option>
+          <option>Lugo</option>
+          <option>Pontevedra</option>
+          <option>Ferrol (A Coruña)</option>
+          <option>Madrid</option>
+          <option>Alcalá de Henares</option>
+          <option>Móstoles</option>
+          <option>Fuenlabrada</option>
+          <option>Getafe</option>
+          <option>Leganés</option>
+          <option>Alcorcón</option>
+          <option>Torrejón de Ardoz</option>
+          <option>Murcia</option>
+          <option>Cartagena</option>
+          <option>Lorca</option>
+          <option>Yecla</option>
+          <option>Pamplona</option>
+          <option>Tudela</option>
+          <option>Bilbao (Bizkaia)</option>
+          <option>San Sebastián / Donostia (Gipuzkoa)</option>
+          <option>Vitoria-Gasteiz (Álava)</option>
+          <option>Barakaldo (Bizkaia)</option>
+          <option>Getxo (Bizkaia)</option>
+          <option>Irun (Gipuzkoa)</option>
+          <option>Logroño</option>
+          <option>Calahorra</option>
+          <option>Valencia</option>
+          <option>Alicante</option>
+          <option>Castellón de la Plana</option>
+          <option>Elche (Alicante)</option>
+          <option>Torrevieja (Alicante)</option>
+          <option>Gandía (Valencia)</option>
+          <option>Benidorm (Alicante)</option>
+          <option>Orihuela (Alicante)</option>
+          <option>Paterna (Valencia)</option>
+          <option>Vila-real (Castellón)</option>
+          <option>Alcoy (Alicante)</option>
+          <option>Sagunto (Valencia)</option>
+          <option>Denia (Alicante)</option>
+          <option>Torrent (Valencia)</option>
+          <option>Ceuta</option>
+          <option>Melilla</option>
+        </select>
+
+        <!-- Panel custom que “permanece desplegado” mientras escribes -->
+        <div class="dropdown">
+          <div id="dropdown-panel" class="dropdown-panel" role="listbox" aria-label="Ciudades"></div>
+        </div>
+      </div>
+
+      <p style="margin-top:1rem">
+        <button type="submit">Enviar</button>
+        <span id="seleccion" style="margin-left:.5rem;color:#555"></span>
+      </p>
+    </form>
+
+    <script>
+      const selectEl  = document.getElementById("city");
+      const buscador  = document.getElementById("buscador");
+      const panel     = document.getElementById("dropdown-panel");
+      const lblSel    = document.getElementById("seleccion");
+
+      // Extrae opciones del <select> estático (sin modificarlo)
+      const opciones = Array.from(selectEl.querySelectorAll("option"))
+        .map(o => o.text.trim())
+        .filter(t => t && !t.startsWith("-- ")); // quita el placeholder
+
+      // Normaliza texto para búsqueda sin acentos
+      const norm = s => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+      let indiceActivo = -1; // para navegación con teclado
+
+      // Render inicial (todas las opciones)
+      render(opciones);
+
+      // Mantener el panel visible al enfocar o escribir
+      buscador.addEventListener("focus", () => { panel.style.display = "block"; });
+      buscador.addEventListener("input", () => {
+        const q = norm(buscador.value);
+        const filtradas = opciones.filter(txt => norm(txt).includes(q));
+        indiceActivo = -1;
+        render(filtradas);
+        panel.style.display = "block"; // permanece "desplegado" mientras escribes
+      });
+
+      // Navegación con teclado (↑ ↓ Enter Esc)
+      buscador.addEventListener("keydown", (e) => {
+        const items = Array.from(panel.querySelectorAll(".opcion"));
+        if (!items.length) return;
+
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          indiceActivo = (indiceActivo + 1) % items.length;
+          marcar(items);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          indiceActivo = (indiceActivo - 1 + items.length) % items.length;
+          marcar(items);
+        } else if (e.key === "Enter") {
+          if (indiceActivo >= 0) {
+            e.preventDefault();
+            items[indiceActivo].click();
+          }
+        } else if (e.key === "Escape") {
+          panel.style.display = "none";
+        }
+      });
+
+      // Sincroniza si alguien cambia el <select> nativo (por JS externo)
+      selectEl.addEventListener("change", () => {
+        const val = selectEl.value || "";
+        buscador.value = val;
+        lblSel.textContent = val ? `Seleccionado: ${val}` : "";
+      });
+
+      // Clic fuera: opcionalmente cierra (puedes comentar si prefieres SIEMPRE visible)
+      document.addEventListener("click", (e) => {
+        const cont = document.getElementById("contenedor");
+        if (!cont.contains(e.target)) panel.style.display = "none";
+      });
+
+      function render(lista) {
+        panel.innerHTML = "";
+        if (!lista.length) {
+          panel.innerHTML = `<div class="no-results">Sin coincidencias</div>`;
+          return;
+        }
+        lista.forEach((texto, idx) => {
+          const div = document.createElement("div");
+          div.className = "opcion";
+          div.setAttribute("role", "option");
+          div.textContent = texto;
+          div.addEventListener("click", () => seleccionar(texto));
+          panel.appendChild(div);
+        });
+      }
+
+      function seleccionar(texto) {
+        // Refleja en input visible
+        buscador.value = texto;
+        // Refleja en <select> estático (sin tocar sus opciones)
+        const opt = Array.from(selectEl.options).find(o => o.text.trim() === texto);
+        if (opt) {
+          selectEl.value = opt.value || opt.text; // por si no hay 'value' explícito
+          // Lanza evento change por si otros scripts escuchan
+          selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        lblSel.textContent = `Seleccionado: ${texto}`;
+        // Mantén el panel abierto si quieres seguir escribiendo:
+        // panel.style.display = "block";
+        // O ciérralo al seleccionar:
+        panel.style.display = "none";
+      }
+
+      function marcar(items) {
+        items.forEach((el, i) => el.setAttribute("aria-selected", i === indiceActivo ? "true" : "false"));
+        if (indiceActivo >= 0) {
+          items[indiceActivo].scrollIntoView({ block: "nearest" });
+        }
+      }
+    </script>
+  </body>
+</html>
+

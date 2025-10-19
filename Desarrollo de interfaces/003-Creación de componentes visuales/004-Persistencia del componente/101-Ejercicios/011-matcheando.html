@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Botón con tooltip (componente externo)</title>
+    <style>
+      #contenedor{
+        display:flex;
+        flex-direction:column;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="contenedor">
+      <input type="search" id="buscador">
+      <select name="city" id="city">
+        <option value="">-- Selecciona una ciudad --</option>
+        
+          <option>Almería</option>
+          <option>Cádiz</option>
+          <option>Córdoba</option>
+          <option>Granada</option>
+          <option>Huelva</option>
+          <option>Jaén</option>
+          <option>Málaga</option>
+          <option>Sevilla</option>
+          <option>Jerez de la Frontera (Cádiz)</option>
+          <option>Marbella (Málaga)</option>
+          <option>Algeciras (Cádiz)</option>
+          <option>Dos Hermanas (Sevilla)</option>
+          <option>Estepona (Málaga)</option>
+          <option>Roquetas de Mar (Almería)</option>
+          <option>Motril (Granada)</option>
+        
+          <option>Zaragoza</option>
+          <option>Huesca</option>
+          <option>Teruel</option>
+          <option>Calatayud (Zaragoza)</option>
+          <option>Monzón (Huesca)</option>
+          <option>Ejea de los Caballeros (Zaragoza)</option>
+       
+          <option>Oviedo</option>
+          <option>Gijón</option>
+          <option>Avilés</option>
+          <option>Mieres</option>
+          <option>Langreo</option>
+        
+          <option>Palma de Mallorca</option>
+          <option>Ibiza</option>
+          <option>Manacor (Mallorca)</option>
+          <option>Inca (Mallorca)</option>
+          <option>Ciutadella de Menorca</option>
+        
+          <option>Las Palmas de Gran Canaria</option>
+          <option>Santa Cruz de Tenerife</option>
+          <option>La Laguna (Tenerife)</option>
+          <option>Arrecife (Lanzarote)</option>
+          <option>Puerto del Rosario (Fuerteventura)</option>
+          <option>San Bartolomé de Tirajana (Gran Canaria)</option>
+        
+          <option>Santander</option>
+          <option>Torrelavega</option>
+          <option>Castro-Urdiales</option>
+       
+          <option>Valladolid</option>
+          <option>Salamanca</option>
+          <option>León</option>
+          <option>Burgos</option>
+          <option>Ávila</option>
+          <option>Palencia</option>
+          <option>Segovia</option>
+          <option>Soria</option>
+          <option>Zamora</option>
+          <option>Ponferrada (León)</option>
+          <option>Aranda de Duero (Burgos)</option>
+        
+          <option>Albacete</option>
+          <option>Ciudad Real</option>
+          <option>Cuenca</option>
+          <option>Guadalajara</option>
+          <option>Toledo</option>
+          <option>Talavera de la Reina (Toledo)</option>
+          <option>Puertollano (Ciudad Real)</option>
+       
+          <option>Barcelona</option>
+          <option>Tarragona</option>
+          <option>Lleida</option>
+          <option>Girona</option>
+          <option>Sabadell (Barcelona)</option>
+          <option>Terrassa (Barcelona)</option>
+          <option>L’Hospitalet de Llobregat (Barcelona)</option>
+          <option>Badalona (Barcelona)</option>
+          <option>Reus (Tarragona)</option>
+          <option>Manresa (Barcelona)</option>
+    
+          <option>Badajoz</option>
+          <option>Cáceres</option>
+          <option>Mérida</option>
+          <option>Plasencia</option>
+        
+          <option>Santiago de Compostela (A Coruña)</option>
+          <option>A Coruña</option>
+          <option>Vigo (Pontevedra)</option>
+          <option>Ourense</option>
+          <option>Lugo</option>
+          <option>Pontevedra</option>
+          <option>Ferrol (A Coruña)</option>
+       
+          <option>Madrid</option>
+          <option>Alcalá de Henares</option>
+          <option>Móstoles</option>
+          <option>Fuenlabrada</option>
+          <option>Getafe</option>
+          <option>Leganés</option>
+          <option>Alcorcón</option>
+          <option>Torrejón de Ardoz</option>
+        
+          <option>Murcia</option>
+          <option>Cartagena</option>
+          <option>Lorca</option>
+          <option>Yecla</option>
+        
+          <option>Pamplona</option>
+          <option>Tudela</option>
+       
+          <option>Bilbao (Bizkaia)</option>
+          <option>San Sebastián / Donostia (Gipuzkoa)</option>
+          <option>Vitoria-Gasteiz (Álava)</option>
+          <option>Barakaldo (Bizkaia)</option>
+          <option>Getxo (Bizkaia)</option>
+          <option>Irun (Gipuzkoa)</option>
+       
+
+     
+          <option>Logroño</option>
+          <option>Calahorra</option>
+       
+
+       
+          <option>Valencia</option>
+          <option>Alicante</option>
+          <option>Castellón de la Plana</option>
+          <option>Elche (Alicante)</option>
+          <option>Torrevieja (Alicante)</option>
+          <option>Gandía (Valencia)</option>
+          <option>Benidorm (Alicante)</option>
+          <option>Orihuela (Alicante)</option>
+          <option>Paterna (Valencia)</option>
+          <option>Vila-real (Castellón)</option>
+          <option>Alcoy (Alicante)</option>
+          <option>Sagunto (Valencia)</option>
+          <option>Denia (Alicante)</option>
+          <option>Torrent (Valencia)</option>
+      
+
+   
+          <option>Ceuta</option>
+          <option>Melilla</option>
+       
+      </select>
+
+    </div>
+    <script> 
+      let opciones = document.querySelectorAll("select option");
+      console.log(opciones)
+      let opcionesfiltradas = []
+      
+      let entrada = document.querySelector("#buscador");
+      entrada.onkeyup = function(event){
+        console.log(entrada.value)
+        // Vamos a hacer un match
+        opciones.forEach(function(opcion){
+          if(opcion.text.includes(entrada.value)){
+            console.log("coincide")
+          }
+        })
+      }
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+

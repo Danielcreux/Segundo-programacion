@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Emisores por líneas · Colisiones, Campos y Absorbentes</title>
+    <style>
+      :root{ --bg:#f7f7fb; --panel:#ffffff; --ink:#1b1f24; --muted:#6b7280; --accent:#2563eb; --border:#e5e7eb; }
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{
+        margin:0;
+        font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Arial,sans-serif;
+        background:linear-gradient(180deg,var(--bg),#eef2ff 180px);
+        color:var(--ink);
+        overflow:hidden;
+      }
+      header{padding:12px 20px;font-weight:700;letter-spacing:.2px}
+      .wrap{
+        display:grid;
+        grid-template-columns: 360px 1fr;
+        gap:16px;
+        padding:0 20px 20px;
+        height: calc(100% - 56px);
+      }
+      .panel{
+        background:var(--panel);
+        border:1px solid var(--border);
+        border-radius:16px;
+        box-shadow:0 10px 20px rgba(0,0,0,.04);
+        padding:16px;
+        min-height:0;
+      }
+      .controls{ overflow:auto }
+      .controls h2{ margin:0 0 8px;font-size:15px;color:var(--muted);font-weight:600 }
+      .row{ margin:10px 0 14px }
+      .row label{
+        display:flex;align-items:center;justify-content:space-between;gap:12px;
+        font-size:14px;margin-bottom:6px;
+      }
+      .row input[type="range"]{ width:100% }
+      .row input[type="color"]{
+        width:100%;height:36px;border:1px solid var(--border);
+        border-radius:8px;background:#fff;padding:0;
+      }
+      .btnbar{ display:flex;flex-wrap:wrap;gap:8px;margin-top:8px }
+      button{
+        appearance:none;border:1px solid var(--border);background:#fff;
+        padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;
+      }
+      button:hover{ border-color:#cbd5e1 }
+      .primary{ background:var(--accent);color:#fff;border-color:transparent }
+      .toggle.active{ background:#e0ecff;border-color:#bcd6ff;color:#0b57d0 }
+      .canvas-wrap{ display:flex;flex-direction:column;gap:8px;min-height:0 }
+      #lienzo{
+        width:100%; height:100%;
+        border-radius:16px;background:#fff;border:1px solid var(--border);
+        box-shadow:0 20px 30px rgba(0,0,0,.06);
+      }
+      .legend{ display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);flex-wrap:wrap }
+      .chip{ display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2ff;border:1px solid #dbe4ff;color:#334155;font-size:12px }
+      .hint{ margin-top:6px;font-size:12px;color:#475569 }
+      .meta{ font-size:12px;color:var(--muted);margin-top:8px;display:flex;gap:16px;flex-wrap:wrap }
+      .cursor-draw-emit #lienzo{ cursor: crosshair }
+      .cursor-draw-wall #lienzo{ cursor: crosshair }
+      .cursor-draw-absorb #lienzo{ cursor: crosshair }
+      .cursor-field #lienzo{ cursor: crosshair }
+      .row .small { font-size:12px; color:var(--muted); margin-left:auto }
+      input[type="file"]{ display:none }
+    </style>
+  </head>
+  <body>
+    <header>Emisores por líneas · colisiones, campos y líneas absorbentes</header>
+    <div class="wrap">
+      <div class="panel controls">
+        <h2>Parámetros del emisor (para nuevas líneas-emisor)</h2>
+
+        <div class="row">
+          <label>Velocidad <span class="chip" id="val-vel">5</span></label>
+          <input type="range" id="velocidad" min="0" max="10" step="0.1" value="5">
+        </div>
+        <div class="row">
+          <label>Apertura (rad) <span class="chip" id="val-ap">1.00</span></label>
+          <input type="range" id="amplitud" min="0" max="2" step="0.01" value="1">
+        </div>
+        <div class="row">
+          <label>Radio de nacimiento (anillo) <span class="chip" id="val-radio">25.00</span></label>
+          <input type="range" id="radio" min="0" max="50" step="0.5" value="25">
+        </div>
+        <div class="row">
+          <label>Color</label>
+          <input type="color" id="color" value="#0ea5e9">
+          <div class="hint">Dibuja una línea-emisor: las partículas nacen a lo largo de la línea y salen por la <b>izquierda</b> de la dirección en que la dibujas (inicio→fin). Usa “Invertir lado” para cambiarlo.</div>
+        </div>
+        <div class="row">
+          <label>Invertir lado (normal)</label>
+          <input type="checkbox" id="lado">
+        </div>
+        <div class="row">
+          <label>Nº partículas por pulso (por emisor) <span class="chip" id="val-np">50</span></label>
+          <input type="range" id="nump" min="1" max="400" step="1" value="50">
+        </div>
+
+        <h2>Dibujar</h2>
+        <div class="btnbar">
+          <button id="toggle-emit"   class="toggle">🚿 Emisores (línea)</button>
+          <button id="toggle-wall"   class="toggle">✏️ Líneas sólidas (rebotan)</button>
+          <button id="toggle-absorb" class="toggle">🧽 Líneas absorbentes</button>
+          <button id="toggle-field"  class="toggle">🧲 Campos</button>
+        </div>
+        <div class="btnbar">
+          <button id="clear-emitters">🚫 Borrar emisores</button>
+          <button id="clear-walls">🧹 Borrar sólidas</button>
+          <button id="clear-absorbs">🧼 Borrar absorbentes</button>
+          <button id="clear-fields">🧴 Borrar campos</button>
+          <button id="clear-particles">💨 Limpiar partículas</button>
+        </div>
+
+        <h2>Campos (atraen/repelen, no colisionan)</h2>
+        <div class="row">
+          <label>Intensidad (±) <span class="chip" id="val-int">80</span></label>
+          <input type="range" id="intensidad" min="-300" max="300" step="1" value="80">
+        </div>
+        <div class="row">
+          <label>Suavizado (ε) <span class="chip" id="val-soft">8</span></label>
+          <input type="range" id="soft" min="1" max="40" step="1" value="8">
+        </div>
+        <div class="row">
+          <label>Caída (p) <span class="chip" id="val-fall">1.50</span></label>
+          <input type="range" id="falloff" min="0.5" max="3" step="0.1" value="1.5">
+        </div>
+
+        <h2>Colisiones avanzadas</h2>
+        <div class="row">
+          <label>Partículas al colisionar <span class="chip" id="val-split">1</span></label>
+          <input type="range" id="splitCount" min="1" max="20" step="1" value="1">
+        </div>
+        <div class="row">
+          <label>Variación de ángulo (°) <span class="chip" id="val-angvar">0</span></label>
+          <input type="range" id="angleVar" min="0" max="180" step="1" value="0">
+        </div>
+        <div class="row">
+          <label>Colisión con bordes</label>
+          <input type="checkbox" id="borderCollide" checked>
+        </div>
+
+        <h2>Escena</h2>
+        <div class="btnbar">
+          <button id="saveScene">💾 Guardar escena (JSON)</button>
+          <button id="loadSceneBtn">📂 Cargar escena (JSON)</button>
+          <input type="file" id="loadSceneInput" accept="application/json">
+        </div>
+
+        <div class="btnbar" style="margin-top:8px">
+          <button id="pause" class="primary">⏸️ Pausa</button>
+        </div>
+
+        <div class="meta">
+          <div>Emisores: <span id="meta-emisores">0</span></div>
+          <div>Sólidas: <span id="meta-lineas">0</span></div>
+          <div>Absorbentes: <span id="meta-absorb">0</span></div>
+          <div>Campos: <span id="meta-campos">0</span></div>
+          <div>Partículas: <span id="meta-particulas">0</span></div>
+        </div>
+      </div>
+
+      <div class="panel canvas-wrap" id="canvas-wrap">
+        <canvas id="lienzo"></canvas>
+        <div class="legend">
+          <span class="chip">🚿 Emisor por línea: salida por la izquierda (o invertido)</span>
+          <span class="chip">✏️ Líneas sólidas rebotan (con split opcional)</span>
+          <span class="chip">🧽 Líneas absorbentes eliminan partículas</span>
+          <span class="chip">🧲 Campos atraen/repelen (intensidad ±)</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ========= Utils geométricos =========
+      function dot(ax, ay, bx, by){ return ax*bx + ay*by; }
+      function len(ax, ay){ return Math.hypot(ax, ay); }
+      function norm(ax, ay){ const L = len(ax, ay) || 1; return {x: ax/L, y: ay/L}; }
+      function reflect(vx, vy, x1, y1, x2, y2){
+        const tx = x2 - x1, ty = y2 - y1;
+        const t = norm(tx, ty), n = {x: -t.y, y: t.x};
+        const vdotn = dot(vx, vy, n.x, n.y);
+        return { x: vx - 2*vdotn*n.x, y: vy - 2*vdotn*n.y };
+      }
+      function segIntersect(p1, p2, p3, p4){
+        const x1=p1.x, y1=p1.y, x2=p2.x, y2=p2.y;
+        const x3=p3.x, y3=p3.y, x4=p4.x, y4=p4.y;
+        const den = (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
+        if(Math.abs(den) < 1e-9) return null;
+        const px = ((x1*y2 - y1*x2)*(x3 - x4)-(x1 - x2)*(x3*y4 - y3*x4))/den;
+        const py = ((x1*y2 - y1*x2)*(y3 - y4)-(y1 - y2)*(x3*y4 - y3*x4))/den;
+        const within = (px>=Math.min(x1,x2)-1e-6 && px<=Math.max(x1,x2)+1e-6 &&
+                        py>=Math.min(y1,y2)-1e-6 && py<=Math.max(y1,y2)+1e-6 &&
+                        px>=Math.min(x3,x4)-1e-6 && px<=Math.max(x3,x4)+1e-6 &&
+                        py>=Math.min(y3,y4)-1e-6 && py<=Math.max(y3,y4)+1e-6);
+        return within ? {x:px, y:py} : null;
+      }
+      function closestPointOnSegment(px, py, ax, ay, bx, by){
+        const abx = bx - ax, aby = by - ay;
+        const apx = px - ax, apy = py - ay;
+        const ab2 = abx*abx + aby*aby || 1;
+        let t = (apx*abx + apy*aby) / ab2;
+        t = Math.max(0, Math.min(1, t));
+        return { x: ax + t*abx, y: ay + t*aby, t };
+      }
+
+      // ========= Clases =========
+      class Particula{
+        constructor(x,y,v,a,color){
+          this.x = x; this.y = y; this.v = v; this.a = a; this.color = color;
+        }
+        draw(ctx){ ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 1.5, 1.5); }
+      }
+
+      // ========= Estado global =========
+      const canvas = document.getElementById("lienzo");
+      const ctx = canvas.getContext("2d");
+      const shell = document.getElementById("canvas-wrap");
+      const root = document.querySelector(".wrap");
+
+      let running = true;
+      let particulas = [];
+
+      // Colecciones
+      let emisoresLinea = []; // {x1,y1,x2,y2, v, apertura, color, radio, side}
+      let lineasSolidas = []; // {x1,y1,x2,y2}
+      let lineasAbsorb  = []; // {x1,y1,x2,y2}
+      let campos = [];        // {x1,y1,x2,y2,intensity}
+
+      // Modo dibujo
+      let drawing = false;
+      let tempStart = null;
+      let mode = "emit"; // "emit" | "wall" | "absorb" | "field"
+
+      const fade = "rgba(255,255,255,0.40)";
+      let W = 0, H = 0, DPR = 1;
+
+      // ========= UI refs =========
+      const RVel = document.querySelector("#velocidad");
+      const RAmp = document.querySelector("#amplitud");
+      const RRad = document.querySelector("#radio");
+      const Col  = document.querySelector("#color");
+      const NumP = document.querySelector("#nump");
+      const Invert = document.querySelector("#lado");
+
+      const VVel = document.querySelector("#val-vel");
+      const VAmp = document.querySelector("#val-ap");
+      const VRad = document.querySelector("#val-radio");
+      const VNP  = document.querySelector("#val-np");
+
+      const RInt = document.querySelector("#intensidad");
+      const RSoft= document.querySelector("#soft");
+      const RFall= document.querySelector("#falloff");
+      const VInt = document.querySelector("#val-int");
+      const VSoft= document.querySelector("#val-soft");
+      const VFall= document.querySelector("#val-fall");
+
+      const RSplit = document.querySelector("#splitCount");
+      const RAngVar= document.querySelector("#angleVar");
+      const VSplit = document.querySelector("#val-split");
+      const VAngVar= document.querySelector("#val-angvar");
+      const CkBorder = document.querySelector("#borderCollide");
+
+      const MetaE = document.querySelector("#meta-emisores");
+      const MetaL = document.querySelector("#meta-lineas");
+      const MetaA = document.querySelector("#meta-absorb");
+      const MetaC = document.querySelector("#meta-campos");
+      const MetaP = document.querySelector("#meta-particulas");
+
+      const BtnEmit   = document.querySelector("#toggle-emit");
+      const BtnWall   = document.querySelector("#toggle-wall");
+      const BtnAbsorb = document.querySelector("#toggle-absorb");
+      const BtnField  = document.querySelector("#toggle-field");
+
+      const BtnClearEmit = document.querySelector("#clear-emitters");
+      const BtnClearWalls= document.querySelector("#clear-walls");
+      const BtnClearAbs  = document.querySelector("#clear-absorbs");
+      const BtnClearFields= document.querySelector("#clear-fields");
+      const BtnClearPart = document.querySelector("#clear-particles");
+      const BtnPause     = document.querySelector("#pause");
+
+      const BtnSaveScene = document.querySelector("#saveScene");
+      const BtnLoadScene = document.querySelector("#loadSceneBtn");
+      const InpLoadScene = document.querySelector("#loadSceneInput");
+
+      function syncLabels(){
+        VVel.textContent = (+RVel.value).toFixed(0);
+        VAmp.textContent = (+RAmp.value).toFixed(2);
+        VRad.textContent = (+RRad.value).toFixed(2);
+        VNP.textContent  = (+NumP.value).toFixed(0);
+        VInt.textContent = (+RInt.value).toFixed(0);
+        VSoft.textContent= (+RSoft.value).toFixed(0);
+        VFall.textContent= (+RFall.value).toFixed(2);
+        VSplit.textContent= (+RSplit.value).toFixed(0);
+        VAngVar.textContent= (+RAngVar.value).toFixed(0);
+      }
+      [RVel,RAmp,RRad,NumP,Col,RInt,RSoft,RFall,RSplit,RAngVar].forEach(el=>el.addEventListener("input", syncLabels));
+      syncLabels();
+
+      // ========= Canvas responsive =========
+      function resizeCanvas(){
+        const rect = shell.getBoundingClientRect();
+        DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        W = Math.floor(rect.width);
+        H = Math.floor(rect.height - 32);
+        if(H < 200) H = 200;
+        canvas.style.width = W + "px";
+        canvas.style.height= H + "px";
+        canvas.width  = Math.floor(W * DPR);
+        canvas.height = Math.floor(H * DPR);
+        ctx.setTransform(DPR,0,0,DPR,0,0);
+      }
+      window.addEventListener("resize", resizeCanvas);
+
+      // ========= Modos =========
+      function updateModeButtons(){
+        BtnEmit.classList.toggle("active", mode==="emit");
+        BtnWall.classList.toggle("active", mode==="wall");
+        BtnAbsorb.classList.toggle("active", mode==="absorb");
+        BtnField.classList.toggle("active", mode==="field");
+
+        root.classList.remove("cursor-draw-emit","cursor-draw-wall","cursor-draw-absorb","cursor-field");
+        if(mode==="emit")   root.classList.add("cursor-draw-emit");
+        if(mode==="wall")   root.classList.add("cursor-draw-wall");
+        if(mode==="absorb") root.classList.add("cursor-draw-absorb");
+        if(mode==="field")  root.classList.add("cursor-field");
+      }
+      BtnEmit.addEventListener("click", ()=>{ mode="emit"; updateModeButtons(); });
+      BtnWall.addEventListener("click", ()=>{ mode="wall"; updateModeButtons(); });
+      BtnAbsorb.addEventListener("click", ()=>{ mode="absorb"; updateModeButtons(); });
+      BtnField.addEventListener("click", ()=>{ mode="field"; updateModeButtons(); });
+      updateModeButtons();
+
+      // ========= Dibujo de elementos =========
+      canvas.addEventListener("mousedown",(ev)=>{
+        const {x,y}=canvasCoords(ev);
+        drawing = true; tempStart = {x,y};
+      });
+      canvas.addEventListener("mousemove",(ev)=>{
+        if(!drawing) return;
+        previsualizacion();
+        const {x,y}=canvasCoords(ev);
+        ctx.save();
+        ctx.setLineDash([6,6]);
+        ctx.lineWidth = 2;
+        if(mode==="emit")   ctx.strokeStyle = "#0ea5e9";
+        if(mode==="wall")   ctx.strokeStyle = "#111827";
+        if(mode==="absorb") ctx.strokeStyle = "#ef4444";
+        if(mode==="field")  ctx.strokeStyle = "#9333ea";
+        ctx.beginPath();
+        ctx.moveTo(tempStart.x, tempStart.y);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.restore();
+      });
+      window.addEventListener("mouseup",(ev)=>{
+        if(!drawing) return;
+        const {x,y}=canvasCoords(ev);
+        drawing = false;
+        if(mode==="emit"){
+          emisoresLinea.push({
+            x1:tempStart.x, y1:tempStart.y, x2:x, y2:y,
+            v:+RVel.value, apertura:+RAmp.value, color:Col.value,
+            radio:+RRad.value, side: Invert.checked ? -1 : +1
+          });
+          MetaE.textContent = emisoresLinea.length.toString();
+          if(particulas.length === 0){
+            spawnPulse();
+          }
+        }else if(mode==="wall"){
+          lineasSolidas.push({x1:tempStart.x, y1:tempStart.y, x2:x, y2:y});
+          MetaL.textContent = lineasSolidas.length.toString();
+        }else if(mode==="absorb"){
+          lineasAbsorb.push({x1:tempStart.x, y1:tempStart.y, x2:x, y2:y});
+          MetaA.textContent = lineasAbsorb.length.toString();
+        }else if(mode==="field"){
+          campos.push({x1:tempStart.x, y1:tempStart.y, x2:x, y2:y, intensity:+RInt.value});
+          MetaC.textContent = campos.length.toString();
+        }
+        tempStart=null;
+      });
+
+      // Limpiadores
+      BtnClearEmit.addEventListener("click", ()=>{ emisoresLinea=[]; MetaE.textContent="0"; });
+      BtnClearWalls.addEventListener("click", ()=>{ lineasSolidas=[]; MetaL.textContent="0"; });
+      BtnClearAbs.addEventListener("click", ()=>{ lineasAbsorb=[]; MetaA.textContent="0"; });
+      BtnClearFields.addEventListener("click", ()=>{ campos=[]; MetaC.textContent="0"; });
+      BtnClearPart.addEventListener("click", ()=>{
+        particulas=[]; MetaP.textContent="0";
+        // Con la lógica de pulsos, si hay emisores, el siguiente frame disparará otro pulso
+      });
+      BtnPause.addEventListener("click", ()=>{
+        running = !running; BtnPause.textContent = running ? "⏸️ Pausa" : "▶️ Reanudar";
+      });
+
+      function canvasCoords(ev){
+        const r = canvas.getBoundingClientRect();
+        return { x: (ev.clientX - r.left), y: (ev.clientY - r.top) };
+      }
+
+      // ========= Render helpers =========
+      function drawWalls(){
+        if(lineasSolidas.length===0) return;
+        ctx.save();
+        ctx.strokeStyle = "#111827";
+        ctx.lineWidth = 2;
+        lineasSolidas.forEach(L=>{
+          ctx.beginPath(); ctx.moveTo(L.x1, L.y1); ctx.lineTo(L.x2, L.y2); ctx.stroke();
+        });
+        ctx.restore();
+      }
+      function drawAbsorb(){
+        if(lineasAbsorb.length===0) return;
+        ctx.save();
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10,4]);
+        lineasAbsorb.forEach(L=>{
+          ctx.beginPath(); ctx.moveTo(L.x1, L.y1); ctx.lineTo(L.x2, L.y2); ctx.stroke();
+        });
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+      function drawFields(){
+        if(campos.length===0) return;
+        ctx.save();
+        ctx.strokeStyle = "#9333ea";
+        ctx.lineWidth = 2;
+        campos.forEach(F=>{
+          ctx.beginPath(); ctx.moveTo(F.x1, F.y1); ctx.lineTo(F.x2, F.y2); ctx.stroke();
+        });
+        ctx.restore();
+      }
+      function drawEmitters(){
+        if(emisoresLinea.length===0) return;
+        ctx.save();
+        emisoresLinea.forEach(E=>{
+          ctx.strokeStyle = E.color;
+          ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(E.x1, E.y1); ctx.lineTo(E.x2, E.y2); ctx.stroke();
+
+          // flechita de normal (lado)
+          const tx = E.x2 - E.x1, ty = E.y2 - E.y1;
+          const t = norm(tx, ty);
+          const n = {x: -t.y * E.side, y: t.x * E.side};
+          const cx = (E.x1+E.x2)/2, cy=(E.y1+E.y2)/2;
+          const s = 14;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + n.x*s, cy + n.y*s);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+      function previsualizacion(){
+        ctx.fillStyle = fade; ctx.fillRect(0,0,W,H);
+        drawWalls(); drawAbsorb(); drawFields(); drawEmitters();
+      }
+
+      // ========= Pulsos =========
+      function spawnPulse(){
+        if(emisoresLinea.length === 0) return;
+        const nPerPulse = +NumP.value;
+        for(const E of emisoresLinea){
+          for(let i=0;i<nPerPulse;i++){
+            const s = Math.random();
+            const px = E.x1 + (E.x2 - E.x1)*s;
+            const py = E.y1 + (E.y2 - E.y1)*s;
+
+            const tx = E.x2 - E.x1, ty = E.y2 - E.y1;
+            const t  = norm(tx, ty);
+            const n  = {x: -t.y * E.side, y: t.x * E.side};
+
+            const baseAng = Math.atan2(n.y, n.x);
+            const angle   = baseAng + (Math.random()-0.5) * E.apertura;
+
+            const rr = E.radio * Math.sqrt(Math.random());
+            const th = Math.random()*Math.PI*2;
+            const sx = px + Math.cos(th)*rr;
+            const sy = py + Math.sin(th)*rr;
+
+            particulas.push(new Particula(sx, sy, E.v, angle, E.color));
+          }
+        }
+        MetaP.textContent = String(particulas.length);
+      }
+
+      // ========= Simulación =========
+      let prevT = performance.now();
+      function tick(now){
+        const dt = Math.min(32, now - prevT); // ms
+        prevT = now;
+        if(running){ step(dt); render(); }
+        requestAnimationFrame(tick);
+      }
+
+      function step(dt){
+        const eps = 0.01;
+        const soft = Math.max(1, +RSoft.value);
+        const pwr  = +RFall.value;
+        const kMaxAccel = 0.5;
+        const accScale = 0.06 * (dt/16);
+
+        const splitN = +RSplit.value;
+        const angVarRad = (+RAngVar.value) * Math.PI / 180;
+
+        const next = [];
+        for(let p of particulas){
+          let vx = Math.cos(p.a)*p.v;
+          let vy = Math.sin(p.a)*p.v;
+
+          // ---- Campos ----
+          if(campos.length){
+            let ax=0, ay=0;
+            for(let F of campos){
+              const cp = closestPointOnSegment(p.x, p.y, F.x1, F.y1, F.x2, F.y2);
+              const dx = cp.x - p.x, dy = cp.y - p.y;
+              const d  = Math.hypot(dx,dy);
+              if(d < 1e-6) continue;
+              const dir = {x: dx/d, y: dy/d};
+              const mag = (F.intensity) / Math.pow(d + soft, pwr);
+              ax += dir.x * mag;
+              ay += dir.y * mag;
+            }
+            const aLen = Math.hypot(ax, ay);
+            if(aLen > kMaxAccel){ ax = ax/aLen * kMaxAccel; ay = ay/aLen * kMaxAccel; }
+            vx += ax * accScale; vy += ay * accScale;
+          }
+
+          let nx = p.x + vx;
+          let ny = p.y + vy;
+
+          const segA = {x:p.x,y:p.y}, segB = {x:nx,y:ny};
+
+          // ---- Absorbentes ----
+          let absorbed = false;
+          for(const L of lineasAbsorb){
+            const hit = segIntersect(segA, segB, {x:L.x1,y:L.y1}, {x:L.x2,y:L.y2});
+            if(hit){ absorbed = true; break; }
+          }
+          if(absorbed) continue;
+
+          // ---- Sólidas (rebote + split opcional) ----
+          let collided = false;
+          for(const L of lineasSolidas){
+            const hit = segIntersect(segA, segB, {x:L.x1,y:L.y1}, {x:L.x2,y:L.y2});
+            if(hit){
+              const r = reflect(vx, vy, L.x1, L.y1, L.x2, L.y2);
+              const baseAng = Math.atan2(r.y, r.x);
+              const speed = Math.hypot(r.x, r.y);
+
+              if(splitN > 1){
+                for(let k=0;k<splitN;k++){
+                  const jitter = (Math.random()*2 - 1) * angVarRad;
+                  const ang = baseAng + jitter;
+                  const px2 = hit.x + Math.cos(ang)*eps;
+                  const py2 = hit.y + Math.sin(ang)*eps;
+                  next.push(new Particula(px2, py2, speed, ang, p.color));
+                }
+                collided = true; // reemplazado por splits
+                break;
+              }else{
+                vx = r.x; vy = r.y;
+                p.a = baseAng;
+                p.v = speed;
+                p.x = hit.x + vx*eps;
+                p.y = hit.y + vy*eps;
+                collided = true;
+                break;
+              }
+            }
+          }
+          if(collided){
+            if(splitN === 1){
+              if(p.x>=-2 && p.x<=W+2 && p.y>=-2 && p.y<=H+2) next.push(p);
+            }
+            continue;
+          }
+
+          // ---- Bordes (opcional) ----
+          if(CkBorder.checked){
+            if(p.x <= 0 || p.x >= W){ vx = -vx; p.a = Math.atan2(vy, vx); p.v = Math.hypot(vx,vy); p.x = Math.max(0, Math.min(W, p.x)); }
+            if(p.y <= 0 || p.y >= H){ vy = -vy; p.a = Math.atan2(vy, vx); p.v = Math.hypot(vx,vy); p.y = Math.max(0, Math.min(H, p.y)); }
+          }
+
+          // avance si no colisionó con sólida
+          if(!collided){
+            p.x = p.x + vx;
+            p.y = p.y + vy;
+            p.a = Math.atan2(vy,vx);
+            p.v = Math.hypot(vx,vy);
+          }
+
+          if(p.x>=-2 && p.x<=W+2 && p.y>=-2 && p.y<=H+2) next.push(p);
+        }
+        particulas = next;
+        MetaP.textContent = String(particulas.length);
+
+        // --- Lógica de pulso: cuando desaparecen todas, disparamos otro ---
+        if(particulas.length === 0 && emisoresLinea.length > 0){
+          // (opcional) retardo entre pulsos: setTimeout(spawnPulse, 300);
+          spawnPulse();
+        }
+      }
+
+      function render(){
+        ctx.fillStyle = fade; ctx.fillRect(0,0,W,H);
+        drawWalls(); drawAbsorb(); drawFields(); drawEmitters();
+        for(let p of particulas) p.draw(ctx);
+      }
+
+      // ========= Guardar / Cargar escena =========
+      function saveScene(){
+        const scene = {
+          version: 1,
+          timestamp: new Date().toISOString(),
+          canvas: { W, H },
+          emisoresLinea,
+          lineasSolidas,
+          lineasAbsorb,
+          campos,
+          settings: {
+            velocidad: +RVel.value,
+            amplitud: +RAmp.value,
+            radio: +RRad.value,
+            color: Col.value,
+            nump: +NumP.value,
+            splitCount: +RSplit.value,
+            angleVarDeg: +RAngVar.value,
+            borderCollide: CkBorder.checked
+          }
+        };
+        const blob = new Blob([JSON.stringify(scene,null,2)], {type:"application/json"});
+        const a = document.createElement("a");
+        const pad = n=>String(n).padStart(2,"0");
+        const d = new Date();
+        const filename = `scene-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.json`;
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+      }
+
+      function loadSceneFromObject(scene){
+        emisoresLinea = Array.isArray(scene.emisoresLinea)? scene.emisoresLinea : [];
+        lineasSolidas = Array.isArray(scene.lineasSolidas)? scene.lineasSolidas : [];
+        lineasAbsorb  = Array.isArray(scene.lineasAbsorb)?  scene.lineasAbsorb  : [];
+        campos        = Array.isArray(scene.campos)?        scene.campos        : [];
+        if(scene.settings){
+          RVel.value   = scene.settings.velocidad ?? RVel.value;
+          RAmp.value   = scene.settings.amplitud ?? RAmp.value;
+          RRad.value   = scene.settings.radio ?? RRad.value;
+          Col.value    = scene.settings.color ?? Col.value;
+          NumP.value   = scene.settings.nump ?? NumP.value;
+          RSplit.value = scene.settings.splitCount ?? RSplit.value;
+          RAngVar.value= scene.settings.angleVarDeg ?? RAngVar.value;
+          CkBorder.checked = scene.settings.borderCollide ?? CkBorder.checked;
+          syncLabels();
+        }
+        MetaE.textContent = emisoresLinea.length.toString();
+        MetaL.textContent = lineasSolidas.length.toString();
+        MetaA.textContent = lineasAbsorb.length.toString();
+        MetaC.textContent = campos.length.toString();
+        previsualizacion();
+
+        // Si no hay partículas pero sí emisores, arrancamos un pulso
+        if(particulas.length === 0 && emisoresLinea.length > 0){
+          spawnPulse();
+        }
+      }
+
+      BtnSaveScene.addEventListener("click", saveScene);
+      BtnLoadScene.addEventListener("click", ()=> InpLoadScene.click());
+      InpLoadScene.addEventListener("change", (ev)=>{
+        const file = ev.target.files && ev.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = ()=>{
+          try{
+            const scene = JSON.parse(reader.result);
+            loadSceneFromObject(scene);
+          }catch(err){
+            alert("No se pudo cargar el JSON: " + err.message);
+          }finally{
+            InpLoadScene.value = "";
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // ========= Inicio =========
+      resizeCanvas();
+      previsualizacion();
+      requestAnimationFrame(tick);
+
+      MetaE.textContent="0"; MetaL.textContent="0"; MetaA.textContent="0"; MetaC.textContent="0"; MetaP.textContent="0";
+    </script>
+  </body>
+</html>

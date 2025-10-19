@@ -1,0 +1,27 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Cargar modelo GLB en A-Frame</title>
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Carga de recursos -->
+      <a-assets>
+        <!-- Sustituye el src con la ruta o URL de tu archivo .glb -->
+        <a-asset-item id="modelo" src="suzanne.glb"></a-asset-item>
+      </a-assets>
+
+      <!-- Carga del modelo GLB -->
+      <a-entity 
+        gltf-model="#modelo"
+        position="0 1 -2"
+        scale="1 1 1"
+        rotation="0 180 0">
+      </a-entity>
+
+      
+    </a-scene>
+  </body>
+</html>
+

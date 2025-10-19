@@ -1,0 +1,157 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Heatmap con botón toggle</title>
+    <style>
+      /* Solo estilos del botón; todo lo demás se crea por JS */
+      .heatmap-toggle {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 999999; /* por encima del canvas */
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 8px;
+        background: #111;
+        color: #fff;
+        font: 14px/1 system-ui, Arial, sans-serif;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0,0,0,.25);
+      }
+      .heatmap-toggle:active { transform: translateY(1px); }
+    </style>
+  </head>
+  <body>
+    <div style="height:2000px;padding:24px">
+      <h1>Desplázate y mueve el ratón</h1>
+      <p>Este contenido es de demostración para que haya scroll.</p>
+    </div>
+
+    <script>
+      // ======= Estado y utilidades =======
+      let lienzo = null;
+      let ctx = null;
+      const mapaDeCalor = [];
+
+      // Tamaño completo del documento (no solo viewport)
+      function docSize() {
+        const d = document.documentElement, b = document.body;
+        const width = Math.max(
+          d.scrollWidth, d.offsetWidth, d.clientWidth,
+          b ? b.scrollWidth : 0, b ? b.offsetWidth : 0
+        );
+        const height = Math.max(
+          d.scrollHeight, d.offsetHeight, d.clientHeight,
+          b ? b.scrollHeight : 0, b ? b.offsetHeight : 0
+        );
+        return { width, height };
+      }
+
+      // Crea (o reajusta) el canvas para cubrir toda la página
+      function ensureCanvas() {
+        const { width, height } = docSize();
+        if (!lienzo) {
+          lienzo = document.createElement('canvas');
+          lienzo.style.position = 'absolute';
+          lienzo.style.top = '0';
+          lienzo.style.left = '0';
+          lienzo.style.zIndex = '9999'; // debajo del botón (que tiene 999999)
+          lienzo.style.pointerEvents = 'none'; // no bloquear interacciones de la página
+          document.body.appendChild(lienzo);
+          ctx = lienzo.getContext('2d');
+        }
+        // Solo si cambia el tamaño para no borrar el contenido innecesariamente
+        if (lienzo.width !== width || lienzo.height !== height) {
+          lienzo.width = width;
+          lienzo.height = height;
+        }
+      }
+
+      // Dibuja todo el heatmap actual
+      function drawAll() {
+        if (!lienzo || !ctx) return;
+        ctx.clearRect(0, 0, lienzo.width, lienzo.height);
+        ctx.fillStyle = 'rgba(255,0,0,0.02)';
+        for (const [x, y] of mapaDeCalor) {
+          ctx.beginPath();
+          ctx.arc(x, y, 20, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Dibujo incremental (cuando el canvas está visible)
+      function drawPoint(x, y) {
+        if (!lienzo || !ctx) return;
+        ctx.fillStyle = 'rgba(255,0,0,0.02)';
+        ctx.beginPath();
+        ctx.arc(x, y, 20, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // ======= Captura de movimientos =======
+      // pageX / pageY YA incluyen desplazamiento (scroll) del documento.
+      document.addEventListener('mousemove', (event) => {
+        const x = event.pageX;
+        const y = event.pageY;
+        mapaDeCalor.push([x, y]);
+        // Si el lienzo está visible, dibujamos incrementalmente
+        if (lienzo) {
+          drawPoint(x, y);
+        }
+      });
+
+      // Si cambia el tamaño del documento (resize/DOM), reajustamos y redibujamos
+      window.addEventListener('resize', () => {
+        if (lienzo) {
+          ensureCanvas();
+          drawAll();
+        }
+      });
+
+      // (Opcional) Reajuste periódico por si el contenido dinamicamente cambia altura
+      const autoResizeInterval = setInterval(() => {
+        if (lienzo) {
+          const { width, height } = docSize();
+          if (lienzo.width !== width || lienzo.height !== height) {
+            ensureCanvas();
+            drawAll();
+          }
+        }
+      }, 1000);
+
+      // ======= Botón toggle creado dinámicamente =======
+      const boton = document.createElement('button');
+      boton.className = 'heatmap-toggle';
+      boton.type = 'button';
+      boton.textContent = 'Mostrar mapa de calor';
+      document.body.appendChild(boton);
+
+      function showHeatmap() {
+        ensureCanvas();
+        drawAll();
+        boton.textContent = 'Ocultar mapa de calor';
+      }
+
+      function hideHeatmap() {
+        if (lienzo && lienzo.parentNode) {
+          lienzo.parentNode.removeChild(lienzo);
+        }
+        lienzo = null;
+        ctx = null;
+        boton.textContent = 'Mostrar mapa de calor';
+      }
+
+      boton.addEventListener('click', () => {
+        if (lienzo) {
+          hideHeatmap();
+        } else {
+          showHeatmap();
+        }
+      });
+
+      // (Opcional) limpiar al salir
+      window.addEventListener('beforeunload', () => clearInterval(autoResizeInterval));
+    </script>
+  </body>
+</html>

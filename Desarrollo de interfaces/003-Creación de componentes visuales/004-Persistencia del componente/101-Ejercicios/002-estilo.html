@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      .contenedorplantillaboton{
+        position:relative;
+        display:inline-block;
+        margin:20px;
+      }
+      .contenedorplantillaboton .tooltip{
+        background:black;
+        color:white;
+        padding:5px;
+        border-radius:0px 5px 5px 5px;
+        width:30px;
+        height:10px;
+        font-size:10px;
+        text-align:center;
+        line-height:10px;
+        position:absolute;
+        bottom: -8px;
+        right: -23px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="contenedor">
+      
+    </div>
+    
+    
+    <template id="plantillaboton">
+      <div class="contenedorplantillaboton">
+        <button class="miboton">Pulsame</button>
+        <div class="tooltip">Hola</div>
+      </div>
+    </template>
+    <script>
+      var contenedor = document.querySelector("#contenedor");
+      var plantilla = document.querySelector("#plantillaboton");
+      
+      var clon1 = plantilla.content.cloneNode(true);
+      contenedor.appendChild(clon1)
+      
+      var clon2 = plantilla.content.cloneNode(true);
+      contenedor.appendChild(clon2)
+      
+    </script>
+  </body>
+</html>

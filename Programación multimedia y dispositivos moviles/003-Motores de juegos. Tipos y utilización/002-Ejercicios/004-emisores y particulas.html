@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+    </head>
+    <body>
+        <canvas id="lienzo" width=512 height=512>
+        </canvas>
+        <script>
+            class Particula{
+                constructor(x,y,v,a){
+                    this.x=x;
+                    this.y=y;
+                    this.v=v;
+                    this.a=a;
+                }
+            }
+            class Emisor{
+                constructor(x,y,a,v,apertura){
+                    this.x=x;
+                    this.y=y;
+                    this.a=a;
+                    this.v=v;
+                    this.apertura=apertura;
+                }
+            }
+            
+            //Variables globales
+            
+            var temporizador;
+            var numeroparticulas = 500
+            var particulas = []
+            var emisores = []
+            
+            inicio();
+            
+            function inicio(){
+                emisores.push(Emisor(256,256,0,10,0.2))
+                temporizador = setTimeout("bucle()",1000)
+            } 
+            function bucle(){
+                clearTimeout(temporizador)
+                temporizador = setTimeout("bucle()",1000)
+            }
+            
+        </script>
+    </body>
+</html>

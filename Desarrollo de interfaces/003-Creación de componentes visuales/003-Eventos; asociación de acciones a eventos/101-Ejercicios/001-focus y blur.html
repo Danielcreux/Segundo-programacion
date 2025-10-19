@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    </head>
+    <body>
+        <input type="text" id="campo">
+        <script>
+            let entrada = document.querySelector("input")
+                entrada.onfocus = function(){
+                    console.log("has entrado")
+                }
+                entrada.onblur = function(){
+                    console.log("has salido")
+                }
+        </script>
+    </body>
+</html>

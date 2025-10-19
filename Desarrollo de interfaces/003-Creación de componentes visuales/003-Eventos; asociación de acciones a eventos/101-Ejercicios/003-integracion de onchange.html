@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    </head>
+    <body>
+        <input type="text" id="campo">
+        <script>
+            let entrada = document.querySelector("input")
+            let valor;
+                entrada.onfocus = function(){
+                    console.log("has entrado")
+                    valor = this.value
+                }
+                entrada.onblur = function(){
+                    console.log("has salido")
+                    if(valor != this.value){
+                        console.log("Ha habido un cambio")
+                    }else{
+                        console.log("No ha habido cambio")
+                    }
+                }
+        </script>
+    </body>
+</html>

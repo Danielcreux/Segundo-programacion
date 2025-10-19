@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Portfolio Grid • CSS3D Side-Bottom Camera</title>
+<style>
+  :root{
+    --bg: #0b0f14;
+    --card: #0f1720;
+    --ink: #e6eef9;
+    --muted: #a9b6c7;
+    --ring: #4da3ff;
+    --gap: 24px;
+    --pad: 32px;
+    --radius: 18px;
+    --perspective: 1400px; /* camera distance */
+  }
+
+  html, body { height: 100%; }
+  body{
+    margin:0;
+    color:var(--ink);
+    overflow:hidden; /* keep everything on screen */
+    background: radial-gradient(1200px 1200px at 80% -20%, #15314d 0%, #0b0f14 60%) fixed;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans";
+  }
+
+  /* 3D scene: establishes perspective from a low, left-side vantage */
+  .scene{
+    height: 100vh;
+    padding: var(--pad);
+    box-sizing: border-box;
+    perspective: var(--perspective);
+    perspective-origin: 0% 100%; /* bottom-left => side-bottom camera */
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: var(--gap);
+  }
+
+  header{
+    display:flex;align-items:baseline;justify-content:space-between;
+    transform-style: preserve-3d;
+  }
+  h1{ margin:0; font-weight:700; letter-spacing:.2px; font-size: clamp(18px, 2.2vw, 32px);}
+  .subtitle{ color:var(--muted); font-size: clamp(12px, 1.2vw, 16px); }
+
+  /* Stage is the plane we tilt in 3D */
+  .stage{
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    /* Low-angle, from bottom-left looking to top-right */
+    transform:
+      translateZ(0)
+      rotateX(18deg)   /* tip away from camera (looking up) */
+      rotateY(-22deg)  /* camera from the left side */
+      scale(.92);      /* keep within viewport after tilt */
+    transform-origin: 0% 100%;
+    will-change: transform;
+  }
+
+  /* Optional floor shadow for depth cue */
+  .floor-shadow{
+    position:absolute; inset:-6% -10% -25% -10%;
+    background:
+      radial-gradient(120% 35% at 15% 100%,
+        rgba(0,0,0,.45) 0%,
+        rgba(0,0,0,.25) 35%,
+        rgba(0,0,0,0) 70%);
+    transform: translateZ(-200px) rotateX(90deg);
+    pointer-events:none;
+  }
+
+  /* Grid sits on the stage */
+  .grid{
+    position:relative;
+    width:100%; height:100%;
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: var(--gap);
+    transform-style: preserve-3d;
+  }
+
+  /* Cards (with their own 3D) */
+  .card{
+    position:relative;
+    border-radius: var(--radius);
+    overflow:hidden;
+    background: var(--card);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.05) inset,
+      0 10px 30px rgba(0,0,0,0.35);
+    transform-style: preserve-3d;
+    transition: transform .25s ease, box-shadow .25s ease, filter .25s ease;
+    will-change: transform, box-shadow, filter;
+  }
+
+  .thumb{
+    position:absolute; inset:0;
+    background:
+      linear-gradient(to bottom right, rgba(255,255,255,0.06), rgba(255,255,255,0.0)),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0 2px, transparent 2px 6px),
+      radial-gradient(120% 120% at 0% 0%, #204a72 0%, #132336 45%, #0f1720 80%);
+    transform: translateZ(1px); /* lift slightly above the card plane */
+  }
+
+  .veil{
+    position:absolute; inset:0;
+    background: linear-gradient(to top, rgba(0,0,0,.55) 0 35%, rgba(0,0,0,0) 60%);
+    transform: translateZ(2px);
+    pointer-events:none;
+  }
+
+  .meta{
+    position:absolute; left:16px; right:16px; bottom:14px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    transform: translateZ(8px); /* bring text closer to camera */
+  }
+  .title{
+    font-weight:650; font-size: clamp(12px, 1.1vw, 18px);
+    text-shadow: 0 1px 2px rgba(0,0,0,.6);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tag{
+    font-size: clamp(10px, .9vw, 13px);
+    padding: 6px 10px; border-radius: 999px;
+    background: rgba(77,163,255,.14); color: #cfe5ff;
+    border: 1px solid rgba(77,163,255,.25);
+    backdrop-filter: blur(4px);
+  }
+
+  /* 3D hover: cards lift toward the camera and subtly counter-tilt */
+  .card:hover{
+    transform:
+      translateZ(40px)
+      rotateX(-2.5deg)
+      rotateY(2.5deg);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.06) inset,
+      0 22px 60px rgba(0,0,0,0.5);
+    filter: saturate(1.08);
+  }
+
+  /* Focus ring still works in 3D */
+  .card:focus-visible{
+    outline: 3px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  /* Keep it tight on smaller screens/aspect ratios */
+  @media (max-aspect-ratio: 16/10), (max-width: 1200px){
+    :root{ --gap:16px; --pad:16px; --perspective: 1100px; }
+    .stage{ transform:
+      translateZ(0) rotateX(16deg) rotateY(-20deg) scale(.92); }
+  }
+</style>
+</head>
+<body>
+  <div class="scene">
+    <header>
+      <h1>My Portfolio — CSS3D</h1>
+      <div class="subtitle">Low side-bottom perspective (4×3, all on screen)</div>
+    </header>
+
+    <!-- 3D stage (tilted plane) -->
+    <div class="stage" aria-hidden="false">
+      <div class="floor-shadow"></div>
+
+      <!-- Grid on the tilted stage -->
+      <section class="grid" aria-label="Portfolio items">
+        <!-- 12 cards -->
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">Landing Page Redesign</div><div class="tag">Web</div></div>
+        </article>
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">E-commerce UI Kit</div><div class="tag">UI</div></div>
+        </article>
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">Motion Graphics Reel</div><div class="tag">Motion</div></div>
+        </article>
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">Brand System “Aurora”</div><div class="tag">Branding</div></div>
+        </article>
+
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">Mobile App Dashboard</div><div class="tag">App</div></div>
+        </article>
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">3D Product Shots</div><div class="tag">3D</div></div>
+        </article>
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">Data Viz Suite</div><div class="tag">Analytics</div></div>
+        </article>
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">Illustration Pack</div><div class="tag">Art</div></div>
+        </article>
+
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">Marketing Microsite</div><div class="tag">Web</div></div>
+        </article>
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">Icon Set “Orbit”</div><div class="tag">Icons</div></div>
+        </article>
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">Corporate Templates</div><div class="tag">Docs</div></div>
+        </article>
+        <article class="card" tabindex="0">
+          <div class="thumb"></div><div class="veil"></div>
+          <div class="meta"><div class="title">Photography Series</div><div class="tag">Photo</div></div>
+        </article>
+      </section>
+    </div>
+  </div>
+</body>
+</html>
+

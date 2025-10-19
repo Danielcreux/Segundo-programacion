@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Emisores · Colisiones y Campos</title>
+    <style>
+      :root{
+        --bg:#f7f7fb; --panel:#ffffff; --ink:#1b1f24; --muted:#6b7280;
+        --accent:#2563eb; --border:#e5e7eb;
+      }
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{
+        margin:0;
+        font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Arial,sans-serif;
+        background:linear-gradient(180deg,var(--bg),#eef2ff 180px);
+        color:var(--ink);
+        overflow:hidden; /* para que el canvas pueda ocupar toda la altura */
+      }
+      header{padding:12px 20px;font-weight:700;letter-spacing:.2px}
+      .wrap{
+        display:grid;
+        grid-template-columns: 360px 1fr;
+        gap:16px;
+        padding:0 20px 20px;
+        height: calc(100% - 56px); /* header ~56px */
+      }
+      .panel{
+        background:var(--panel);
+        border:1px solid var(--border);
+        border-radius:16px;
+        box-shadow:0 10px 20px rgba(0,0,0,.04);
+        padding:16px;
+        min-height:0; /* para que el grid permita overflow interno */
+      }
+      .controls{ overflow:auto }
+      .controls h2{ margin:0 0 8px;font-size:15px;color:var(--muted);font-weight:600 }
+      .row{ margin:10px 0 14px }
+      .row label{
+        display:flex;align-items:center;justify-content:space-between;gap:12px;
+        font-size:14px;margin-bottom:6px;
+      }
+      .row input[type="range"]{ width:100% }
+      .row input[type="color"]{
+        width:100%;height:36px;border:1px solid var(--border);
+        border-radius:8px;background:#fff;padding:0;
+      }
+      .btnbar{ display:flex;flex-wrap:wrap;gap:8px;margin-top:8px }
+      button{
+        appearance:none;border:1px solid var(--border);background:#fff;
+        padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;
+      }
+      button:hover{ border-color:#cbd5e1 }
+      .primary{ background:var(--accent);color:#fff;border-color:transparent }
+      .toggle.active{ background:#e0ecff;border-color:#bcd6ff;color:#0b57d0 }
+      .canvas-wrap{ display:flex;flex-direction:column;gap:8px;min-height:0 }
+      /* Canvas responsive: ocupa todo el panel derecho */
+      #lienzo{
+        width:100%;
+        height:100%;
+        border-radius:16px;background:#fff;border:1px solid var(--border);
+        box-shadow:0 20px 30px rgba(0,0,0,.06);
+      }
+      .legend{ display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);flex-wrap:wrap }
+      .chip{ display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2ff;border:1px solid #dbe4ff;color:#334155;font-size:12px }
+      .hint{ margin-top:6px;font-size:12px;color:#475569 }
+      .meta{ font-size:12px;color:var(--muted);margin-top:8px;display:flex;gap:16px;flex-wrap:wrap }
+      .cursor-draw #lienzo{ cursor: crosshair }
+      .cursor-field #lienzo{ cursor: crosshair }
+      .cursor-emit #lienzo{ cursor: cell }
+    </style>
+  </head>
+  <body>
+    <header>Emisores de partículas · colisiones y campos (imanes/repelentes)</header>
+    <div class="wrap">
+      <div class="panel controls">
+        <h2>Parámetros del emisor activo</h2>
+
+        <div class="row">
+          <label>Ángulo <span class="chip" id="val-angulo">0.00</span></label>
+          <input type="range" id="angulo" min="0" max="6.283185307" step="0.01" value="0">
+        </div>
+        <div class="row">
+          <label>Radio (anillo) <span class="chip" id="val-radio">25.00</span></label>
+          <input type="range" id="radio" min="1" max="50" step="0.01" value="25">
+        </div>
+        <div class="row">
+          <label>Velocidad <span class="chip" id="val-vel">5</span></label>
+          <input type="range" id="velocidad" min="0" max="10" step="0.1" value="5">
+        </div>
+        <div class="row">
+          <label>Apertura (rad) <span class="chip" id="val-ap">1.00</span></label>
+          <input type="range" id="amplitud" min="0" max="2" step="0.01" value="1">
+        </div>
+        <div class="row">
+          <label>Color</label>
+          <input type="color" id="color" value="#0ea5e9">
+          <div class="hint">Click en el canvas (modo emisores) para crear uno con estos parámetros.</div>
+        </div>
+        <div class="row">
+          <label>Nº partículas por tick <span class="chip" id="val-np">50</span></label>
+          <input type="range" id="nump" min="1" max="400" step="1" value="50">
+        </div>
+
+        <h2>Líneas</h2>
+        <div class="btnbar">
+          <button id="toggle-draw" class="toggle">✏️ Dibujar líneas (colisión)</button>
+          <button id="clear-lines">🧹 Borrar líneas</button>
+        </div>
+
+        <h2>Campos (no colisionan)</h2>
+        <div class="row">
+          <label>Intensidad (±) <span class="chip" id="val-int">80</span></label>
+          <input type="range" id="intensidad" min="-300" max="300" step="1" value="80">
+        </div>
+        <div class="row">
+          <label>Suavizado (ε) <span class="chip" id="val-soft">8</span></label>
+          <input type="range" id="soft" min="1" max="40" step="1" value="8">
+        </div>
+        <div class="row">
+          <label>Caída (p) <span class="chip" id="val-fall">1.50</span></label>
+          <input type="range" id="falloff" min="0.5" max="3" step="0.1" value="1.5">
+        </div>
+        <div class="btnbar">
+          <button id="toggle-field" class="toggle">🧲 Dibujar campos</button>
+          <button id="clear-fields">🧼 Borrar campos</button>
+        </div>
+
+        <div class="btnbar" style="margin-top:8px">
+          <button id="clear-emitters">🚫 Borrar emisores</button>
+          <button id="clear-particles">💨 Limpiar partículas</button>
+          <button id="pause" class="primary">⏸️ Pausa</button>
+        </div>
+
+        <div class="meta">
+          <div>Emisores: <span id="meta-emisores">0</span></div>
+          <div>Líneas: <span id="meta-lineas">0</span></div>
+          <div>Campos: <span id="meta-campos">0</span></div>
+          <div>Partículas: <span id="meta-particulas">0</span></div>
+        </div>
+      </div>
+
+      <div class="panel canvas-wrap" id="canvas-wrap">
+        <canvas id="lienzo"></canvas>
+        <div class="legend">
+          <span class="chip">Modo emisores: click = añadir emisor</span>
+          <span class="chip">✏️ Líneas rebotan</span>
+          <span class="chip">🧲 Campos atraen/repelen (intensidad ±)</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ======= Utils geométricos =======
+      function dot(ax, ay, bx, by){ return ax*bx + ay*by; }
+      function len(ax, ay){ return Math.hypot(ax, ay); }
+      function norm(ax, ay){ const L = len(ax, ay) || 1; return {x: ax/L, y: ay/L}; }
+      function reflect(vx, vy, x1, y1, x2, y2){
+        const tx = x2 - x1, ty = y2 - y1;
+        const t = norm(tx, ty), n = {x: -t.y, y: t.x};
+        const vdotn = dot(vx, vy, n.x, n.y);
+        return { x: vx - 2*vdotn*n.x, y: vy - 2*vdotn*n.y };
+      }
+      function segIntersect(p1, p2, p3, p4){
+        const x1=p1.x, y1=p1.y, x2=p2.x, y2=p2.y;
+        const x3=p3.x, y3=p3.y, x4=p4.x, y4=p4.y;
+        const den = (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
+        if(Math.abs(den) < 1e-9) return null;
+        const px = ((x1*y2 - y1*x2)*(x3 - x4)-(x1 - x2)*(x3*y4 - y3*x4))/den;
+        const py = ((x1*y2 - y1*x2)*(y3 - y4)-(y1 - y2)*(x3*y4 - y3*x4))/den;
+        const within = (px>=Math.min(x1,x2)-1e-6 && px<=Math.max(x1,x2)+1e-6 &&
+                        py>=Math.min(y1,y2)-1e-6 && py<=Math.max(y1,y2)+1e-6 &&
+                        px>=Math.min(x3,x4)-1e-6 && px<=Math.max(x3,x4)+1e-6 &&
+                        py>=Math.min(y3,y4)-1e-6 && py<=Math.max(y3,y4)+1e-6);
+        return within ? {x:px, y:py} : null;
+      }
+      // Punto más cercano de P a segmento AB
+      function closestPointOnSegment(px, py, ax, ay, bx, by){
+        const abx = bx - ax, aby = by - ay;
+        const apx = px - ax, apy = py - ay;
+        const ab2 = abx*abx + aby*aby || 1;
+        let t = (apx*abx + apy*aby) / ab2;
+        t = Math.max(0, Math.min(1, t));
+        return { x: ax + t*abx, y: ay + t*aby, t };
+      }
+
+      // ======= Clases =======
+      class Particula{
+        constructor(x,y,v,a,color){
+          this.x = x; this.y = y; this.v = v; this.a = a; this.color = color;
+        }
+        draw(ctx){ ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 1.5, 1.5); }
+      }
+      class Emisor{
+        constructor(x,y,a,v,apertura,color,radio){
+          this.x=x; this.y=y; this.a=a; this.v=v; this.apertura=apertura; this.color=color; this.radio=radio;
+        }
+      }
+
+      // ======= Estado global =======
+      const canvas = document.getElementById("lienzo");
+      const ctx = canvas.getContext("2d");
+      const shell = document.getElementById("canvas-wrap");
+      const root = document.querySelector(".wrap");
+
+      let running = true;
+      let numeroparticulas = 50;
+      let particulas = [];
+      let emisores = [];
+      let lineas = [];  // [{x1,y1,x2,y2}]
+      let campos = [];  // [{x1,y1,x2,y2,intensity}]
+      let drawMode = false;   // dibujar líneas (colisión)
+      let fieldMode = false;  // dibujar campos (atracción/repulsión)
+      let drawing = false;
+      let tempStart = null;
+
+      const fade = "rgba(255,255,255,0.40)";
+      let W = 0, H = 0, DPR = 1;
+
+      // ======= UI refs =======
+      const RAng = document.querySelector("#angulo");
+      const RRad = document.querySelector("#radio");
+      const RVel = document.querySelector("#velocidad");
+      const RAmp = document.querySelector("#amplitud");
+      const Col  = document.querySelector("#color");
+      const NumP = document.querySelector("#nump");
+
+      const VAng = document.querySelector("#val-angulo");
+      const VRad = document.querySelector("#val-radio");
+      const VVel = document.querySelector("#val-vel");
+      const VAmp = document.querySelector("#val-ap");
+      const VNP  = document.querySelector("#val-np");
+
+      const RInt = document.querySelector("#intensidad");
+      const RSoft= document.querySelector("#soft");
+      const RFall= document.querySelector("#falloff");
+      const VInt = document.querySelector("#val-int");
+      const VSoft= document.querySelector("#val-soft");
+      const VFall= document.querySelector("#val-fall");
+
+      const MetaE = document.querySelector("#meta-emisores");
+      const MetaL = document.querySelector("#meta-lineas");
+      const MetaC = document.querySelector("#meta-campos");
+      const MetaP = document.querySelector("#meta-particulas");
+
+      const BtnDraw = document.querySelector("#toggle-draw");
+      const BtnField= document.querySelector("#toggle-field");
+      const BtnClearLines = document.querySelector("#clear-lines");
+      const BtnClearFields= document.querySelector("#clear-fields");
+      const BtnClearEmit = document.querySelector("#clear-emitters");
+      const BtnClearPart = document.querySelector("#clear-particles");
+      const BtnPause = document.querySelector("#pause");
+
+      function syncLabels(){
+        VAng.textContent = (+RAng.value).toFixed(2);
+        VRad.textContent = (+RRad.value).toFixed(2);
+        VVel.textContent = (+RVel.value).toFixed(0);
+        VAmp.textContent = (+RAmp.value).toFixed(2);
+        VNP.textContent  = (+NumP.value).toFixed(0);
+        VInt.textContent = (+RInt.value).toFixed(0);
+        VSoft.textContent= (+RSoft.value).toFixed(0);
+        VFall.textContent= (+RFall.value).toFixed(2);
+      }
+      [RAng,RRad,RVel,RAmp,NumP,Col,RInt,RSoft,RFall].forEach(el=>el.addEventListener("input", syncLabels));
+      syncLabels();
+
+      // ======= Canvas responsive =======
+      function resizeCanvas(){
+        // Calcula tamaño disponible del panel derecho
+        const rect = shell.getBoundingClientRect();
+        DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1)); // limitar a 2 para no disparar coste
+        W = Math.floor(rect.width);
+        H = Math.floor(rect.height - 32); // deja sitio para la leyenda
+
+        if(H < 200) H = 200;
+
+        canvas.style.width = W + "px";
+        canvas.style.height= H + "px";
+        canvas.width  = Math.floor(W * DPR);
+        canvas.height = Math.floor(H * DPR);
+        ctx.setTransform(DPR,0,0,DPR,0,0);
+      }
+      window.addEventListener("resize", ()=>{ resizeCanvas(); });
+
+      // ======= Interacción (emisores / líneas / campos) =======
+      function modeClass(){
+        root.classList.remove("cursor-draw","cursor-field","cursor-emit");
+        if(drawMode) root.classList.add("cursor-draw");
+        else if(fieldMode) root.classList.add("cursor-field");
+        else root.classList.add("cursor-emit");
+      }
+      modeClass();
+
+      canvas.addEventListener("mousedown",(ev)=>{
+        const {x,y}=canvasCoords(ev);
+        if(drawMode || fieldMode){
+          drawing = true; tempStart = {x,y};
+        }else{
+          emisores.push(new Emisor(
+            x, y, +RAng.value, +RVel.value, +RAmp.value, Col.value, +RRad.value
+          ));
+          MetaE.textContent = emisores.length.toString();
+        }
+      });
+      canvas.addEventListener("mousemove",(ev)=>{
+        if(!drawing) return;
+        // Vista previa de la línea
+        previsualizacion();
+        const {x,y}=canvasCoords(ev);
+        ctx.save();
+        ctx.strokeStyle = fieldMode ? "#9333ea" : "#111827";
+        ctx.setLineDash([6,6]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(tempStart.x, tempStart.y);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.restore();
+      });
+      window.addEventListener("mouseup",(ev)=>{
+        if(!drawing) return;
+        const {x,y}=canvasCoords(ev);
+        drawing = false;
+        if(fieldMode){
+          campos.push({x1:tempStart.x,y1:tempStart.y,x2:x,y2:y,intensity:+RInt.value});
+          MetaC.textContent = campos.length.toString();
+        }else if(drawMode){
+          lineas.push({x1:tempStart.x,y1:tempStart.y,x2:x,y2:y});
+          MetaL.textContent = lineas.length.toString();
+        }
+        tempStart=null;
+      });
+
+      BtnDraw.addEventListener("click", ()=>{
+        drawMode = !drawMode; if(drawMode) fieldMode=false;
+        BtnDraw.classList.toggle("active", drawMode);
+        BtnField.classList.toggle("active", fieldMode);
+        modeClass();
+      });
+      BtnField.addEventListener("click", ()=>{
+        fieldMode = !fieldMode; if(fieldMode) drawMode=false;
+        BtnField.classList.toggle("active", fieldMode);
+        BtnDraw.classList.toggle("active", drawMode);
+        modeClass();
+      });
+
+      BtnClearLines.addEventListener("click", ()=>{ lineas=[]; MetaL.textContent="0"; });
+      BtnClearFields.addEventListener("click", ()=>{ campos=[]; MetaC.textContent="0"; });
+      BtnClearEmit.addEventListener("click", ()=>{ emisores=[]; MetaE.textContent="0"; });
+      BtnClearPart.addEventListener("click", ()=>{ particulas=[]; MetaP.textContent="0"; });
+      BtnPause.addEventListener("click", ()=>{
+        running = !running; BtnPause.textContent = running ? "⏸️ Pausa" : "▶️ Reanudar";
+      });
+
+      function canvasCoords(ev){
+        const r = canvas.getBoundingClientRect();
+        return { x: (ev.clientX - r.left), y: (ev.clientY - r.top) };
+      }
+
+      // ======= Render helpers =======
+      function drawWalls(){
+        if(lineas.length===0) return;
+        ctx.save();
+        ctx.strokeStyle = "#111827";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        lineas.forEach(L=>{
+          ctx.beginPath();
+          ctx.moveTo(L.x1, L.y1);
+          ctx.lineTo(L.x2, L.y2);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+      function drawFields(){
+        if(campos.length===0) return;
+        ctx.save();
+        ctx.strokeStyle = "#9333ea";
+        ctx.lineWidth = 2;
+        campos.forEach(F=>{
+          ctx.beginPath();
+          ctx.moveTo(F.x1, F.y1);
+          ctx.lineTo(F.x2, F.y2);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+      function previsualizacion(){
+        ctx.fillStyle = fade; ctx.fillRect(0,0,W,H);
+        drawWalls(); drawFields();
+        // aro guía (opcional)
+        ctx.save();
+        ctx.globalAlpha=.4; ctx.strokeStyle=Col.value;
+        ctx.beginPath(); ctx.arc(W/2, H/2, +RRad.value, 0, Math.PI*2); ctx.stroke();
+        ctx.restore();
+      }
+
+      // ======= Simulación =======
+      let prevT = performance.now();
+      function tick(now){
+        const dt = Math.min(32, now - prevT); // ms
+        prevT = now;
+        if(running){ step(dt); render(); }
+        requestAnimationFrame(tick);
+      }
+
+      function spawnFromEmitters(){
+        const nPerTick = numeroparticulas;
+        emisores.forEach(e=>{
+          for(let i=0;i<nPerTick;i++){
+            const angle = e.a + (Math.random()-0.5)*e.apertura;
+            const rx = Math.cos(Math.random()*Math.PI*2)*e.radio;
+            const ry = Math.sin(Math.random()*Math.PI*2)*e.radio;
+            particulas.push(new Particula(e.x+rx, e.y+ry, e.v, angle, e.color));
+          }
+        });
+      }
+
+      function step(dt){
+        numeroparticulas = +NumP.value;
+        spawnFromEmitters();
+
+        const eps = 0.01;
+        const soft = Math.max(1, +RSoft.value);   // suavizado
+        const pwr  = +RFall.value;                // caída
+        const kMaxAccel = 0.5;                    // límite de aceleración por tick
+        const accScale = 0.06 * (dt/16);          // escala dependiente del dt
+
+        for(let p of particulas){
+          // Velocidad actual como vector
+          let vx = Math.cos(p.a)*p.v;
+          let vy = Math.sin(p.a)*p.v;
+
+          // ===== Campos (fuerzas) =====
+          if(campos.length){
+            let ax=0, ay=0;
+            for(let F of campos){
+              const cp = closestPointOnSegment(p.x, p.y, F.x1, F.y1, F.x2, F.y2);
+              const dx = cp.x - p.x, dy = cp.y - p.y;
+              const d  = Math.hypot(dx,dy);
+              if(d < 1e-6) continue;
+              const dir = {x: dx/d, y: dy/d}; // hacia la línea
+              // magnitud de fuerza: intensity / (d + soft)^p
+              const mag = (F.intensity) / Math.pow(d + soft, pwr);
+              ax += dir.x * mag;
+              ay += dir.y * mag;
+            }
+            // Limitar aceleración total
+            const aLen = Math.hypot(ax, ay);
+            if(aLen > kMaxAccel){
+              ax = ax / aLen * kMaxAccel;
+              ay = ay / aLen * kMaxAccel;
+            }
+            // Aplicar al vector velocidad
+            vx += ax * accScale;
+            vy += ay * accScale;
+          }
+
+          // Próxima posición
+          let nx = p.x + vx;
+          let ny = p.y + vy;
+
+          // ===== Colisión con líneas sólidas =====
+          let collided = false;
+          if(lineas.length){
+            const segA = {x:p.x,y:p.y}, segB = {x:nx,y:ny};
+            for(let L of lineas){
+              const hit = segIntersect(segA, segB, {x:L.x1,y:L.y1}, {x:L.x2,y:L.y2});
+              if(hit){
+                const r = reflect(vx, vy, L.x1, L.y1, L.x2, L.y2);
+                // Actualiza velocidad y ángulo/vel
+                vx = r.x; vy = r.y;
+                p.a = Math.atan2(vy, vx);
+                p.v = Math.hypot(vx, vy);
+                p.x = hit.x + vx*eps;
+                p.y = hit.y + vy*eps;
+                collided = true;
+                break;
+              }
+            }
+          }
+          if(!collided){ p.x = nx; p.y = ny; p.a = Math.atan2(vy,vx); p.v = Math.hypot(vx,vy); }
+
+          // Rebote con bordes
+          if(p.x <= 0 || p.x >= W){
+            vx = -vx; p.a = Math.atan2(vy, vx); p.v = Math.hypot(vx,vy);
+            p.x = Math.max(0, Math.min(W, p.x));
+          }
+          if(p.y <= 0 || p.y >= H){
+            vy = -vy; p.a = Math.atan2(vy, vx); p.v = Math.hypot(vx,vy);
+            p.y = Math.max(0, Math.min(H, p.y));
+          }
+        }
+
+        // Limpieza y meta
+        particulas = particulas.filter(pt=> pt.x>=-2 && pt.x<=W+2 && pt.y>=-2 && pt.y<=H+2 );
+        MetaP.textContent = String(particulas.length);
+      }
+
+      function render(){
+        ctx.fillStyle = fade; ctx.fillRect(0,0,W,H);
+        drawWalls(); drawFields();
+        for(let p of particulas) p.draw(ctx);
+      }
+
+      // ======= Inicio =======
+      resizeCanvas();
+      previsualizacion();
+      requestAnimationFrame(tick);
+
+      // Estado inicial
+      MetaE.textContent="0"; MetaL.textContent="0"; MetaC.textContent="0"; MetaP.textContent="0";
+    </script>
+  </body>
+</html>

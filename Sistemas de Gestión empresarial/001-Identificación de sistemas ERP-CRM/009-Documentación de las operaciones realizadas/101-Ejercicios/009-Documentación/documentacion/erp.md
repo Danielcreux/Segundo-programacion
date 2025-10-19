@@ -56,6 +56,7 @@
    │  ├─ 📄docai.py
    │  ├─ 📄documentacion.py
    │  ├─ 📄erp_mejorado.md
+   │  ├─ 📄fragmentos_inteligentes.py
    │  └─ 📄ollama_config.py
    ├─ 📁instalador
    │  └─ 📄index.php
@@ -67,58 +68,3 @@
 ## anterior
 
 - [index.php](anterior\index.php)
-
-    > ⚠️ Error llamando a Ollama: HTTP Error 500: Internal Server Error
-
-    ```php
-    <?php 
-  session_start();
-  if(!isset($_SESSION['usuario'])){
-    header("Location: iniciarsesion/index.html");
-    exit;
-  }
-?>
-<!doctype html>
-<html lang="es">
-  <head>
-    <title>ERP Joshue Daniel </title>
-    <meta charset="utf-8">
-    <link rel="stylesheet" href="comun/estilo.css">
-  </head>
-  <body>
-    <?php include "cabecera/index.php" ?>
-    <?php include "listadodemodulos/index.php" ?>
-    
-  </body>
-</html> 
-    ```
-### cabecera
-
-- [comportamiento.js](anterior\cabecera\comportamiento.js)
-- [estilo.css](anterior\cabecera\estilo.css)
-
-    > ⚠️ Error llamando a Ollama: HTTP Error 500: Internal Server Error
-
-    ```css
-    #superior{
-  background:var(--solido-fondo);
-  padding:20px;
-  color:var(--solido-frente);
-  font-weight:bold;
-  display:flex;
-  justify-content: space-between;
-}
-#inferior{
-  background:white;
-  padding:20px;
-  color:black;
-  font-weight:bold;
-  display:flex;
-  justify-content: space-between;
-  border-bottom:1px solid var(--solido-fondo);
-}
-#inferior nav{
-  display:flex;
-}
-    ```
-- [index.php](anterior\cabecera\index.php)

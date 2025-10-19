@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Botón con tooltip (encapsulado)</title>
+  </head>
+  <body>
+    <!-- Instancias -->
+    <boton-tooltip></boton-tooltip>
+    <boton-tooltip></boton-tooltip>
+
+    <!-- ÚNICO template: contiene HTML + CSS; el JS solo sirve para instanciar el template en Shadow DOM -->
+    <template id="plantillaboton">
+      <style>
+        :host {
+          position: relative;
+          display: inline-block;
+          margin: 20px;
+          font-family: system-ui, sans-serif;
+        }
+        button.miboton {
+          padding: 6px 12px;
+          border: 1px solid #ccc;
+          border-radius: 6px;
+          background: #f5f5f5;
+          cursor: pointer;
+        }
+        .tooltip {
+          position: absolute;
+          bottom: -8px;
+          right: -23px;
+          background: black;
+          color: white;
+          padding: 5px;
+          border-radius: 0px 5px 5px 5px;
+          width: 30px;
+          height: 10px;
+          font-size: 10px;
+          text-align: center;
+          line-height: 10px;
+          display: none; /* Oculto por defecto */
+          pointer-events: none;
+          z-index: 1;
+        }
+        /* Mostrar solo cuando se pasa el ratón por encima del host (o del botón) */
+        :host(:hover) .tooltip,
+        button.miboton:hover + .tooltip {
+          display: block;
+        }
+      </style>
+
+      <button class="miboton">Púlsame</button>
+      <div class="tooltip">Hola</div>
+    </template>
+
+    <script type="module">
+      class BotonTooltip extends HTMLElement {
+        constructor() {
+          super();
+          const tpl = document.getElementById('plantillaboton');
+          const shadow = this.attachShadow({ mode: 'open' });
+          shadow.appendChild(tpl.content.cloneNode(true));
+        }
+      }
+      customElements.define('boton-tooltip', BotonTooltip);
+    </script>
+  </body>
+</html>
+

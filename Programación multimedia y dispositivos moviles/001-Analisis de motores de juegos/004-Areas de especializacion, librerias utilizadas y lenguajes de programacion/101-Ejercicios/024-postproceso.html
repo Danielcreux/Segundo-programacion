@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A-Frame Earth with Bloom</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- A-Frame + Post-Processing component (CDN build from project) -->
+    <!-- Uses a build of A-Frame compatible with the component -->
+    <script src="https://cdn.jsdelivr.net/gh/akbartus/A-Frame-Component-Postprocessing/dist/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/akbartus/A-Frame-Component-Postprocessing/dist/post-processing.min.js"></script>
+
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; }
+    </style>
+  </head>
+  <body>
+    <!-- Enable post-processing with Bloom and tune parameters -->
+    <a-scene
+      post-processing="effect: bloom; bloomParams: threshold: 0.18, strength: 0.35, radius: 0.55, exposure: 1.0"
+      renderer="colorManagement: true; physicallyCorrectLights: true;"
+    >
+      <!-- Textures -->
+      <a-assets>
+        <!-- Replace with your own asset paths if needed -->
+        <img id="texturatierra" src="nasatierra.jpg" crossorigin="anonymous">
+        <img id="rugosidadtierra" src="rugosidad.jpg" crossorigin="anonymous">
+        <img id="nubes" src="nasanubes.png" crossorigin="anonymous">
+      </a-assets>
+
+      <!-- Rotating group -->
+      <a-entity
+        id="earthGroup"
+        position="0 1.25 -5"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 130000; easing: linear"
+      >
+        <!-- Earth -->
+        <a-sphere
+          radius="3"
+          material="src: #texturatierra; metalness: 0.01; roughness: 0.8; roughnessMap: #rugosidadtierra"
+        ></a-sphere>
+
+        <!-- Clouds (slightly emissive to trigger bloom nicely) -->
+        <a-sphere
+          radius="3.05"
+          segments-width="64"
+          segments-height="64"
+          material="
+            src: #nubes;
+            alphaMap: #nubes;
+            transparent: true;
+            side: double;
+            metalness: 0;
+            roughness: 1;
+            emissive: #ffffff;
+            emissiveIntensity: 0.25;
+            emissiveMap: #nubes;
+          "
+        ></a-sphere>
+      </a-entity>
+
+      <!-- Sky and lights -->
+      <a-sky color="#000000"></a-sky>
+
+      <!-- Softer ambient so emissive stands out -->
+      <a-entity light="type: ambient; intensity: 0.15"></a-entity>
+
+      <!-- Directional “sun” light (keep it reasonable so bloom isn’t blown out) -->
+      <a-entity light="type: directional; intensity: 2.5; color: #ffffff" position="2 4 0"></a-entity>
+
+      <!-- Camera -->
+      <a-entity position="0 1.6 0">
+        <a-camera></a-camera>
+      </a-entity>
+    </a-scene>
+  </body>
+</html>
+

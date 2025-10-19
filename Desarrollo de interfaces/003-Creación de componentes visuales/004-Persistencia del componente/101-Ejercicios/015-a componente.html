@@ -1,0 +1,205 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>SearchableSelect (reusable, keeps native select)</title>
+  <style>
+    :root { --b:#ddd; --bg:#fff; --hover:#f2f2f2; }
+
+    body { font-family: system-ui, sans-serif; margin: 1.5rem; display:grid; gap:2rem; }
+
+    /* Container for each instance */
+    .ssx { position: relative; width: 420px; display: grid; gap: .5rem; }
+
+    /* Keep native select in DOM, hidden visually (still submits with form) */
+    .ssx select[data-ssx-select]{
+      position: absolute; left: -9999px; width:0; height:0;
+    }
+
+    .ssx input[data-ssx-input]{
+      padding:.6rem .7rem; border:1px solid var(--b); border-radius:.5rem; width:100%; box-sizing:border-box;
+    }
+
+    .ssx .ssx-dropdown {
+      position:absolute; left:0; right:0; top: calc(100% + .25rem);
+      background:var(--bg); border:1px solid var(--b); border-radius:.5rem;
+      max-height:260px; overflow:auto; z-index:10;
+      display:none; /* Enhancement #1: hidden on load */
+    }
+
+    .ssx .ssx-item{
+      padding:.55rem .7rem; cursor:pointer; user-select:none; line-height:1.2;
+    }
+    .ssx .ssx-item:hover,
+    .ssx .ssx-item[aria-selected="true"]{ background:var(--hover); }
+
+    .ssx .ssx-empty{ padding:.55rem .7rem; color:#666; }
+    .ssx .ssx-status{ color:#555; font-size:.9rem; }
+  </style>
+</head>
+<body>
+
+  <!-- Instance 1 -->
+  <form action="/procesar.php" method="post" class="ssx" data-ssx>
+    <input type="search" data-ssx-input placeholder="Escribe para filtrar ciudades…" autocomplete="off">
+    <select name="city" data-ssx-select>
+      <option value="">-- Selecciona una ciudad --</option>
+      <option>Almería</option><option>Cádiz</option><option>Córdoba</option><option>Granada</option>
+      <option>Huelva</option><option>Jaén</option><option>Málaga</option><option>Sevilla</option>
+      <option>Jerez de la Frontera (Cádiz)</option><option>Marbella (Málaga)</option>
+      <option>Valencia</option><option>Alicante</option><option>Castellón de la Plana</option>
+      <option>Madrid</option><option>Barcelona</option><option>Bilbao (Bizkaia)</option>
+      <option>San Sebastián / Donostia (Gipuzkoa)</option><option>Vitoria-Gasteiz (Álava)</option>
+      <option>Torrent (Valencia)</option><option>Ceuta</option><option>Melilla</option>
+    </select>
+    <div class="ssx-dropdown" data-ssx-panel></div>
+    <div class="ssx-status" data-ssx-status></div>
+    <button type="submit">Enviar</button>
+  </form>
+
+  <!-- Instance 2 (demonstrates reuse with another select) -->
+  <form action="/otro.php" method="post" class="ssx" data-ssx>
+    <input type="search" data-ssx-input placeholder="Busca provincias…" autocomplete="off">
+    <select name="province" data-ssx-select>
+      <option value="">-- Selecciona una provincia --</option>
+      <option>Álava</option><option>Albacete</option><option>Alicante</option><option>Almería</option>
+      <option>Asturias</option><option>Ávila</option><option>Badajoz</option><option>Barcelona</option>
+      <option>Burgos</option><option>Cáceres</option><option>Cádiz</option><option>Cantabria</option>
+      <option>Castellón</option><option>Ciudad Real</option><option>Córdoba</option><option>Cuenca</option>
+    </select>
+    <div class="ssx-dropdown" data-ssx-panel></div>
+    <div class="ssx-status" data-ssx-status></div>
+    <button type="submit">Enviar</button>
+  </form>
+
+  <script>
+    class SearchableSelect {
+      /**
+       * @param {HTMLElement} root - container element with:
+       *   - input[data-ssx-input]
+       *   - select[data-ssx-select] (native, static)
+       *   - div[data-ssx-panel] (dropdown panel)
+       *   - [optional] div[data-ssx-status] (status text)
+       * @param {Object} opts
+       * @param {boolean} opts.keepOpenWhileTyping - keep dropdown open on input focus/typing
+       */
+      constructor(root, { keepOpenWhileTyping = true } = {}) {
+        this.root = root;
+        this.input = root.querySelector('[data-ssx-input]');
+        this.select = root.querySelector('[data-ssx-select]');
+        this.panel = root.querySelector('[data-ssx-panel]');
+        this.status = root.querySelector('[data-ssx-status]');
+        this.keepOpenWhileTyping = keepOpenWhileTyping;
+
+        if (!this.input || !this.select || !this.panel) {
+          throw new Error('SearchableSelect: missing required elements in root');
+        }
+
+        // Build dataset from native select (without touching it)
+        this.allTexts = Array.from(this.select.options)
+          .map(o => o.text.trim())
+          .filter(t => t && !t.startsWith('-- '));
+
+        this.activeIndex = -1;
+        this.render(this.allTexts);
+
+        // Enhancement #1: hidden on load, show only on focus
+        this.input.addEventListener('focus', () => this.showPanel(true));
+        this.input.addEventListener('input', () => this.handleFilter());
+        this.input.addEventListener('keydown', (e) => this.handleKeys(e));
+
+        // Keep in sync if external code changes native select
+        this.select.addEventListener('change', () => {
+          const val = this.select.value || '';
+          this.input.value = val;
+          this.setStatus(val ? `Seleccionado: ${val}` : '');
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!this.root.contains(e.target)) this.showPanel(false);
+        });
+      }
+
+      norm(s) {
+        return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+      }
+
+      handleFilter() {
+        const q = this.norm(this.input.value);
+        const list = this.allTexts.filter(t => this.norm(t).includes(q));
+        this.activeIndex = -1;
+        this.render(list);
+        if (this.keepOpenWhileTyping) this.showPanel(true);
+      }
+
+      handleKeys(e) {
+        const items = Array.from(this.panel.querySelectorAll('.ssx-item'));
+        if (e.key === 'ArrowDown' && items.length) {
+          e.preventDefault();
+          this.activeIndex = (this.activeIndex + 1) < items.length ? this.activeIndex + 1 : 0;
+          this.mark(items);
+        } else if (e.key === 'ArrowUp' && items.length) {
+          e.preventDefault();
+          this.activeIndex = (this.activeIndex - 1) >= 0 ? this.activeIndex - 1 : items.length - 1;
+          this.mark(items);
+        } else if (e.key === 'Enter' && this.activeIndex >= 0) {
+          e.preventDefault();
+          items[this.activeIndex].click();
+        } else if (e.key === 'Escape') {
+          this.showPanel(false);
+        }
+      }
+
+      render(list) {
+        this.panel.innerHTML = '';
+        if (!list.length) {
+          this.panel.innerHTML = `<div class="ssx-empty">Sin coincidencias</div>`;
+          return;
+        }
+        list.forEach(text => {
+          const div = document.createElement('div');
+          div.className = 'ssx-item';
+          div.setAttribute('role', 'option');
+          div.textContent = text;
+          div.addEventListener('click', () => this.selectText(text));
+          this.panel.appendChild(div);
+        });
+      }
+
+      selectText(text) {
+        // mirror in visible input
+        this.input.value = text;
+
+        // mirror in native select (use value if present, fallback to text)
+        const opt = Array.from(this.select.options).find(o => o.text.trim() === text);
+        if (opt) {
+          this.select.value = opt.value || opt.text;
+          this.select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        this.setStatus(`Seleccionado: ${text}`);
+        this.showPanel(false); // close after selection (change to true if you prefer staying open)
+      }
+
+      mark(items) {
+        items.forEach((el, i) => el.setAttribute('aria-selected', i === this.activeIndex ? 'true' : 'false'));
+        if (this.activeIndex >= 0) items[this.activeIndex].scrollIntoView({ block: 'nearest' });
+      }
+
+      showPanel(show) {
+        this.panel.style.display = show ? 'block' : 'none';
+      }
+
+      setStatus(msg) {
+        if (this.status) this.status.textContent = msg;
+      }
+    }
+
+    // Instantiate for all .ssx blocks (Enhancement #2: reusable component)
+    document.querySelectorAll('[data-ssx]').forEach(root => {
+      new SearchableSelect(root, { keepOpenWhileTyping: true });
+    });
+  </script>
+</body>
+</html>
+

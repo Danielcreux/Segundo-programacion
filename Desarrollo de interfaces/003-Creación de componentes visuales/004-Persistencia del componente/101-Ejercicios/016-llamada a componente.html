@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Demostración | danielcreuxui.SearchableSelect</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #fafafa;
+      margin: 3rem auto;
+      max-width: 700px;
+      line-height: 1.6;
+    }
+    h1 {
+      text-align: center;
+      font-weight: 600;
+      margin-bottom: 2rem;
+      color: #333;  
+    }
+    section {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 14px rgba(0,0,0,.05);
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    button {
+      width: fit-content;
+      padding: .6rem 1rem;
+      border: none;
+      border-radius: .5rem;
+      background: #0078ff;
+      color: white;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background .2s;
+    }
+    button:hover {
+      background: #005fcc;
+    }
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      color: #777;
+      font-size: .9rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎯 Demostración de <code>dnielcreuxui.SearchableSelect</code></h1>
+
+  <section>
+    <p>
+      Escribe el nombre de una ciudad española para filtrar.  
+      El componente mantiene el <code>&lt;select&gt;</code> original oculto y sincronizado, 
+      por lo que al enviar el formulario se enviará su valor normalmente.
+    </p>
+
+    <form action="#" method="post" id="form-ciudades">
+      <label for="city">Ciudad</label>
+
+      <!-- Select nativo (queda estático, pero será mejorado por la librería) -->
+      <select id="city" name="city" data-jui="searchable">
+        <option value="">-- Selecciona una ciudad --</option>
+        <option>Almería</option><option>Cádiz</option><option>Córdoba</option><option>Granada</option>
+        <option>Huelva</option><option>Jaén</option><option>Málaga</option><option>Sevilla</option>
+        <option>Jerez de la Frontera (Cádiz)</option><option>Marbella (Málaga)</option><option>Algeciras (Cádiz)</option>
+        <option>Dos Hermanas (Sevilla)</option><option>Roquetas de Mar (Almería)</option><option>Motril (Granada)</option>
+        <option>Zaragoza</option><option>Huesca</option><option>Teruel</option><option>Calatayud (Zaragoza)</option>
+        <option>Oviedo</option><option>Gijón</option><option>Avilés</option><option>Mieres</option><option>Langreo</option>
+        <option>Palma de Mallorca</option><option>Ibiza</option><option>Manacor (Mallorca)</option><option>Inca (Mallorca)</option>
+        <option>Las Palmas de Gran Canaria</option><option>Santa Cruz de Tenerife</option><option>La Laguna (Tenerife)</option>
+        <option>Arrecife (Lanzarote)</option><option>Puerto del Rosario (Fuerteventura)</option>
+        <option>Santander</option><option>Torrelavega</option><option>Castro-Urdiales</option>
+        <option>Valladolid</option><option>Salamanca</option><option>León</option><option>Burgos</option>
+        <option>Ávila</option><option>Palencia</option><option>Segovia</option><option>Soria</option>
+        <option>Zamora</option><option>Ponferrada (León)</option><option>Aranda de Duero (Burgos)</option>
+        <option>Toledo</option><option>Talavera de la Reina (Toledo)</option><option>Puertollano (Ciudad Real)</option>
+        <option>Barcelona</option><option>Tarragona</option><option>Lleida</option><option>Girona</option>
+        <option>Sabadell (Barcelona)</option><option>Terrassa (Barcelona)</option><option>L’Hospitalet de Llobregat (Barcelona)</option>
+        <option>Badalona (Barcelona)</option><option>Reus (Tarragona)</option><option>Manresa (Barcelona)</option>
+        <option>Madrid</option><option>Alcalá de Henares</option><option>Móstoles</option><option>Fuenlabrada</option>
+        <option>Getafe</option><option>Leganés</option><option>Alcorcón</option><option>Torrejón de Ardoz</option>
+        <option>Murcia</option><option>Cartagena</option><option>Lorca</option><option>Yecla</option>
+        <option>Pamplona</option><option>Tudela</option>
+        <option>Bilbao (Bizkaia)</option><option>San Sebastián / Donostia (Gipuzkoa)</option>
+        <option>Vitoria-Gasteiz (Álava)</option><option>Barakaldo (Bizkaia)</option><option>Getxo (Bizkaia)</option>
+        <option>Irun (Gipuzkoa)</option>
+        <option>Logroño</option><option>Calahorra</option>
+        <option>Valencia</option><option>Alicante</option><option>Castellón de la Plana</option>
+        <option>Elche (Alicante)</option><option>Torrevieja (Alicante)</option><option>Gandía (Valencia)</option>
+        <option>Benidorm (Alicante)</option><option>Orihuela (Alicante)</option><option>Paterna (Valencia)</option>
+        <option>Vila-real (Castellón)</option><option>Alcoy (Alicante)</option><option>Sagunto (Valencia)</option>
+        <option>Denia (Alicante)</option><option>Torrent (Valencia)</option>
+        <option>Ceuta</option><option>Melilla</option>
+      </select>
+
+      <button type="submit">Enviar</button>
+    </form>
+
+    <p style="margin-top:1rem;color:#666">
+      Prueba a escribir por ejemplo: <code>Gran</code>, <code>Mal</code> o <code>Valen</code>.
+    </p>
+  </section>
+
+  <footer>
+    <p>© 2025 Danielcreuxui · Danielcreux</p>
+  </footer>
+
+  <script src="jocarsaui.js"></script>
+  <link rel="stylesheet" href="jocarsaui.css">
+</body>
+</html>
+

@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Botón con tooltip (componente externo)</title>
+  </head>
+  <body>
+    <div id="contenedor">
+      <select name="city" id="city">
+        <option value="">-- Selecciona una ciudad --</option>
+        <!-- ANDALUCÍA -->
+        <optgroup label="Andalucía">
+          <option>Almería</option>
+          <option>Cádiz</option>
+          <option>Córdoba</option>
+          <option>Granada</option>
+          <option>Huelva</option>
+          <option>Jaén</option>
+          <option>Málaga</option>
+          <option>Sevilla</option>
+          <option>Jerez de la Frontera (Cádiz)</option>
+          <option>Marbella (Málaga)</option>
+          <option>Algeciras (Cádiz)</option>
+          <option>Dos Hermanas (Sevilla)</option>
+          <option>Estepona (Málaga)</option>
+          <option>Roquetas de Mar (Almería)</option>
+          <option>Motril (Granada)</option>
+        </optgroup>
+
+        <!-- ARAGÓN -->
+        <optgroup label="Aragón">
+          <option>Zaragoza</option>
+          <option>Huesca</option>
+          <option>Teruel</option>
+          <option>Calatayud (Zaragoza)</option>
+          <option>Monzón (Huesca)</option>
+          <option>Ejea de los Caballeros (Zaragoza)</option>
+        </optgroup>
+
+        <!-- ASTURIAS -->
+        <optgroup label="Asturias">
+          <option>Oviedo</option>
+          <option>Gijón</option>
+          <option>Avilés</option>
+          <option>Mieres</option>
+          <option>Langreo</option>
+        </optgroup>
+
+        <!-- BALEARES -->
+        <optgroup label="Islas Baleares">
+          <option>Palma de Mallorca</option>
+          <option>Ibiza</option>
+          <option>Manacor (Mallorca)</option>
+          <option>Inca (Mallorca)</option>
+          <option>Ciutadella de Menorca</option>
+        </optgroup>
+
+        <!-- CANARIAS -->
+        <optgroup label="Islas Canarias">
+          <option>Las Palmas de Gran Canaria</option>
+          <option>Santa Cruz de Tenerife</option>
+          <option>La Laguna (Tenerife)</option>
+          <option>Arrecife (Lanzarote)</option>
+          <option>Puerto del Rosario (Fuerteventura)</option>
+          <option>San Bartolomé de Tirajana (Gran Canaria)</option>
+        </optgroup>
+
+        <!-- CANTABRIA -->
+        <optgroup label="Cantabria">
+          <option>Santander</option>
+          <option>Torrelavega</option>
+          <option>Castro-Urdiales</option>
+        </optgroup>
+
+        <!-- CASTILLA Y LEÓN -->
+        <optgroup label="Castilla y León">
+          <option>Valladolid</option>
+          <option>Salamanca</option>
+          <option>León</option>
+          <option>Burgos</option>
+          <option>Ávila</option>
+          <option>Palencia</option>
+          <option>Segovia</option>
+          <option>Soria</option>
+          <option>Zamora</option>
+          <option>Ponferrada (León)</option>
+          <option>Aranda de Duero (Burgos)</option>
+        </optgroup>
+
+        <!-- CASTILLA-LA MANCHA -->
+        <optgroup label="Castilla-La Mancha">
+          <option>Albacete</option>
+          <option>Ciudad Real</option>
+          <option>Cuenca</option>
+          <option>Guadalajara</option>
+          <option>Toledo</option>
+          <option>Talavera de la Reina (Toledo)</option>
+          <option>Puertollano (Ciudad Real)</option>
+        </optgroup>
+
+        <!-- CATALUÑA -->
+        <optgroup label="Cataluña">
+          <option>Barcelona</option>
+          <option>Tarragona</option>
+          <option>Lleida</option>
+          <option>Girona</option>
+          <option>Sabadell (Barcelona)</option>
+          <option>Terrassa (Barcelona)</option>
+          <option>L’Hospitalet de Llobregat (Barcelona)</option>
+          <option>Badalona (Barcelona)</option>
+          <option>Reus (Tarragona)</option>
+          <option>Manresa (Barcelona)</option>
+        </optgroup>
+
+        <!-- EXTREMADURA -->
+        <optgroup label="Extremadura">
+          <option>Badajoz</option>
+          <option>Cáceres</option>
+          <option>Mérida</option>
+          <option>Plasencia</option>
+        </optgroup>
+
+        <!-- GALICIA -->
+        <optgroup label="Galicia">
+          <option>Santiago de Compostela (A Coruña)</option>
+          <option>A Coruña</option>
+          <option>Vigo (Pontevedra)</option>
+          <option>Ourense</option>
+          <option>Lugo</option>
+          <option>Pontevedra</option>
+          <option>Ferrol (A Coruña)</option>
+        </optgroup>
+
+        <!-- MADRID -->
+        <optgroup label="Comunidad de Madrid">
+          <option>Madrid</option>
+          <option>Alcalá de Henares</option>
+          <option>Móstoles</option>
+          <option>Fuenlabrada</option>
+          <option>Getafe</option>
+          <option>Leganés</option>
+          <option>Alcorcón</option>
+          <option>Torrejón de Ardoz</option>
+        </optgroup>
+
+        <!-- MURCIA -->
+        <optgroup label="Región de Murcia">
+          <option>Murcia</option>
+          <option>Cartagena</option>
+          <option>Lorca</option>
+          <option>Yecla</option>
+        </optgroup>
+
+        <!-- NAVARRA -->
+        <optgroup label="Navarra">
+          <option>Pamplona</option>
+          <option>Tudela</option>
+        </optgroup>
+
+        <!-- PAÍS VASCO -->
+        <optgroup label="País Vasco / Euskadi">
+          <option>Bilbao (Bizkaia)</option>
+          <option>San Sebastián / Donostia (Gipuzkoa)</option>
+          <option>Vitoria-Gasteiz (Álava)</option>
+          <option>Barakaldo (Bizkaia)</option>
+          <option>Getxo (Bizkaia)</option>
+          <option>Irun (Gipuzkoa)</option>
+        </optgroup>
+
+        <!-- LA RIOJA -->
+        <optgroup label="La Rioja">
+          <option>Logroño</option>
+          <option>Calahorra</option>
+        </optgroup>
+
+        <!-- COMUNIDAD VALENCIANA -->
+        <optgroup label="Comunitat Valenciana">
+          <option>Valencia</option>
+          <option>Alicante</option>
+          <option>Castellón de la Plana</option>
+          <option>Elche (Alicante)</option>
+          <option>Torrevieja (Alicante)</option>
+          <option>Gandía (Valencia)</option>
+          <option>Benidorm (Alicante)</option>
+          <option>Orihuela (Alicante)</option>
+          <option>Paterna (Valencia)</option>
+          <option>Vila-real (Castellón)</option>
+          <option>Alcoy (Alicante)</option>
+          <option>Sagunto (Valencia)</option>
+          <option>Denia (Alicante)</option>
+          <option>Torrent (Valencia)</option>
+        </optgroup>
+
+        <!-- CEUTA Y MELILLA -->
+        <optgroup label="Ciudades Autónomas">
+          <option>Ceuta</option>
+          <option>Melilla</option>
+        </optgroup>
+      </select>
+
+    </div>
+  </body>
+</html>
+

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>A-Frame Orbit Controls — Box</title>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <!-- Orbit Controls component (wraps THREE.OrbitControls) -->
+    <script src="https://unpkg.com/aframe-orbit-controls@1.3.2/dist/aframe-orbit-controls.min.js"></script>
+    <style>body{margin:0;overflow:hidden}</style>
+  </head>
+  <body>
+    <a-scene background="color: #ECECEC">
+      <!-- target object at (0,1,0) -->
+      <a-box position="0 1 0" rotation="0 45 0" color="#4CC3D9" shadow></a-box>
+
+      <!-- some lighting -->
+      <a-entity light="type: ambient; intensity: 0.4"></a-entity>
+      <a-entity light="type: directional; intensity: 0.9" position="2 4 3"></a-entity>
+
+      <!-- camera with ORBIT CONTROLS (mouse/touch) -->
+      <a-entity
+        id="cam"
+        camera
+        position="0 1 5"
+        look-controls="enabled: false"          <!-- avoid conflict -->
+        wasd-controls-enabled="false"
+        orbit-controls="
+          target: 0 1 0;                        /* look-at point */
+          enableDamping: true;
+          dampingFactor: 0.12;
+          rotateSpeed: 0.35;
+          zoomSpeed: 0.9;
+          panSpeed: 0.6;
+          minDistance: 1;
+          maxDistance: 20;
+          minPolarAngle: 0.01;                  /* avoid flipping over the top */
+          maxPolarAngle: 1.54;                  /* ~88 degrees */
+        "
+      ></a-entity>
+    </a-scene>
+  </body>
+</html>

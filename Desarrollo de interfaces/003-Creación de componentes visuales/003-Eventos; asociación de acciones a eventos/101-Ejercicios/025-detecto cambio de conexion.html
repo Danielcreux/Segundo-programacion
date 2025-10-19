@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+  <head>
+    <script>
+      function actualizar(){
+        if(navigator.offLine){
+          console.log("Has perdido la conexion, te guardo los datos en local")
+        }
+        if(navigator.onLine){
+          console.log("Has recuperado la conexion, me comunico con el servidor")
+        }
+      }
+      window.addEventListener("online", actualizar);
+      window.addEventListener("offline", actualizar);
+    </script>
+  </head>
+  <body>
+   
+  </body>
+</html>

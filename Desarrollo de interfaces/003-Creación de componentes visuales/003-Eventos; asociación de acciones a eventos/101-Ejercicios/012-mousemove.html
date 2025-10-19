@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <button>Pulsa aqui</button>
+    <script>
+      let mapadecalor = []
+      document.onmousemove = function(event){
+        mapadecalor.push([event.pageX,event.pageY])
+      }
+      document.onclick = function(){
+        console.log(mapadecalor);
+      }
+      
+    </script>
+  </body>
+</html>

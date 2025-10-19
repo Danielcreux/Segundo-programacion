@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <button>Pulsa aqui</button>
+    <script>
+      let lienzo;
+      let mapadecalor = []
+      document.onmousemove = function(event){
+        mapadecalor.push([event.pageX,event.pageY])
+      }
+      document.onclick = function(){
+        try{
+          lienzo.remove()
+        }catch(Exception){}
+        lienzo = document.createElement("canvas")
+        lienzo.width = window.innerWidth
+        lienzo.height = window.innerHeight
+        lienzo.style.position = "absolute"
+        lienzo.style.top = "0px"
+        lienzo.style.left = "0px"
+        let contexto = lienzo.getContext("2d")
+        contexto.fillStyle = "rgba(255,0,0,0.02)"
+        mapadecalor.forEach(function(punto){
+          contexto.beginPath()
+          contexto.arc(punto[0],punto[1],20,0,Math.PI*2)
+          contexto.fill()
+        })
+        document.querySelector("body").appendChild(lienzo)
+      }
+      document.oncontextmenu = function(){
+        try{
+          lienzo.remove()
+          return false
+        }catch(Exception){}
+      }
+      
+    </script>
+  </body>
+</html>

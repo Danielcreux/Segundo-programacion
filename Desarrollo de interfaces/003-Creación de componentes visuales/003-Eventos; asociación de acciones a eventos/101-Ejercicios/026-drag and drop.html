@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      #arrastrable{width:100px;height:100px;background:red;}
+      #objetivo{width:100px;height:100px;background:green;}
+    </style>
+  </head>
+  <body>
+    <div id="arrastrable" draggable="true">
+    </div>
+    <div id="objetivo" droppable="true">
+    </div>
+   <script>
+      let arrastrable = document.querySelector("#arrastrable")
+      let objetivo = document.querySelector("#objetivo")
+      arrastrable.ondragstart = function(){
+        console.log("has comenzado a arrastrar")
+      }
+      arrastrable.ondrag = function(){
+        console.log("arrastras")
+      }
+      arrastrable.ondragend = function(){
+        console.log("ya no lo arrastras")
+      }
+      objetivo.ondrop = function(){
+        console.log("lo has soltado")
+      }
+      
+      objetivo.ondragenter = function(){
+        console.log("ya puedes soltarlo")
+      }
+      objetivo.ondragover = function(){
+        console.log("ya puedes soltarlo pero que ya")
+      }
+    </script>
+  </body>
+</html>

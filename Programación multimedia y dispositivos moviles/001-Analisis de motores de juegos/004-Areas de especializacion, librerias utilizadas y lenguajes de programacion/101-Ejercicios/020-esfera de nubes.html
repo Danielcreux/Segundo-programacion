@@ -1,0 +1,33 @@
+<html>
+  <head>
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Texturas -->
+      <a-assets>
+        <img id="texturatierra" src="nasatierra.jpg">
+        <img id="rugosidadtierra" src="rugosidad.jpg">
+      </a-assets>
+
+      <!-- Esfera de la Tierra -->
+      <a-sphere 
+        position="0 1.25 -5" 
+        radius="3" 
+        material="src: #texturatierra; metalness: 0.2; roughness: 0.5; roughnessMap: #rugosidadtierra"
+      ></a-sphere>
+      
+      <a-sphere 
+        position="0 1.25 -5" 
+        radius="3.2" 
+        
+      ></a-sphere>
+
+      <!-- Cielo y luces -->
+      <a-sky color="#000000"></a-sky>
+      <a-entity light="type: ambient; intensity: 0.2"></a-entity>
+      <a-entity light="type: directional; intensity: 2" position="2 4 0"></a-entity>
+    </a-scene>
+  </body>
+</html>
+

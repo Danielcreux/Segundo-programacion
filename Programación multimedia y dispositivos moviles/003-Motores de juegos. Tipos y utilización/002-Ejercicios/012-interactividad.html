@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <canvas id="lienzo" width=512 height=512></canvas>
+    <script>
+      class Particula{
+        constructor(x,y,v,a){
+          this.x = x;
+          this.y = y;
+          this.v = v;
+          this.a = a;
+        } 
+        dibuja(){
+          contexto.fillStyle = "black"
+          contexto.fillRect(this.x,this.y,1,1)
+        }
+        mueve(){
+          this.x += Math.cos(this.a)*this.v
+          this.y += Math.sin(this.a)*this.v
+        }
+      }
+      class Emisor{
+        constructor(x,y,a,v,apertura){
+          this.x = x;
+          this.y = y;
+          this.a = a;
+          this.v = v;
+          this.apertura = apertura
+        }
+      }
+      
+      // Variables globales
+      var lienzo = document.querySelector("canvas")
+      var contexto = lienzo.getContext("2d")
+      var temporizador;
+      var numeroparticulas = 50
+      var particulas = []
+      var numeroemisores = 1
+      var emisores = []
+      blancotransparente = "rgba(255,255,255,0.4)";
+      
+      inicio();
+      
+      function inicio(){
+        
+        temporizador = setTimeout("bucle()",1000)
+      }
+      
+      function bucle(){
+        emisores.forEach(function(emisor){
+          for(let i = 0;i<numeroparticulas;i++){
+            particulas.push(
+              new Particula(
+                emisor.x,
+                emisor.y,
+                emisor.v,
+                emisor.a+(Math.random()-0.5)*emisores[0].apertura,
+              )
+            )
+          }
+        })
+        
+        contexto.fillStyle = blancotransparente
+        contexto.fillRect(0,0,512,512)
+        particulas.forEach(function(particula){
+          particula.mueve()
+          particula.dibuja()
+        })
+        // Eliminamos particulas
+        for(let i = 0;i<particulas.length;i++){
+          if(
+            particulas[i].x < 0 || 
+            particulas[i].x > 512 ||
+            particulas[i].y < 0 || 
+            particulas[i].y > 512 
+            ){
+              particulas.splice(i,1)  // Elimina del array las particulas de fuera de la pantalla
+            }
+        }
+        console.log(particulas.length)
+        clearTimeout(temporizador)
+        temporizador = setTimeout("bucle()",100)
+      }
+    </script>
+  </body>
+</html>

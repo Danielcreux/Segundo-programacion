@@ -22,13 +22,11 @@ def extraer_fragmentos_clave(codigo: str, lenguaje: str, max_fragmentos: int = 5
         else:
             fragmentos = _analizar_generico(codigo, max_fragmentos)
     except Exception as e:
-        # Fallback a análisis genérico
         fragmentos = _analizar_generico(codigo, max_fragmentos)
     
     return fragmentos[:max_fragmentos]
 
 def _analizar_python(codigo: str, max_fragmentos: int) -> List[Dict]:
-    """Analiza código Python y extrae funciones, clases y estructuras clave"""
     fragmentos = []
     
     try:
@@ -39,7 +37,6 @@ def _analizar_python(codigo: str, max_fragmentos: int) -> List[Dict]:
                 break
                 
             if isinstance(nodo, ast.FunctionDef):
-                # Función
                 start_line = nodo.lineno
                 end_line = nodo.end_lineno or start_line
                 codigo_funcion = _extraer_lineas(codigo, start_line, end_line)
@@ -54,7 +51,6 @@ def _analizar_python(codigo: str, max_fragmentos: int) -> List[Dict]:
                 })
                 
             elif isinstance(nodo, ast.ClassDef):
-                # Clase
                 start_line = nodo.lineno
                 end_line = nodo.end_lineno or start_line
                 codigo_clase = _extraer_lineas(codigo, start_line, min(end_line, start_line + 10))
@@ -69,10 +65,8 @@ def _analizar_python(codigo: str, max_fragmentos: int) -> List[Dict]:
                 })
                 
     except SyntaxError:
-        # Si hay error de sintaxis, usar análisis genérico
         return _analizar_generico(codigo, max_fragmentos)
     
-    # Si no encontramos suficientes fragmentos, agregar importaciones
     if len(fragmentos) < max_fragmentos:
         imports = _extraer_imports_python(codigo)
         for imp in imports[:max_fragmentos - len(fragmentos)]:
@@ -81,16 +75,13 @@ def _analizar_python(codigo: str, max_fragmentos: int) -> List[Dict]:
     return fragmentos
 
 def _analizar_javascript(codigo: str, max_fragmentos: int) -> List[Dict]:
-    """Analiza código JavaScript/TypeScript"""
     fragmentos = []
     
-    # Patrones regex para funciones y clases
     patrones = [
         (r'(export\s+)?(async\s+)?function\s+(\w+)', 'función'),
         (r'(export\s+)?class\s+(\w+)', 'clase'),
         (r'const\s+(\w+)\s*=\s*(async\s*)?\([^)]*\)\s*=>', 'función flecha'),
         (r'let\s+(\w+)\s*=\s*(async\s*)?\([^)]*\)\s*=>', 'función flecha'),
-        (r'var\s+(\w+)\s*=\s*(async\s*)?\([^)]*\)\s*=>', 'función flecha'),
     ]
     
     lineas = codigo.split('\n')
@@ -104,7 +95,6 @@ def _analizar_javascript(codigo: str, max_fragmentos: int) -> List[Dict]:
             if match:
                 nombre = match.group(3) if 'function' in patron else match.group(2) if 'class' in patron else match.group(1)
                 
-                # Extraer bloque de código (siguientes 10-15 líneas)
                 start_line = i + 1
                 end_line = min(i + 15, len(lineas))
                 codigo_bloque = '\n'.join(lineas[i:end_line])
@@ -122,17 +112,13 @@ def _analizar_javascript(codigo: str, max_fragmentos: int) -> List[Dict]:
     return fragmentos
 
 def _analizar_html(codigo: str, max_fragmentos: int) -> List[Dict]:
-    """Analiza HTML y extrae secciones importantes"""
     fragmentos = []
     
-    # Patrones para elementos HTML importantes
     patrones = [
         (r'<script[^>]*>', '</script>', 'script'),
         (r'<style[^>]*>', '</style>', 'styles'),
         (r'<form[^>]*>', '</form>', 'formulario'),
         (r'<main[^>]*>', '</main>', 'contenido principal'),
-        (r'<header[^>]*>', '</header>', 'cabecera'),
-        (r'<nav[^>]*>', '</nav>', 'navegación'),
     ]
     
     for patron_inicio, patron_fin, tipo in patrones:
@@ -141,7 +127,6 @@ def _analizar_html(codigo: str, max_fragmentos: int) -> List[Dict]:
             
         inicio = re.search(patron_inicio, codigo)
         if inicio:
-            # Buscar el cierre correspondiente
             resto = codigo[inicio.start():]
             fin = re.search(patron_fin, resto)
             
@@ -158,10 +143,8 @@ def _analizar_html(codigo: str, max_fragmentos: int) -> List[Dict]:
     return fragmentos
 
 def _analizar_css(codigo: str, max_fragmentos: int) -> List[Dict]:
-    """Analiza CSS y extrae reglas importantes"""
     fragmentos = []
     
-    # Encontrar bloques CSS (selectores + { ... })
     patron = r'([^{]+)\{([^}]+)\}'
     matches = re.finditer(patron, codigo, re.DOTALL)
     
@@ -180,19 +163,16 @@ def _analizar_css(codigo: str, max_fragmentos: int) -> List[Dict]:
     return fragmentos
 
 def _analizar_generico(codigo: str, max_fragmentos: int) -> List[Dict]:
-    """Análisis genérico para cualquier lenguaje"""
     fragmentos = []
     lineas = codigo.split('\n')
     
-    # Buscar líneas que parecen importantes (contienen palabras clave)
-    palabras_clave = ['def ', 'class ', 'function ', 'export ', 'import ', 'const ', 'let ', 'var ', '<div', '<script', '<style']
+    palabras_clave = ['def ', 'class ', 'function ', 'export ', 'import ', 'const ', 'let ', '<div', '<script']
     
     for i, linea in enumerate(lineas):
         if len(fragmentos) >= max_fragmentos:
             break
             
         if any(palabra in linea for palabra in palabras_clave):
-            # Tomar esta línea y las siguientes 5-10
             start_line = i + 1
             end_line = min(i + 10, len(lineas))
             codigo_bloque = '\n'.join(lineas[i:end_line])
@@ -209,12 +189,10 @@ def _analizar_generico(codigo: str, max_fragmentos: int) -> List[Dict]:
     return fragmentos
 
 def _extraer_lineas(codigo: str, inicio: int, fin: int) -> str:
-    """Extrae un rango de líneas del código"""
     lineas = codigo.split('\n')
     return '\n'.join(lineas[inicio-1:fin])
 
 def _extraer_imports_python(codigo: str) -> List[Dict]:
-    """Extrae importaciones de Python"""
     imports = []
     lineas = codigo.split('\n')
     
