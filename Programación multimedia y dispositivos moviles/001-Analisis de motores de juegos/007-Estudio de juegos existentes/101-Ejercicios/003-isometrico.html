@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <canvas id="lienzo"></canvas>
+    <script>
+      var lienzo = document.querySelector("#lienzo")
+      var contexto = lienzo.getContext("2d")
+      lienzo.width = 1024
+      lienzo.height = 1024
+      
+      // Parámetros isométricos reales
+      var angulo = 30 * Math.PI / 180
+      var cos = Math.cos(angulo)
+      var sin = Math.sin(angulo)
+      var paso = 20
+
+      // Limpio fondo
+      contexto.fillStyle = "#fff"
+      contexto.fillRect(0,0,1024,1024)
+      contexto.strokeStyle = "#000"
+
+      // Dibujo rejilla isométrica REAL
+      for(let u=-30;u<60;u++){
+        contexto.beginPath()
+        var x1 = 512 + (u * paso * cos)
+        var y1 = 512 + (u * paso * sin)
+        var x2 = 512 + ((u - 60) * paso * cos)
+        var y2 = 512 + ((u + 60) * paso * sin)
+        contexto.moveTo(x1, y1)
+        contexto.lineTo(x2, y2)
+        contexto.stroke()
+      }
+      for(let v=-30;v<60;v++){
+        contexto.beginPath()
+        var x1 = 512 + (v * paso * -cos)
+        var y1 = 512 + (v * paso * sin)
+        var x2 = 512 + ((v + 60) * paso * -cos)
+        var y2 = 512 + ((v - 60) * paso * sin)
+        contexto.moveTo(x1, y1)
+        contexto.lineTo(x2, y2)
+        contexto.stroke()
+      }
+    </script>
+  </body>
+</html>

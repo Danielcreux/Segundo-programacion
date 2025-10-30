@@ -4,7 +4,7 @@ Es un sistema de gestión de la relación con los clientes
 
 No necesariamente para vender más, sino para vender mejor 
 
-Analaiza el comportamiento de compra de los clientes, para que el comercial pueda conocer mejor el historial,habitos,etc
+Analiza el comporta miento de compra de los clientes, para que el comercial pueda conocer mejor el historial,habitos,etc
 
 Conectado a un sistema de IE puede realizar predicciones,venta optimizada
 

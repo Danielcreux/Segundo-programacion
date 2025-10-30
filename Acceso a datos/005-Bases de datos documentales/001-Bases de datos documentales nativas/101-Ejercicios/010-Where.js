@@ -1,0 +1,1 @@
+db.clientes.find({email:'jorge@info.com'})

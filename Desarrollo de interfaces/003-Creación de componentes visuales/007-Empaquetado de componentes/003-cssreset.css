@@ -1,0 +1,162 @@
+/* ======= Modern CSS Reset (unopinionated + sensible defaults) ======= */
+/* Box sizing */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Remove default margins */
+* {
+  margin: 0;
+}
+
+/* Full-height layout baseline */
+html, body {
+  height: 100%;
+}
+
+/* Improve text rendering and baseline typography without setting a font */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  line-height: 1.5;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;   /* WebKit */
+  -moz-osx-font-smoothing: grayscale;    /* Firefox on macOS */
+}
+
+/* Media elements: make responsive by default */
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* Reset form element fonts and basics */
+input, button, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+/* Remove default padding/list-style on lists */
+ul, ol {
+  list-style: none;
+  padding: 0;
+}
+
+/* Anchor defaults */
+a {
+  color: inherit;
+  text-decoration: none;
+  text-decoration-skip-ink: auto;
+}
+
+/* Headings and text: prevent overflow issues */
+p, h1, h2, h3, h4, h5, h6 {
+  overflow-wrap: break-word;
+}
+
+/* Tables */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* Forms: normalize borders and background (minimal) */
+button, input, select, textarea {
+  background-color: transparent;
+  border: 0;
+  padding: 0;
+}
+
+/* Remove default button styles for consistency */
+button, [type="button"], [type="reset"], [type="submit"] {
+  -webkit-appearance: button;
+  appearance: button;
+  cursor: pointer;
+}
+
+/* Remove built-in form outlines only when not keyboard-focused */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Fieldset/legend clean-up */
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+legend {
+  padding: 0;
+}
+
+/* Abbr and code elements */
+abbr[title] {
+  text-decoration: underline dotted;
+}
+code, kbd, samp, pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 1em;
+}
+
+/* HR: remove default look; make it a simple divider */
+hr {
+  height: 0;
+  border: 0;
+  border-top: 1px solid currentColor;
+  opacity: .2;
+}
+
+/* Dialog/base stacking context for React/Vue root apps */
+#root, #__next {
+  isolation: isolate;
+  min-height: 100%;
+}
+
+/* Forms: number inputs without spinners (WebKit) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Forms: search inputs (WebKit) */
+input[type="search"] {
+  -webkit-appearance: textfield;
+  outline-offset: -2px;
+}
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/* Remove default details summary marker (optional) */
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Images without alt should not be announced as decorative by default */
+img[alt=""] {
+  role: presentation;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Optional: honor user color scheme without forcing one */
+/* :root { color-scheme: light dark; } */

@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MediaPipe FaceMesh HD</title>
+  <style>
+    :root {
+      --primary-color: #4e54c8;
+      --primary-dark: #3f43a0;
+      --secondary-color: #8f94fb;
+      --background-dark: #1a1a2e;
+      --background-darker: #16213e;
+      --text-light: #ffffff;
+      --text-muted: #b8b8b8;
+      --success-color: #2d5a2d;
+      --error-color: #5a2d2d;
+      --card-bg: rgba(255, 255, 255, 0.1);
+      --border-radius: 12px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      --transition: all 0.3s ease;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--background-dark), var(--background-darker));
+      color: var(--text-light);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 1400px;
+      text-align: center;
+      padding: 0 15px;
+    }
+    
+    h1 {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      margin-bottom: 1rem;
+      background: linear-gradient(45deg, var(--secondary-color), var(--primary-color));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+    
+    .controls {
+      margin: 2rem 0;
+      padding: 1.5rem;
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: var(--shadow);
+    }
+    
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    
+    label {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    
+    select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--text-light);
+      font-size: 1rem;
+      transition: var(--transition);
+    }
+
+    select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(78, 84, 200, 0.3);
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    button {
+      padding: 0.875rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary-color);
+      color: var(--text-light);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 140px;
+      justify-content: center;
+    }
+    
+    button:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(78, 84, 200, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      background: #666;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      opacity: 0.6;
+    }
+    
+    .status-container {
+      margin: 1.5rem 0;
+      width: 100%;
+    }
+    
+    .status {
+      padding: 1rem 1.5rem;
+      border-radius: var(--border-radius);
+      background: var(--success-color);
+      font-weight: 500;
+      box-shadow: var(--shadow);
+      transition: var(--transition);
+    }
+    
+    .status.error {
+      background: var(--error-color);
+    }
+    
+    .video-section {
+      width: 100%;
+      margin: 2rem 0;
+    }
+    
+    .video-container {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      border-radius: var(--border-radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    
+    video, canvas {
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      border: 3px solid var(--primary-color);
+      border-radius: var(--border-radius);
+      transform: scaleX(-1);
+      background: #000;
+    }
+
+    /* Responsive video sizes */
+    @media (min-width: 1200px) {
+      video, canvas {
+        max-width: 900px;
+      }
+    }
+
+    @media (min-width: 768px) and (max-width: 1199px) {
+      video, canvas {
+        max-width: 700px;
+      }
+    }
+
+    @media (max-width: 767px) {
+      video, canvas {
+        max-width: 100%;
+      }
+    }
+    
+    .resolution-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .fps-counter {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .info-badges {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .info-badge {
+      background: var(--card-bg);
+      padding: 0.75rem 1.5rem;
+      border-radius: 25px;
+      font-size: 0.9rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      body {
+        padding: 15px 10px;
+      }
+
+      .controls {
+        padding: 1rem;
+        margin: 1rem 0;
+      }
+
+      .control-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .button-group {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      button {
+        min-width: auto;
+        width: 100%;
+      }
+
+      .resolution-badge,
+      .fps-counter {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.8rem;
+      }
+
+      .info-badges {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .info-badge {
+        width: 100%;
+        text-align: center;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 0 5px;
+      }
+
+      .controls {
+        padding: 0.75rem;
+      }
+
+      select, button {
+        padding: 0.875rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .subtitle {
+        font-size: 0.9rem;
+      }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: light) {
+      :root {
+        --background-dark: #f0f2f5;
+        --background-darker: #ffffff;
+        --text-light: #333333;
+        --text-muted: #666666;
+        --card-bg: rgba(0, 0, 0, 0.05);
+      }
+    }
+
+    /* High contrast mode support */
+    @media (prefers-contrast: high) {
+      :root {
+        --primary-color: #0000ff;
+        --secondary-color: #0000cc;
+        --text-light: #000000;
+        --text-muted: #333333;
+      }
+    }
+
+    /* Reduced motion support */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition: none !important;
+      }
+      
+      button:hover {
+        transform: none;
+      }
+    }
+
+    /* Loading animation */
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+
+    .loading {
+      animation: pulse 2s infinite;
+    }
+
+    /* Icon styles */
+    .icon {
+      font-size: 1.1em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎭 FaceMesh HD</h1>
+    <div class="subtitle">Detección facial en tiempo real con colores reales y control total</div>
+    
+    <div class="controls">
+      <div class="control-grid">
+        <div class="control-group">
+          <label for="resolutionSelect">📐 Resolución</label>
+          <select id="resolutionSelect">
+            <option value="480p">480p (640×480)</option>
+            <option value="720p" selected>720p HD (1280×720)</option>
+            <option value="1080p">1080p Full HD (1920×1080)</option>
+            <option value="ultra">Ultra HD (2560×1440)</option>
+          </select>
+        </div>
+        
+        <div class="control-group">
+          <label for="frameRateSelect">🎞️ Frame Rate</label>
+          <select id="frameRateSelect">
+            <option value="24">24 fps</option>
+            <option value="30" selected>30 fps</option>
+            <option value="60">60 fps</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="button-group">
+        <button id="startBtn">
+          <span class="icon">🎬</span>
+          Iniciar Cámara
+        </button>
+        <button id="stopBtn" disabled>
+          <span class="icon">⏹️</span>
+          Detener
+        </button>
+        <button id="changeResBtn" disabled>
+          <span class="icon">🔄</span>
+          Cambiar Resolución
+        </button>
+      </div>
+    </div>
+    
+    <div class="status-container">
+      <div id="status" class="status">
+        Selecciona la configuración y haz clic en "Iniciar Cámara"
+      </div>
+    </div>
+    
+    <div class="video-section">
+      <div class="video-container">
+        <div id="resolutionBadge" class="resolution-badge">Sin cámara</div>
+        <div id="fpsCounter" class="fps-counter">FPS: 0</div>
+        <video class="input_video" autoplay muted playsinline></video>
+        <canvas class="output_canvas"></canvas>
+      </div>
+    </div>
+
+    <div class="info-badges">
+      <div class="info-badge">🎯 Detección facial en tiempo real</div>
+      <div class="info-badge">🎨 Colores reales sin filtros</div>
+      <div class="info-badge">📱 Diseño 100% responsivo</div>
+    </div>
+  </div>
+
+  <!-- MediaPipe FaceMesh -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+  <script>
+    // El mismo JavaScript del código anterior se mantiene aquí
+    const videoElement = document.querySelector('.input_video');
+    const canvasElement = document.querySelector('.output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const changeResBtn = document.getElementById('changeResBtn');
+    const resolutionSelect = document.getElementById('resolutionSelect');
+    const frameRateSelect = document.getElementById('frameRateSelect');
+    const statusElement = document.getElementById('status');
+    const resolutionBadge = document.getElementById('resolutionBadge');
+    const fpsCounter = document.getElementById('fpsCounter');
+
+    let faceMesh;
+    let camera;
+    let currentStream = null;
+    let frameCount = 0;
+    let lastFpsUpdate = 0;
+    let currentFps = 0;
+
+    // Configuraciones de resolución
+    const resolutionPresets = {
+      '480p': { width: 640, height: 480 },
+      '720p': { width: 1280, height: 720 },
+      '1080p': { width: 1920, height: 1080 },
+      'ultra': { width: 2560, height: 1440 }
+    };
+
+    // Actualizar estado
+    function updateStatus(message, isError = false) {
+      statusElement.textContent = message;
+      statusElement.className = isError ? 'status error' : 'status';
+    }
+
+    // Actualizar contador FPS
+    function updateFPS() {
+      frameCount++;
+      const now = performance.now();
+      
+      if (now - lastFpsUpdate >= 1000) {
+        currentFps = frameCount;
+        frameCount = 0;
+        lastFpsUpdate = now;
+        fpsCounter.textContent = `FPS: ${currentFps}`;
+      }
+      
+      requestAnimationFrame(updateFPS);
+    }
+
+    // Obtener configuración actual
+    function getCurrentConfig() {
+      const resolution = resolutionSelect.value;
+      const frameRate = parseInt(frameRateSelect.value);
+      return { resolution, frameRate, ...resolutionPresets[resolution] };
+    }
+
+    // Detener cámara
+    function stopCamera() {
+      if (camera) {
+        camera.stop();
+        camera = null;
+      }
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+      stopBtn.disabled = true;
+      changeResBtn.disabled = true;
+      startBtn.disabled = false;
+      resolutionBadge.textContent = 'Cámara detenida';
+      updateStatus('Cámara detenida');
+    }
+
+    // Inicializar FaceMesh
+    function initializeFaceMesh() {
+      faceMesh = new FaceMesh({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        }
+      });
+
+      faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      faceMesh.onResults((results) => {
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+        // 🔥 DIBUJAR CON COLORES REALES - Sin filtros que alteren colores
+        if (results.image) {
+          // Dibujar la imagen original de la cámara sin procesar
+          canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+        }
+
+        // Dibujar mesh facial con colores suaves que no oculten la imagen
+        if (results.multiFaceLandmarks) {
+          for (const landmarks of results.multiFaceLandmarks) {
+            // Contorno facial sutil
+            drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {
+              color: 'rgba(100, 200, 255, 0.3)',
+              lineWidth: 1
+            });
+            
+            // Ojos con colores distintos pero translúcidos
+            drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {
+              color: 'rgba(255, 100, 100, 0.6)',
+              lineWidth: 1.5
+            });
+            drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {
+              color: 'rgba(100, 255, 100, 0.6)',
+              lineWidth: 1.5
+            });
+            
+            // Labios más visibles pero translúcidos
+            drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {
+              color: 'rgba(255, 150, 200, 0.7)',
+              lineWidth: 2
+            });
+            
+            // Contorno de cara
+            drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {
+              color: 'rgba(255, 255, 255, 0.8)',
+              lineWidth: 2
+            });
+          }
+        }
+        canvasCtx.restore();
+      });
+    }
+
+    // Iniciar cámara
+    async function startCamera() {
+      try {
+        const config = getCurrentConfig();
+        updateStatus(`Iniciando cámara en ${config.resolution} (${config.width}x${config.height})...`);
+
+        // Detener cámara anterior si existe
+        stopCamera();
+
+        // Configuración de cámara para máxima calidad de color
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: config.width, max: config.width },
+            height: { ideal: config.height, max: config.height },
+            frameRate: { ideal: config.frameRate, min: config.frameRate },
+            aspectRatio: { exact: config.width / config.height },
+            facingMode: "user",
+            // Configuraciones para mejor calidad de color
+            resizeMode: "none", // Evitar reprocesamiento
+            // Forzar modo de color natural
+            advanced: [
+              { whiteBalanceMode: "continuous" }, // Balance de blancos automático
+              { exposureMode: "continuous" }, // Exposición automática
+              { focusMode: "continuous" } // Enfoque automático
+            ]
+          },
+          audio: false
+        });
+
+        currentStream = stream;
+        videoElement.srcObject = stream;
+
+        // Configurar dimensiones del video y canvas
+        videoElement.width = config.width;
+        videoElement.height = config.height;
+        canvasElement.width = config.width;
+        canvasElement.height = config.height;
+
+        // Esperar a que el video esté listo
+        await new Promise((resolve) => {
+          videoElement.onloadedmetadata = () => {
+            videoElement.play();
+            resolve();
+          };
+        });
+
+        // Inicializar FaceMesh si no está inicializado
+        if (!faceMesh) {
+          initializeFaceMesh();
+        }
+
+        // Configurar y iniciar cámara de MediaPipe
+        camera = new Camera(videoElement, {
+          onFrame: async () => {
+            await faceMesh.send({ image: videoElement });
+          },
+          width: config.width,
+          height: config.height
+        });
+
+        await camera.start();
+
+        // Actualizar interfaz
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        changeResBtn.disabled = false;
+        resolutionBadge.textContent = `${config.resolution} (${config.width}×${config.height})`;
+        updateStatus(`✅ Cámara activa - ${config.resolution} - ${config.frameRate}fps - Colores reales activados`);
+
+        // Iniciar contador FPS
+        updateFPS();
+
+      } catch (error) {
+        console.error('Error al iniciar cámara:', error);
+        updateStatus(`❌ Error: ${error.message}`, true);
+        
+        // Intentar con resolución más baja como fallback
+        if (resolutionSelect.value !== '480p') {
+          updateStatus('🔄 Intentando con 480p...');
+          resolutionSelect.value = '480p';
+          setTimeout(startCamera, 1000);
+        }
+      }
+    }
+
+    // Cambiar resolución
+    async function changeResolution() {
+      if (currentStream) {
+        await startCamera();
+      }
+    }
+
+    // Event Listeners
+    startBtn.addEventListener('click', startCamera);
+    stopBtn.addEventListener('click', stopCamera);
+    changeResBtn.addEventListener('click', changeResolution);
+
+    // Inicializar cuando la página cargue
+    window.addEventListener('load', () => {
+      updateStatus('✅ Sistema listo - Haz clic en "Iniciar Cámara"');
+    });
+
+    // Limpiar al cerrar la página
+    window.addEventListener('beforeunload', stopCamera);
+  </script>
+</body>
+</html>

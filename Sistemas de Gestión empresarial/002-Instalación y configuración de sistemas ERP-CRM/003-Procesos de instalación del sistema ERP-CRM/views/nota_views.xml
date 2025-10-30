@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Vista Formulario -->
+    <record id="view_nota_form" model="ir.ui.view">
+        <field name="name">mi_modulo.nota.form</field>
+        <field name="model">mi.modulo.ejemplo</field>  
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group string="Información Principal">
+                            <field name="name" placeholder="Ingresa el título de la nota..."/>
+                            <field name="fecha"/>
+                        </group>
+                        <group string="Estado">
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group string="Descripción">
+                        <field name="description" nolabel="1" placeholder="Escribe la descripción de la nota aquí..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Vista Lista (antes Tree) -->
+    <record id="view_nota_list" model="ir.ui.view">
+        <field name="name">mi_modulo.nota.list</field>
+        <field name="model">mi.modulo.ejemplo</field> 
+        <field name="arch" type="xml">
+            <list>  <!-- CAMBIO: tree → list -->
+                <field name="name"/>
+                <field name="fecha"/>
+                <field name="active"/>
+            </list>  <!-- CAMBIO: tree → list -->
+        </field>
+    </record>
+
+    <!-- Vista Búsqueda -->
+    <record id="view_nota_search" model="ir.ui.view">
+        <field name="name">mi_modulo.nota.search</field>
+        <field name="model">mi.modulo.ejemplo</field>  
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="fecha"/>
+                <filter string="Activas" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Inactivas" name="inactive" domain="[('active', '=', False)]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter string="Fecha" name="group_by_fecha" context="{'group_by': 'fecha'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Acción de Ventana -->
+    <record id="action_mi_modulo_nota" model="ir.actions.act_window">
+        <field name="name">Mis Notas de Ejemplo</field>
+        <field name="res_model">mi.modulo.ejemplo</field> 
+        <field name="view_mode">list,form</field>  <!-- CAMBIO: tree → list -->
+        <field name="context">{'search_default_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay notas creadas todavía.
+            </p>
+            <p>
+                Crea tu primera nota haciendo clic en el botón "Crear".
+            </p>
+        </field>
+    </record>
+
+    <!-- Menú Principal -->
+    <menuitem id="menu_mi_modulo_root" 
+              name="Mi Módulo" 
+              sequence="100"/>
+    
+    <!-- Submenú -->
+    <menuitem id="menu_mi_modulo_notas" 
+              name="Mis Notas" 
+              parent="menu_mi_modulo_root"
+              action="action_mi_modulo_nota"
+              sequence="10"/>
+</odoo>

@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <canvas id="lienzo"></canvas>
+    <script>
+      var lienzo = document.querySelector("#lienzo")
+      var contexto = lienzo.getContext("2d")
+      lienzo.width = 1024
+      lienzo.height = 1024
+      
+      // Ahora dibujo una rejilla
+      
+      for(let x = 0;x<1024;x+=20){
+        // Horizontales
+        contexto.beginPath()
+        contexto.moveTo(0,x)
+        contexto.lineTo(1024,x)
+        contexto.stroke()
+        // Verticales
+        contexto.beginPath()
+        contexto.moveTo(x,0)
+        contexto.lineTo(x,1024)
+        contexto.stroke()
+      }
+    </script>
+  </body>
+</html>

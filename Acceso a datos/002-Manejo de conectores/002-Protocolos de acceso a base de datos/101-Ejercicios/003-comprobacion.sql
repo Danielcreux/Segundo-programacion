@@ -1,0 +1,3 @@
+SHOW TABLES;
+
+DESCRIBE clientes;

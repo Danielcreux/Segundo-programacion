@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minstrap — Classless UI Demo</title>
+  <link rel="stylesheet" href="001-libreria.css">
+  <style>
+    body { padding: 2rem; }
+    h1, h2 { margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <div class="container stack">
+    <h1>🎨 Minstrap UI Demo</h1>
+    <p>A minimal, classless UI library for HTML — just include <code>minstrap.css</code> and everything looks modern automatically.</p>
+
+    <h2>Buttons</h2>
+    <div class="stack">
+      <div>
+        <button>Primary (default)</button>
+        <button data-variant="neutral">Neutral</button>
+        <button class="outline">Outline</button>
+        <button class="ghost">Ghost</button>
+      </div>
+      <div>
+        <button class="success">Success</button>
+        <button class="warning">Warning</button>
+        <button class="danger">Danger</button>
+        <button disabled>Disabled</button>
+      </div>
+    </div>
+
+    <h2>Inputs</h2>
+    <div class="grid cols-2">
+      <div>
+        <label>Email</label>
+        <input type="email" placeholder="you@example.com">
+      </div>
+      <div>
+        <label>Password</label>
+        <input type="password" placeholder="••••••••">
+      </div>
+    </div>
+
+    <h2>Textarea</h2>
+    <textarea placeholder="Write something here..."></textarea>
+
+    <h2>Select</h2>
+    <select>
+      <option>Choose an option</option>
+      <option>Option A</option>
+      <option>Option B</option>
+      <option>Option C</option>
+    </select>
+
+    <h2>Checkboxes & Radios</h2>
+    <div>
+      <label><input type="checkbox" checked> Receive newsletter</label><br>
+      <label><input type="checkbox"> Enable notifications</label>
+    </div>
+    <div>
+      <label><input type="radio" name="r" checked> Option A</label><br>
+      <label><input type="radio" name="r"> Option B</label>
+    </div>
+
+    <h2>Input Group</h2>
+    <div class="input-group">
+      <input type="text" placeholder="Search...">
+      <button data-variant="neutral">Go</button>
+    </div>
+
+    <h2>Cards and Layout</h2>
+    <div class="grid cols-3">
+      <div class="card">
+        <h3>Card title</h3>
+        <p>This is a card with text content.</p>
+        <button>Action</button>
+      </div>
+      <div class="card">
+        <h3>Another card</h3>
+        <p>Cards automatically adapt to dark mode too!</p>
+        <button class="outline">More info</button>
+      </div>
+      <div class="card">
+        <h3>Success card</h3>
+        <p>Cards can contain any elements, including inputs.</p>
+        <input placeholder="Try typing here...">
+      </div>
+    </div>
+
+    <h2>Sizes</h2>
+    <div class="stack">
+      <button class="is-sm">Small button</button>
+      <button>Normal button</button>
+      <button class="is-lg">Large button</button>
+    </div>
+
+    <footer style="margin-top:3rem; font-size:.9rem; color:var(--muted);">
+      <p>Built with <strong>minstrap.css</strong> — a classless UI micro-framework.</p>
+    </footer>
+  </div>
+</body>
+</html>

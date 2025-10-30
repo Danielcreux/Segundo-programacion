@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSS Reset Demo</title>
+  <link rel="stylesheet" href="https://jocarsa.github.io/cssreset/cssreset.css">
+  <style>
+    /* Demo styles (to visualize after reset) */
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 2rem;
+      background: #f7f7f7;
+      color: #333;
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+      font-size: 2rem;
+      color: steelblue;
+    }
+
+    a {
+      color: darkred;
+    }
+
+    button {
+      background: steelblue;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: mediumseagreen;
+    }
+
+    ul {
+      margin-top: 1rem;
+      padding-left: 1.5rem;
+      list-style: disc;
+    }
+
+    table {
+      margin-top: 1rem;
+      border: 1px solid #ccc;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <h1>Demo: External CSS Reset</h1>
+  <p>This page loads a full CSS reset from an external file named <code>reset.css</code>.</p>
+
+  <p>
+    <a href="#">This is a link</a>, and here’s a <button>button</button>.
+  </p>
+
+  <ul>
+    <li>List item one</li>
+    <li>List item two</li>
+    <li>List item three</li>
+  </ul>
+
+  <table>
+    <thead>
+      <tr><th>Item</th><th>Value</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Apples</td><td>10</td></tr>
+      <tr><td>Oranges</td><td>5</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

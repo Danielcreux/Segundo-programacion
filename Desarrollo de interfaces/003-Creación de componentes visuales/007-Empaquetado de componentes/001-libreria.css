@@ -1,0 +1,271 @@
+/* minstrap.css — tiny, classless UI styling for forms & buttons
+   Drop this <link> in your <head> and native controls look good automatically. */
+
+/* ---------- Design tokens ---------- */
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --radius: 10px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06), 0 1px 1px rgba(0,0,0,.04);
+  --shadow-md: 0 8px 20px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.04);
+  --speed: 140ms;
+
+  /* light */
+  --bg: #ffffff;
+  --text: #0f172a;           /* slate-900 */
+  --muted: #475569;          /* slate-600 */
+  --border: #e2e8f0;         /* slate-200 */
+  --fill: #f8fafc;           /* slate-50 */
+  --ring: #93c5fd;           /* blue-300 */
+  --accent: #2563eb;         /* blue-600 */
+  --accent-contrast: #ffffff;
+  --accent-hover: #1e40af;   /* blue-800 */
+  --destructive: #dc2626;    /* red-600 */
+  --success: #16a34a;        /* green-600 */
+  --warning: #d97706;        /* amber-600 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1020;
+    --text: #e5e7eb;         /* slate-200 */
+    --muted: #9ca3af;        /* gray-400 */
+    --border: #273041;       /* slate-800 */
+    --fill: #0f172a;         /* slate-900 */
+    --ring: #60a5fa;         /* blue-400 */
+    --accent: #3b82f6;       /* blue-500 */
+    --accent-contrast: #0b1020;
+    --accent-hover: #1d4ed8; /* blue-700 */
+    --destructive: #ef4444;  /* red-500 */
+    --success: #22c55e;      /* green-500 */
+    --warning: #f59e0b;      /* amber-500 */
+  }
+}
+
+/* ---------- Base reset ---------- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+img, svg, video, canvas { display:block; max-width:100%; }
+:focus { outline: none; }
+
+/* ---------- Form + button defaults (classless) ---------- */
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  padding: .65rem 1rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  letter-spacing: .2px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--speed) ease, box-shadow var(--speed) ease, background var(--speed) ease, border-color var(--speed) ease, color var(--speed) ease;
+}
+
+button:hover,
+input[type="button"]:hover,
+input[type="submit"]:hover,
+input[type="reset"]:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+button:active,
+input[type="button"]:active,
+input[type="submit"]:active,
+input[type="reset"]:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+button:disabled,
+input[type="button"]:disabled,
+input[type="submit"]:disabled,
+input[type="reset"]:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Neutral button style for plain <button> with data-variant or type=button can be overridden below */
+
+/* Inputs */
+input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+select,
+textarea {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--fill);
+  color: var(--text);
+  padding: .65rem .8rem;
+  border-radius: var(--radius);
+  transition: border-color var(--speed) ease, box-shadow var(--speed) ease, background var(--speed) ease;
+  box-shadow: inset 0 0 0 0 rgba(0,0,0,0);
+}
+
+textarea { min-height: 7rem; resize: vertical; }
+
+input::placeholder,
+textarea::placeholder { color: var(--muted); opacity: .8; }
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 35%, transparent);
+  background: color-mix(in oklab, var(--fill) 85%, var(--ring));
+}
+
+/* Field group helpers (optional) */
+label { display:block; margin: .25rem 0 .35rem; font-weight: 600; color: var(--muted); }
+.help { font-size: .875rem; color: var(--muted); margin-top: .35rem; }
+
+/* Inline controls look tidy */
+input[type="checkbox"],
+input[type="radio"] {
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  margin: 0 .5rem 0 0;
+  vertical-align: middle;
+}
+
+/* Custom checkbox & radio (accessible, keyboard focus visible) */
+input[type="checkbox"],
+input[type="radio"] { appearance: none; border-radius: var(--radius-sm); background: var(--fill); border: 1px solid var(--border); position: relative; }
+
+input[type="radio"] { border-radius: 999px; }
+
+input[type="checkbox"]:focus,
+input[type="radio"]:focus {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 35%, transparent);
+  border-color: var(--ring);
+}
+
+input[type="checkbox"]::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: conic-gradient(from 45deg, transparent 0 25%, currentColor 0 50%, transparent 0 100%);
+  transform: scale(0) rotate(10deg);
+  transition: transform var(--speed) ease;
+  color: var(--accent);
+  clip-path: polygon(28% 52%, 42% 66%, 74% 32%, 82% 40%, 42% 82%, 20% 60%);
+}
+
+input[type="checkbox"]:checked { border-color: var(--accent); background: color-mix(in oklab, var(--accent) 8%, var(--fill)); }
+input[type="checkbox"]:checked::after { transform: scale(1) rotate(0deg); }
+
+input[type="radio"]::after {
+  content:"";
+  position:absolute; inset: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  transform: scale(0);
+  transition: transform var(--speed) ease;
+}
+input[type="radio"]:checked { border-color: var(--accent); background: color-mix(in oklab, var(--accent) 8%, var(--fill)); }
+input[type="radio"]:checked::after { transform: scale(1); }
+
+/* Select arrow */
+select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%),
+    linear-gradient(to right, transparent, transparent);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 13px) calc(50% - 3px),
+    calc(100% - 2.2rem) 0;
+  background-size: 5px 5px, 5px 5px, 1px 100%;
+  background-repeat: no-repeat;
+  padding-right: 2.2rem;
+}
+
+/* Input sizes (opt-in via data-size or class) */
+[data-size="sm"], .is-sm { padding: .45rem .65rem; font-size: .9rem; border-radius: var(--radius-sm); }
+[data-size="lg"], .is-lg { padding: .85rem 1.15rem; font-size: 1.05rem; }
+
+/* Button variants (optional) */
+button[data-variant="neutral"],
+input[type="button"][data-variant="neutral"],
+button.neutral,
+input.neutral[type="button"] {
+  background: var(--fill);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+button[data-variant="outline"],
+input[type="button"][data-variant="outline"],
+button.outline,
+input.outline[type="button"] {
+  background: transparent;
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--border));
+}
+
+button[data-variant="ghost"],
+input[type="button"][data-variant="ghost"],
+button.ghost,
+input.ghost[type="button"] {
+  background: transparent;
+  color: var(--text);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+button[data-variant="success"], .success { background: var(--success); }
+button[data-variant="warning"], .warning { background: var(--warning); color: #111827; }
+button[data-variant="danger"],  .danger  { background: var(--destructive); }
+
+/* Grouped inputs (e.g., input + button) */
+.input-group {
+  display: flex; width: 100%;
+}
+.input-group > :is(input, select, textarea, button) {
+  border-radius: 0;
+}
+.input-group > :first-child { border-top-left-radius: var(--radius); border-bottom-left-radius: var(--radius); }
+.input-group > :last-child  { border-top-right-radius: var(--radius); border-bottom-right-radius: var(--radius); }
+.input-group > * + * { margin-left: -1px; } /* collapse borders */
+
+/* Simple container & spacing utilities (optional niceties) */
+.container { max-width: 960px; margin-inline: auto; padding: 1.25rem; }
+.stack > * + * { margin-top: 1rem; }
+.grid { display:grid; gap:1rem; }
+.grid.cols-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.grid.cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+
+/* Cards (for nice demos) */
+.card {
+  background: var(--fill);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Focus-visible for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

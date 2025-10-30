@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <canvas id="lienzo"></canvas>
+    <script>
+      
+      class Personaje{
+        constructor(){
+          this.x = 10;
+          this.y = 10;
+        }
+        dibuja(){
+          let puntoiso = iso(this.x,this.y)
+          contexto.beginPath()
+          contexto.arc(puntoiso.x,puntoiso.y,5,0,Math.PI*2)
+          contexto.fillStyle = "red"
+          contexto.fill()
+        }
+      }
+    
+    
+      var lienzo = document.querySelector("#lienzo")
+      var contexto = lienzo.getContext("2d")
+      lienzo.width = 1024
+      lienzo.height = 1024
+      var Personaje1 = new Personaje();
+      
+      // Ahora dibujo una rejilla isométrica "fake" (2:1, alineada con el suelo)
+      
+      var paso = 20
+
+      // Función de proyección isométrica simple (2:1)
+      function iso(i, j){
+        return {
+          x: 512 + (i - j) * paso,
+          y: 512 + (i + j) * (paso / 2)
+        }
+      }
+
+      // Limpio fondo
+      contexto.fillStyle = "#fff"
+      contexto.fillRect(0,0,1024,1024)
+      contexto.strokeStyle = "#000"
+
+      // Líneas paralelas al eje U (j variable, i constante)
+      for (let i = -60; i <= 60; i++) {
+        const a = iso(i, -60);
+        const b = iso(i,  60);
+        contexto.beginPath();
+        contexto.moveTo(a.x, a.y);
+        contexto.lineTo(b.x, b.y);
+        contexto.stroke();
+      }
+
+      // Líneas paralelas al eje V (i variable, j constante)
+      for (let j = -60; j <= 60; j++) {
+        const a = iso(-60, j);
+        const b = iso( 60, j);
+        contexto.beginPath();
+        contexto.moveTo(a.x, a.y);
+        contexto.lineTo(b.x, b.y);
+        contexto.stroke();
+      }
+
+      console.log(iso(10,10))
+      
+      Personaje1.dibuja()
+      
+    </script>
+  </body>
+</html>

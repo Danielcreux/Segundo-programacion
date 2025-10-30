@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MediaPipe FaceMesh · AR Makeup (Lips/Eyeliner)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { margin:0; background:#111; color:#eee; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+    .wrap { position:relative; display:grid; place-items:center; min-height:100vh; }
+    video, canvas { max-width: min(96vw, 960px); width:100%; height:auto; border-radius:12px; }
+    video { display:none; } /* we paint the video onto the canvas */
+    .hud {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      bottom: 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      background: rgba(0,0,0,.55); color:#fff; padding:10px 12px; border-radius: 12px; backdrop-filter: blur(6px);
+      font-size: 14px;
+    }
+    .hud label { display:flex; align-items:center; gap:8px; }
+    .hud input[type="color"] { width: 28px; height: 28px; border: none; padding: 0; background: transparent; }
+    .badge { position: fixed; top: 12px; left: 12px; background: rgba(0,0,0,.55); padding:6px 10px; border-radius:999px; font-size:12px; }
+  </style>
+
+  <!-- MediaPipe legacy UMD JS (globals) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="badge">FaceMesh · AR Makeup</div>
+    <video id="input_video" autoplay playsinline muted></video>
+    <canvas id="output_canvas" width="640" height="480"></canvas>
+
+    <div class="hud">
+      <label>
+        Effect:
+        <select id="effect">
+          <option value="lips" selected>Lipstick</option>
+          <option value="eyeliner">Eyeliner</option>
+        </select>
+      </label>
+      <label id="colorWrap">
+        Color: <input id="color" type="color" value="#ff2a88" />
+      </label>
+      <label id="opacityWrap">
+        Opacity: <input id="opacity" type="range" min="0" max="1" step="0.02" value="0.45" />
+      </label>
+      <label id="thicknessWrap" style="display:none">
+        Thickness: <input id="thickness" type="range" min="1" max="16" step="1" value="6" />
+      </label>
+      <label>
+        Smooth: <input id="smooth" type="range" min="0" max="1" step="0.1" value="0.5" />
+      </label>
+      <label>
+        Mirror: <input id="mirror" type="checkbox" checked />
+      </label>
+    </div>
+  </div>
+
+  <script>
+    // ---- DOM ----
+    const video  = document.getElementById('input_video');
+    const canvas = document.getElementById('output_canvas');
+    const ctx    = canvas.getContext('2d');
+
+    const ui = {
+      effect:   document.getElementById('effect'),
+      color:    document.getElementById('color'),
+      opacity:  document.getElementById('opacity'),
+      thick:    document.getElementById('thickness'),
+      smooth:   document.getElementById('smooth'),
+      mirror:   document.getElementById('mirror'),
+      opacityWrap:   document.getElementById('opacityWrap'),
+      thicknessWrap: document.getElementById('thicknessWrap'),
+      colorWrap:     document.getElementById('colorWrap'),
+    };
+
+    // Toggle UI per effect
+    function updateUI(){
+      const lips = ui.effect.value === 'lips';
+      ui.opacityWrap.style.display   = lips ? '' : 'none';
+      ui.thicknessWrap.style.display = lips ? 'none' : '';
+      ui.colorWrap.style.display     = ''; // both use color
+    }
+    ui.effect.addEventListener('change', updateUI);
+    updateUI();
+
+    // ---- Option helpers ----
+    function hexToRgba(hex, a=1){
+      const h = hex.replace('#','');
+      const n = parseInt(h,16);
+      const r = h.length===3 ? ((n>>8)&0xF)*17 : (n>>16)&255;
+      const g = h.length===3 ? ((n>>4)&0xF)*17 : (n>>8)&255;
+      const b = h.length===3 ? (n&0xF)*17     :  n&255;
+      return `rgba(${r},${g},${b},${a})`;
+    }
+
+    // ---- Smoothing (simple lerp per landmark) ----
+    let prevLandmarks = null;
+    const lerp = (a,b,t)=>a+(b-a)*t;
+    function smoothLandmarks(curr, t){
+      if (!prevLandmarks || prevLandmarks.length !== curr.length) {
+        prevLandmarks = curr.map(p=>({...p}));
+        return curr;
+      }
+      const sm = curr.map((p,i)=>({
+        x: lerp(prevLandmarks[i].x, p.x, t),
+        y: lerp(prevLandmarks[i].y, p.y, t),
+        z: lerp(prevLandmarks[i].z, p.z, t),
+      }));
+      prevLandmarks = sm.map(p=>({...p}));
+      return sm;
+    }
+
+    // ---- Landmark index sets ----
+    // Lips (outer & inner)
+    const LIPS_OUTER = [61,146,91,181,84,17,314,405,321,375,291];
+    const LIPS_INNER = [78,95,88,178,87,14,317,402,318,324,308];
+    // Eyeliner (upper eyelids)
+    const RIGHT_EYE_UPPER = [33,7,163,144,145,153,154,155,133];
+    const LEFT_EYE_UPPER  = [263,249,390,373,374,380,381,382,362];
+
+    // ---- Drawing helpers ----
+    function drawVideoFrame(img, mirror){
+      ctx.save();
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if (mirror) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    }
+
+    function buildPathFromIndices(landmarks, indices){
+      ctx.beginPath();
+      indices.forEach((idx,i)=>{
+        const p = landmarks[idx];
+        const x = p.x * canvas.width;
+        const y = p.y * canvas.height;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.closePath();
+    }
+
+    function fillLipsOuterMinusInner(landmarks, colorRGBA){
+      // Try modern evenodd fill (outer + inner as a compound path)
+      ctx.save();
+      ctx.fillStyle = colorRGBA;
+      ctx.beginPath();
+      // Outer
+      LIPS_OUTER.forEach((idx,i)=>{
+        const p = landmarks[idx], x=p.x*canvas.width, y=p.y*canvas.height;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.closePath();
+      // Inner (as hole)
+      LIPS_INNER.forEach((idx,i)=>{
+        const p = landmarks[idx], x=p.x*canvas.width, y=p.y*canvas.height;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.closePath();
+
+      // Prefer evenodd if supported
+      if (typeof ctx.fill === 'function') {
+        try { ctx.fill('evenodd'); ctx.restore(); return; } catch(e) { /* fallback below */ }
+      }
+      // Fallback: paint outer then punch inner
+      ctx.fill(); // fills both, then remove inner
+      ctx.globalCompositeOperation = 'destination-out';
+      buildPathFromIndices(landmarks, LIPS_INNER);
+      ctx.fill();
+      ctx.restore();
+      // Reset comp-op
+      ctx.globalCompositeOperation = 'source-over';
+      // Repaint outer tint on top (clean edges after punch)
+      ctx.save();
+      ctx.fillStyle = colorRGBA;
+      buildPathFromIndices(landmarks, LIPS_OUTER);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function strokeIndices(landmarks, indices, thickness, color){
+      ctx.save();
+      ctx.lineJoin = 'round';
+      ctx.lineCap  = 'round';
+      ctx.lineWidth = thickness;
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      indices.forEach((idx,i)=>{
+        const p = landmarks[idx], x=p.x*canvas.width, y=p.y*canvas.height;
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // ---- FaceMesh constructor (robust across UMD variants) ----
+    const FaceMeshCtor = (window.FaceMesh && window.FaceMesh.FaceMesh) || window.FaceMesh;
+    if (!FaceMeshCtor) {
+      console.error('FaceMesh constructor not found on window.FaceMesh');
+    }
+
+    const faceMesh = new FaceMeshCtor({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.5
+    });
+
+    // ---- Results handler ----
+    faceMesh.onResults((results)=>{
+      // Draw camera frame to canvas (mirrored if selected)
+      drawVideoFrame(results.image, ui.mirror.checked);
+
+      const faces = results.multiFaceLandmarks;
+      if (!faces || !faces.length) return;
+
+      const t = parseFloat(ui.smooth.value || '0.5');
+      const lm = smoothLandmarks(faces[0], t);
+
+      if (ui.effect.value === 'lips') {
+        const rgba = hexToRgba(ui.color.value, parseFloat(ui.opacity.value || '0.45'));
+        fillLipsOuterMinusInner(lm, rgba);
+      } else {
+        const thick = parseFloat(ui.thick.value || '6');
+        const col   = ui.color.value;
+        ctx.save();
+        ctx.globalAlpha = 0.95;
+        strokeIndices(lm, RIGHT_EYE_UPPER, thick, col);
+        strokeIndices(lm, LEFT_EYE_UPPER,  thick, col);
+        ctx.restore();
+      }
+    });
+
+    // ---- Camera (global UMD) ----
+    const camera = new Camera(video, {
+      onFrame: async () => { await faceMesh.send({ image: video }); },
+      width:  640,
+      height: 480
+    });
+    camera.start().catch(err=>{
+      console.error(err);
+      alert('Camera error. Use https or localhost and allow camera permissions.');
+    });
+  </script>
+</body>
+</html>

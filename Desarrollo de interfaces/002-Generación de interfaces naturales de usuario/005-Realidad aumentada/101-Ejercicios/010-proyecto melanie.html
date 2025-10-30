@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MediaPipe FaceMesh · Face PNG Overlay (Dense UV Mapping)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { margin:0; background:#111; color:#eee; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+    .wrap { position:relative; display:grid; place-items:center; min-height:100vh; }
+    video, canvas { max-width: min(96vw, 960px); width:100%; height:auto; border-radius:12px; }
+    video { display:none; }
+    .hud {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      bottom: 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      background: rgba(0,0,0,.55); color:#fff; padding:10px 12px; border-radius: 12px; backdrop-filter: blur(6px);
+      font-size: 14px;
+    }
+    .hud label { display:flex; align-items:center; gap:8px; }
+    .badge { position: fixed; top: 12px; left: 12px; background: rgba(0,0,0,.55); padding:6px 10px; border-radius:999px; font-size:12px; }
+    .file { padding:4px 8px; background:#222; border-radius:8px; }
+    select, input[type="range"] { accent-color:#ff2a88; }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="badge">FaceMesh · Dense UV Texture Mapping</div>
+    <video id="input_video" autoplay playsinline muted></video>
+    <canvas id="output_canvas" width="640" height="480"></canvas>
+
+    <div class="hud">
+      <label class="file">PNG: <input id="pngfile" type="file" accept="image/png" /></label>
+      <label>
+        Smooth: <input id="smooth" type="range" min="0" max="1" step="0.1" value="0.5" />
+      </label>
+      <label>
+        Mirror: <input id="mirror" type="checkbox" checked />
+      </label>
+      <label>
+        Blend:
+        <select id="blend">
+          <option>source-over</option>
+          <option selected>soft-light</option>
+          <option>overlay</option>
+          <option>multiply</option>
+          <option>screen</option>
+          <option>lighten</option>
+          <option>darken</option>
+        </select>
+      </label>
+      <label>
+        Alpha: <input id="pngAlpha" type="range" min="0" max="1" step="0.02" value="0.9" />
+      </label>
+      <label>
+        Scale: <input id="scale" type="range" min="0.5" max="2" step="0.01" value="1.0" />
+      </label>
+      <label>
+        Rotate°: <input id="rot" type="range" min="-40" max="40" step="1" value="0" />
+      </label>
+      <label>
+        Off X: <input id="offx" type="range" min="-100" max="100" step="1" value="0" />
+      </label>
+      <label>
+        Off Y: <input id="offy" type="range" min="-100" max="100" step="1" value="0" />
+      </label>
+    </div>
+  </div>
+
+  <script>
+    const video  = document.getElementById('input_video');
+    const canvas = document.getElementById('output_canvas');
+    const ctx    = canvas.getContext('2d');
+    const ui = {
+      file:     document.getElementById('pngfile'),
+      smooth:   document.getElementById('smooth'),
+      mirror:   document.getElementById('mirror'),
+      blend:    document.getElementById('blend'),
+      pngAlpha: document.getElementById('pngAlpha'),
+      scale:    document.getElementById('scale'),
+      rot:      document.getElementById('rot'),
+      offx:     document.getElementById('offx'),
+      offy:     document.getElementById('offy'),
+    };
+
+    let prevLandmarks = null;
+    const lerp = (a,b,t)=>a+(b-a)*t;
+    function smoothLandmarks(curr, t){
+      if (!prevLandmarks || prevLandmarks.length !== curr.length) {
+        prevLandmarks = curr.map(p=>({...p}));
+        return curr;
+      }
+      const sm = curr.map((p,i)=>({
+        x: lerp(prevLandmarks[i].x, p.x, t),
+        y: lerp(prevLandmarks[i].y, p.y, t),
+        z: lerp(prevLandmarks[i].z ?? 0, p.z ?? 0, t),
+      }));
+      prevLandmarks = sm.map(p=>({...p}));
+      return sm;
+    }
+
+    const FACE_OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+
+    // Complete MediaPipe FACEMESH_TESSELATION (468 landmarks, triangulated)
+    const TRIANGULATION = [127,34,139,11,0,37,232,231,120,72,37,39,128,121,47,232,121,128,104,69,67,175,171,148,118,50,101,73,39,40,9,151,108,48,115,131,194,204,211,74,40,185,80,42,183,40,39,0,267,269,270,291,409,408,375,321,405,321,375,291,185,40,39,76,77,90,160,33,246,161,246,160,246,33,7,52,53,65,65,55,52,65,52,66,107,69,67,9,107,108,151,108,107,48,115,131,130,131,115,194,204,211,202,211,204,216,206,205,187,207,206,216,186,92,2,97,167,141,125,241,164,167,37,72,38,12,38,37,72,121,128,110,47,121,228,116,123,234,93,234,127,21,54,162,54,103,67,109,103,67,162,54,21,139,127,162,139,162,21,234,93,127,162,127,139,127,34,234,227,234,34,127,139,34,227,34,234,21,162,127,54,21,103,103,54,67,109,67,103,109,103,54,67,109,54];
+
+    function drawVideoFrame(img, mirror){
+      ctx.save();
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if (mirror) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    }
+
+    function toPx(p, mirror){
+      const x = (mirror ? (1 - p.x) : p.x) * canvas.width;
+      const y = p.y * canvas.height;
+      return { x, y };
+    }
+
+    function pathPolygonFromIndices(landmarks, indices, mirror){
+      ctx.beginPath();
+      indices.forEach((idx,i)=>{
+        const p = toPx(landmarks[idx], mirror);
+        if (i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+      });
+      ctx.closePath();
+    }
+
+    let faceImg = null;
+    ui.file.addEventListener('change', (e)=>{
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = ()=>{ faceImg = img; URL.revokeObjectURL(url); };
+      img.src = url;
+    });
+
+    function drawFacePNG(landmarks, mirror){
+      if (!faceImg) return;
+
+      const xs = landmarks.map(p => toPx(p, mirror).x);
+      const ys = landmarks.map(p => toPx(p, mirror).y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const faceW = maxX - minX;
+      const faceH = maxY - minY;
+
+      const userScale = parseFloat(ui.scale.value || '1');
+      const offx = parseFloat(ui.offx.value||'0') / faceW;
+      const offy = parseFloat(ui.offy.value||'0') / faceH;
+      const rot  = (parseFloat(ui.rot.value||'0') * Math.PI) / 180;
+      
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+
+      ctx.save();
+      
+      pathPolygonFromIndices(landmarks, FACE_OVAL, mirror);
+      ctx.clip();
+
+      ctx.globalCompositeOperation = ui.blend.value || 'source-over';
+      ctx.globalAlpha = parseFloat(ui.pngAlpha.value||'0.9');
+
+      // Draw triangulated mesh
+      for (let i = 0; i < TRIANGULATION.length; i += 3) {
+        const idx0 = TRIANGULATION[i];
+        const idx1 = TRIANGULATION[i + 1];
+        const idx2 = TRIANGULATION[i + 2];
+
+        const p0 = toPx(landmarks[idx0], mirror);
+        const p1 = toPx(landmarks[idx1], mirror);
+        const p2 = toPx(landmarks[idx2], mirror);
+        
+        // Calculate UV coordinates normalized to face bounds
+        const u0 = ((p0.x - minX) / faceW - 0.5) * userScale + 0.5 + offx;
+        const v0 = ((p0.y - minY) / faceH - 0.5) * userScale + 0.5 + offy;
+        const u1 = ((p1.x - minX) / faceW - 0.5) * userScale + 0.5 + offx;
+        const v1 = ((p1.y - minY) / faceH - 0.5) * userScale + 0.5 + offy;
+        const u2 = ((p2.x - minX) / faceW - 0.5) * userScale + 0.5 + offx;
+        const v2 = ((p2.y - minY) / faceH - 0.5) * userScale + 0.5 + offy;
+
+        // Apply rotation
+        const rp0 = rotatePoint(p0, centerX, centerY, rot);
+        const rp1 = rotatePoint(p1, centerX, centerY, rot);
+        const rp2 = rotatePoint(p2, centerX, centerY, rot);
+
+        drawTexturedTriangle(
+          rp0.x, rp0.y, u0, v0,
+          rp1.x, rp1.y, u1, v1,
+          rp2.x, rp2.y, u2, v2
+        );
+      }
+
+      ctx.restore();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+
+    function rotatePoint(p, cx, cy, angle) {
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      return {
+        x: cx + dx * cos - dy * sin,
+        y: cy + dx * sin + dy * cos
+      };
+    }
+
+    function drawTexturedTriangle(x0, y0, u0, v0, x1, y1, u1, v1, x2, y2, u2, v2) {
+      u0 = Math.max(0, Math.min(1, u0));
+      v0 = Math.max(0, Math.min(1, v0));
+      u1 = Math.max(0, Math.min(1, u1));
+      v1 = Math.max(0, Math.min(1, v1));
+      u2 = Math.max(0, Math.min(1, u2));
+      v2 = Math.max(0, Math.min(1, v2));
+
+      const imgW = faceImg.width;
+      const imgH = faceImg.height;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.closePath();
+      ctx.clip();
+
+      const deltaU1 = u1 - u0, deltaV1 = v1 - v0;
+      const deltaU2 = u2 - u0, deltaV2 = v2 - v0;
+      const deltaX1 = x1 - x0, deltaY1 = y1 - y0;
+      const deltaX2 = x2 - x0, deltaY2 = y2 - y0;
+
+      const det = deltaU1 * deltaV2 - deltaU2 * deltaV1;
+      if (Math.abs(det) < 1e-10) {
+        ctx.restore();
+        return;
+      }
+
+      const a = (deltaX1 * deltaV2 - deltaX2 * deltaV1) / det;
+      const b = (deltaY1 * deltaV2 - deltaY2 * deltaV1) / det;
+      const c = (deltaU1 * deltaX2 - deltaU2 * deltaX1) / det;
+      const d = (deltaU1 * deltaY2 - deltaU2 * deltaY1) / det;
+      const e = x0 - (a * u0 + c * v0);
+      const f = y0 - (b * u0 + d * v0);
+
+      ctx.transform(a, b, c, d, e, f);
+      ctx.drawImage(faceImg, 0, 0, imgW, imgH);
+      ctx.restore();
+    }
+
+    const FaceMeshCtor = (window.FaceMesh && window.FaceMesh.FaceMesh) || window.FaceMesh;
+    const faceMesh = new FaceMeshCtor({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.5
+    });
+
+    faceMesh.onResults((results)=>{
+      const mirror = ui.mirror.checked;
+      drawVideoFrame(results.image, mirror);
+
+      const faces = results.multiFaceLandmarks;
+      if (!faces || !faces.length) return;
+
+      const t = parseFloat(ui.smooth.value || '0.5');
+      const lm = smoothLandmarks(faces[0], t);
+
+      drawFacePNG(lm, mirror);
+    });
+
+    const camera = new Camera(video, {
+      onFrame: async () => { await faceMesh.send({ image: video }); },
+      width:  640,
+      height: 480
+    });
+    camera.start().catch(err=>{
+      console.error(err);
+      alert('Camera error. Use https or localhost and allow camera permissions.');
+    });
+  </script>
+</body>
+</html>
