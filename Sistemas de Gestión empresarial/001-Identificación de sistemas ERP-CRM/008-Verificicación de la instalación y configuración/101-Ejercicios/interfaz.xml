@@ -4,5 +4,6 @@
     <campotexto nombre="apellidos"></campotexto>
     <campotexto nombre="email"></campotexto>
     <campotexto nombre="direccion"></campotexto>
+    <campotexto nombre="pais"></campotexto>
     <areadetexto nombre="mensaje"></areadetexto>
 </formulario>
