@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <title></title>
+    <meta charset="utf8">
+    <link rel="stylesheet" href="https://danielcreux.github.io/cssreset/cssreset.css">
+    <style>
+      body{display:flex;}
+      #izquierda,#derecha{flex:1;}
+      #centro{flex:6;box-shadow:0px 0px 20px rgba(0,0,0,0.3) inset;background:url(rejilla.jpg);}
+      article{border:1px solid grey;width:100px;height:100px;border-radius:10px;background:white;box-shadow:0px 4px 10px rgba(0,0,0,0.3);}
+    </style>
+  </head>
+  <body>
+    <div id="izquierda">
+    </div>
+    <div id="centro">
+      <article draggable="true">
+      </article>
+    </div>
+    <div id="derecha">
+    </div>
+    <script>
+      const art = document.querySelector("article");
+      let offsetX, offsetY;
+
+      art.addEventListener("dragstart", e=>{
+        offsetX = e.offsetX;
+        offsetY = e.offsetY;
+      });
+
+      document.getElementById("centro").addEventListener("dragover", e=>{
+        e.preventDefault();
+        art.style.left = (e.offsetX - offsetX) + "px";
+        art.style.top = (e.offsetY - offsetY) + "px";
+      });
+    </script>
+  </body>
+</html>

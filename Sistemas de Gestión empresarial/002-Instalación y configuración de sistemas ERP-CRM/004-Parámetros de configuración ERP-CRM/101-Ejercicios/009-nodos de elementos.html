@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Nodos drag & drop</title>
+  <link rel="stylesheet" href="https://danielcreux.github.io/cssreset/cssreset.css">
+  <style>
+    body{display:flex;min-height:100vh;gap:10px;padding:10px;box-sizing:border-box;}
+    #izquierda,#derecha{flex:1;display:flex;align-items:flex-start;justify-content:center;}
+    #centro{flex:6;position:relative;box-shadow:0 0 20px rgba(0,0,0,0.3) inset;background:url(rejilla.jpg);border-radius:10px;min-height:70vh}
+    #derecha button{font-size:24px;line-height:1;padding:.25em .6em;border-radius:999px;border:1px solid #aaa;background:#fff;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+    article{
+      position:absolute; left:0; top:0;
+      width:100px;height:100px;border-radius:10px;background:white;border:1px solid grey;
+      box-shadow:0 4px 10px rgba(0,0,0,0.3); cursor:grab; user-select:none;
+      display:flex;align-items:center;justify-content:center;font:14px/1.2 system-ui;
+    }
+    article.dragging{cursor:grabbing;opacity:.9}
+  </style>
+</head>
+<body>
+  <div id="izquierda"></div>
+  <div id="centro" id="lienzo" aria-label="zona de nodos"></div>
+  <div id="derecha">
+    <button id="anyadir" title="Añadir nodo">+</button>
+  </div>
+
+  <script>
+    // Modelo de datos
+    class Nodo {
+      constructor(x, y, el){
+        this.x = x;
+        this.y = y;
+        this.el = el; // referencia al artículo en pantalla
+      }
+    }
+
+    const centro = document.getElementById("centro");
+    const boton = document.getElementById("anyadir");
+    const nodos = []; // almacén de nodos en memoria
+
+    // Drag & drop sencillo con puntero (sin HTML5 drag)
+    let dragging = null;
+    let startMouseX = 0, startMouseY = 0;
+    let startLeft = 0, startTop = 0;
+
+    // Crea un <article> y su Nodo asociado
+    function crearNodo(x, y){
+      const el = document.createElement("article");
+      el.style.left = x + "px";
+      el.style.top  = y + "px";
+      el.textContent = `(${x}, ${y})`;
+      el.tabIndex = 0; // accesible
+
+      // Registrar eventos de arrastre para ESTE elemento
+      el.addEventListener("mousedown", (e) => iniciarDrag(e, el));
+      el.addEventListener("touchstart", (e) => iniciarDrag(e.touches[0], el), {passive:false});
+
+      centro.appendChild(el);
+
+      const nodo = new Nodo(x, y, el);
+      el.dataset.index = nodos.length.toString(); // vínculo el→nodo
+      nodos.push(nodo);
+      return nodo;
+    }
+
+    function iniciarDrag(e, el){
+      e.preventDefault();
+      dragging = el;
+      dragging.classList.add("dragging");
+
+      const rect = dragging.getBoundingClientRect();
+      startMouseX = e.clientX;
+      startMouseY = e.clientY;
+      // posición inicial relativa al contenedor
+      startLeft = parseInt(dragging.style.left || 0, 10);
+      startTop  = parseInt(dragging.style.top  || 0, 10);
+
+      document.addEventListener("mousemove", moverDrag);
+      document.addEventListener("mouseup", terminarDrag);
+      document.addEventListener("touchmove", moverDragTouch, {passive:false});
+      document.addEventListener("touchend", terminarDrag);
+    }
+
+    function moverDrag(e){
+      if(!dragging) return;
+      const dx = e.clientX - startMouseX;
+      const dy = e.clientY - startMouseY;
+      posicionar(dragging, startLeft + dx, startTop + dy);
+    }
+
+    function moverDragTouch(e){
+      if(!dragging) return;
+      const t = e.touches[0];
+      const dx = t.clientX - startMouseX;
+      const dy = t.clientY - startMouseY;
+      posicionar(dragging, startLeft + dx, startTop + dy);
+      e.preventDefault();
+    }
+
+    function terminarDrag(){
+      if(!dragging) return;
+      dragging.classList.remove("dragging");
+
+      // Actualizar el Nodo en memoria con la posición final
+      const idx = parseInt(dragging.dataset.index, 10);
+      const nodo = nodos[idx];
+      nodo.x = parseInt(dragging.style.left, 10);
+      nodo.y = parseInt(dragging.style.top, 10);
+      dragging.textContent = `(${nodo.x}, ${nodo.y})`;
+
+      document.removeEventListener("mousemove", moverDrag);
+      document.removeEventListener("mouseup", terminarDrag);
+      document.removeEventListener("touchmove", moverDragTouch);
+      document.removeEventListener("touchend", terminarDrag);
+      dragging = null;
+    }
+
+    // Coloca el elemento dentro de los límites del contenedor
+    function posicionar(el, x, y){
+      const contRect = centro.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const maxX = contRect.width - elRect.width;
+      const maxY = contRect.height - elRect.height;
+      const nx = Math.max(0, Math.min(x, maxX));
+      const ny = Math.max(0, Math.min(y, maxY));
+      el.style.left = nx + "px";
+      el.style.top  = ny + "px";
+    }
+
+    // Añadir nuevo nodo al pulsar el botón
+    boton.addEventListener("click", () => {
+      // posición inicial: centrado aproximado del contenedor
+      const w = 100, h = 100; // tamaño del article en CSS
+      const rect = centro.getBoundingClientRect();
+      const x = Math.max(0, Math.round(rect.width/2 - w/2));
+      const y = Math.max(0, Math.round(rect.height/2 - h/2));
+      crearNodo(x, y);
+    });
+
+    // (Opcional) Crear uno inicial
+    crearNodo(20, 20);
+  </script>
+</body>
+</html>
+
+

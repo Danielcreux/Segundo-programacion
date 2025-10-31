@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Nodos con pan & zoom</title>
+   <link rel="stylesheet" href="https://danielcreux.github.io/cssreset/cssreset.css">
+  <style>
+    :root { --nodo-w: 100px; --nodo-h: 100px; }
+    body{display:flex;min-height:100vh;gap:10px;padding:10px;box-sizing:border-box;}
+    #izquierda,#derecha{flex:1;display:flex;align-items:flex-start;justify-content:center;}
+    #centro{
+      flex:6; position:relative; overflow:hidden; border-radius:10px;
+      box-shadow:0 0 20px rgba(0,0,0,0.3) inset; background:#f6f6f6;
+      user-select:none; touch-action:none;
+    }
+
+    /* El mundo es el lienzo interno que se pan/zoom-ea */
+    #mundo{
+      position:absolute; left:0; top:0;
+      width:4000px; height:3000px; /* gran área para moverse */
+      background-image:url(rejilla.png);
+     
+      transform-origin: 0 0;
+    }
+
+    #derecha button{
+      font-size:24px;line-height:1;padding:.25em .6em;border-radius:999px;
+      border:1px solid #aaa;background:#fff;cursor:pointer;
+      box-shadow:0 2px 6px rgba(0,0,0,.15)
+    }
+    article{
+      position:absolute; left:0; top:0; width:var(--nodo-w); height:var(--nodo-h);
+      border-radius:10px;background:white;border:1px solid grey;
+      box-shadow:0 4px 10px rgba(0,0,0,0.3); cursor:grab; user-select:none;
+      display:flex;align-items:center;justify-content:center;font:14px/1.2 system-ui;
+    }
+    article.dragging{cursor:grabbing;opacity:.9}
+    #hint{
+      position:absolute; right:10px; bottom:10px; background:rgba(255,255,255,.85);
+      padding:.35rem .5rem; border:1px solid #ccc; border-radius:6px; font:12px system-ui;
+    }
+  </style>
+</head>
+<body>
+  <div id="izquierda"></div>
+  <div id="centro" aria-label="zona de trabajo">
+    <div id="mundo"></div>
+    <div id="hint">Ctrl + rueda: zoom · Ctrl + arrastrar: pan</div>
+  </div>
+  <div id="derecha">
+    <button id="anyadir" title="Añadir nodo">+</button>
+  </div>
+
+  <script>
+    // ===== Modelo =====
+    class Nodo {
+      constructor(x, y, el){ this.x = x; this.y = y; this.el = el; }
+    }
+    const centro = document.getElementById("centro");
+    const mundo  = document.getElementById("mundo");
+    const boton  = document.getElementById("anyadir");
+    const nodos  = [];
+
+    // ===== Estado de vista (pan/zoom global) =====
+    let scale = 1;                 // zoom actual
+    let translateX = 0, translateY = 0; // pan actual (px en pantalla)
+
+    function aplicarTransform(){
+      mundo.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    }
+    aplicarTransform();
+
+    // ===== Crear nodos =====
+    function crearNodo(x, y){
+      const el = document.createElement("article");
+      el.style.left = x + "px"; // coord en mundo (no pantalla)
+      el.style.top  = y + "px";
+      el.textContent = `(${x}, ${y})`;
+      el.tabIndex = 0;
+
+      el.addEventListener("mousedown", (e) => {
+        // Si está pulsado Ctrl, este mousedown se usa para pan global, no para drag de nodo
+        if(e.ctrlKey) return;
+        iniciarDragNodo(e, el);
+      });
+      // (touch opcional omitido por brevedad)
+
+      mundo.appendChild(el);
+
+      const nodo = new Nodo(x, y, el);
+      el.dataset.index = nodos.length.toString();
+      nodos.push(nodo);
+      return nodo;
+    }
+
+    // ===== Drag de nodos (respeta el zoom) =====
+    let dragging = null;
+    let startMouseX = 0, startMouseY = 0;
+    let startLeft = 0, startTop = 0;
+
+    function iniciarDragNodo(e, el){
+      e.preventDefault();
+      dragging = el;
+      dragging.classList.add("dragging");
+      startMouseX = e.clientX;
+      startMouseY = e.clientY;
+      startLeft = parseFloat(dragging.style.left) || 0; // coords de mundo
+      startTop  = parseFloat(dragging.style.top)  || 0;
+
+      document.addEventListener("mousemove", moverDragNodo);
+      document.addEventListener("mouseup", terminarDragNodo);
+    }
+
+    function moverDragNodo(e){
+      if(!dragging) return;
+      // delta de pantalla => delta de mundo (dividir por escala)
+      const dxWorld = (e.clientX - startMouseX) / scale;
+      const dyWorld = (e.clientY - startMouseY) / scale;
+
+      const nx = startLeft + dxWorld;
+      const ny = startTop  + dyWorld;
+
+      posicionarEnMundo(dragging, nx, ny);
+    }
+
+    function terminarDragNodo(){
+      if(!dragging) return;
+      dragging.classList.remove("dragging");
+      const idx = parseInt(dragging.dataset.index, 10);
+      const nodo = nodos[idx];
+      nodo.x = parseFloat(dragging.style.left) || 0;
+      nodo.y = parseFloat(dragging.style.top)  || 0;
+      dragging.textContent = `(${Math.round(nodo.x)}, ${Math.round(nodo.y)})`;
+      document.removeEventListener("mousemove", moverDragNodo);
+      document.removeEventListener("mouseup", terminarDragNodo);
+      dragging = null;
+    }
+
+    // Mantener nodos dentro del mundo
+    function posicionarEnMundo(el, x, y){
+      const w = parseFloat(getComputedStyle(el).width);
+      const h = parseFloat(getComputedStyle(el).height);
+      const maxX = mundo.clientWidth  - w;
+      const maxY = mundo.clientHeight - h;
+      const nx = Math.max(0, Math.min(x, maxX));
+      const ny = Math.max(0, Math.min(y, maxY));
+      el.style.left = nx + "px";
+      el.style.top  = ny + "px";
+    }
+
+    // ===== Pan global con Ctrl + arrastrar =====
+    let panning = false;
+    let panStartX = 0, panStartY = 0;
+    let startTX = 0, startTY = 0;
+
+    centro.addEventListener("mousedown", (e) => {
+      // Solo pan si Ctrl está presionado y botón izq dentro del centro
+      if(e.ctrlKey && e.button === 0){
+        panning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        startTX = translateX;
+        startTY = translateY;
+        e.preventDefault();
+      }
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if(!panning) return;
+      const dx = e.clientX - panStartX;
+      const dy = e.clientY - panStartY;
+      translateX = startTX + dx;
+      translateY = startTY + dy;
+      aplicarTransform();
+    });
+
+    document.addEventListener("mouseup", () => { panning = false; });
+
+    // ===== Zoom con Ctrl + scroll (centrado en el cursor) =====
+    centro.addEventListener("wheel", (e) => {
+      if(!e.ctrlKey) return; // solo si Ctrl
+      e.preventDefault();
+
+      const rect = centro.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left; // coords de pantalla relativas a #centro
+      const mouseY = e.clientY - rect.top;
+
+      // Punto de mundo bajo el cursor antes del zoom
+      const worldX = (mouseX - translateX) / scale;
+      const worldY = (mouseY - translateY) / scale;
+
+      // Ajuste de escala
+      const zoomIntensity = 0.0015; // más pequeño = más suave
+      const newScale = clamp(scale * (1 - e.deltaY * zoomIntensity), 0.2, 3.5);
+
+      // Mantener el mismo punto de mundo bajo el puntero
+      translateX = mouseX - worldX * newScale;
+      translateY = mouseY - worldY * newScale;
+      scale = newScale;
+
+      aplicarTransform();
+    }, { passive:false });
+
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+    // ===== Botón añadir =====
+    boton.addEventListener("click", () => {
+      // crear en el centro visible actual
+      const rect = centro.getBoundingClientRect();
+      // Centro de pantalla → convertir a coords de mundo
+      const screenX = rect.width/2, screenY = rect.height/2;
+      const worldX = (screenX - translateX) / scale - parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nodo-w'))/2;
+      const worldY = (screenY - translateY) / scale - parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nodo-h'))/2;
+      crearNodo(Math.round(worldX), Math.round(worldY));
+    });
+
+    // Nodo de ejemplo
+    crearNodo(40, 40);
+  </script>
+</body>
+</html>
+
