@@ -17,7 +17,7 @@ MYSQL_CONFIG = {
 }
 
 OLLAMA_BASE = os.environ.get("OLLAMA_BASE", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b-instruct-q4_0")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:3b")
 
 SCHEMA_PATH = os.environ.get("SCHEMA_PATH", "aplicacion.sql")
 MAX_SCHEMA_CHARS = 80_000

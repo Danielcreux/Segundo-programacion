@@ -21,7 +21,7 @@ MYSQL_CONFIG = {
 # Usa SOLO la base; el código probará /api/generate y, si falla, /api/chat.
 OLLAMA_BASE = os.environ.get("OLLAMA_BASE", "http://localhost:11434")
 # Modelos rápidos: llama3.2:3b-instruct, qwen2.5:3b-instruct, mistral:7b-instruct
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:3b-instruct")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:3b")
 
 # ---- Esquema & límites ----
 SCHEMA_PATH = os.environ.get("SCHEMA_PATH", "aplicacion.sql")

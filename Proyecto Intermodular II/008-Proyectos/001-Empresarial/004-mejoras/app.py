@@ -20,7 +20,7 @@ MYSQL_CONFIG = {
 # ---- Ollama ----
 OLLAMA_BASE = os.environ.get("OLLAMA_BASE", "http://localhost:11434")
 # Usa un modelo que TÚ ya tienes (según tu `ollama list`)
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b-instruct-q4_0")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:3b")
 
 # ---- Esquema & límites ----
 SCHEMA_PATH = os.environ.get("SCHEMA_PATH", "aplicacion.sql")
