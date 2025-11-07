@@ -22,7 +22,7 @@ def chat():
             return jsonify({"error": "Message is required"}), 400
         
         message = data['message']
-        model = data.get('model', 'llama2')
+        model = data.get('model', 'llama3.2:3b')
         context = data.get('context')
         
         # Get response from Ollama

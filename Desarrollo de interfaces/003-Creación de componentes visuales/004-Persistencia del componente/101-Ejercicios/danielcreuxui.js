@@ -29,7 +29,7 @@
   class SearchableSelect {
     constructor(selectEl, options = {}) {
       if (!selectEl || selectEl.tagName !== 'SELECT') {
-        throw new Error('jocarsaui.SearchableSelect: must receive a <select> element');
+        throw new Error('danielcreuxui.SearchableSelect: must receive a <select> element');
       }
 
       this.select = selectEl;

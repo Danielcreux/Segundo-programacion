@@ -2,8 +2,9 @@ import requests
 import json
 
 class OllamaClient:
-    def __init__(self, base_url="http://localhost:11434"):
+    def __init__(self, base_url="http://127.0.0.1:11434"):
         self.base_url = base_url
+        self.timeout = 120  # 2 minutos timeout
     
     def list_models(self):
         """Get list of available models"""
@@ -13,7 +14,7 @@ class OllamaClient:
         except Exception as e:
             return {"error": str(e)}
     
-    def chat(self, message, model="llama2", context=None):
+    def chat(self, message, model="gpt-oss:120b-cloud", context=None):
         """Send message to Ollama and get response"""
         try:
             payload = {
@@ -26,7 +27,7 @@ class OllamaClient:
             response = requests.post(
                 f"{self.base_url}/api/generate",
                 json=payload,
-                timeout=30
+                timeout=300
             )
             
             if response.status_code == 200:
