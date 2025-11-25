@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Multi-Core Path Tracer - Cornell Box</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        #canvas3d { position: absolute; top: 0; left: 0; }
+        #canvasPT { position: absolute; top: 0; left: 0; }
+        #controls { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            background: rgba(0,0,0,0.7); 
+            color: white; 
+            padding: 10px; 
+            border-radius: 5px;
+            font-size: 12px;
+            max-width: 250px;
+        }
+        button { margin: 5px 0; padding: 5px 10px; cursor: pointer; }
+        .bucket { 
+            position: absolute; 
+            border: 1px solid rgba(255,255,0,0.5); 
+            pointer-events: none;
+        }
+        #bucketViz { position: absolute; top: 0; left: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas3d"></canvas>
+    <canvas id="canvasPT"></canvas>
+    <div id="bucketViz"></div>
+    <div id="controls">
+        <div><strong>Multi-Core Path Tracer</strong></div>
+        <div>Cores: <span id="cores">0</span></div>
+        <div>Samples: <span id="samples">0</span></div>
+        <div>Buckets Completed: <span id="bucketsCompleted">0</span>/<span id="bucketsTotal">0</span></div>
+        <button id="togglePT">Start Path Tracing</button>
+        <button id="reset">Reset</button>
+        <div style="margin-top: 10px;">
+            <label>Samples/Bucket: <input type="number" id="spp" value="16" min="1" max="100"></label>
+        </div>
+        <div>
+            <label>Max Bounces: <input type="number" id="bounces" value="4" min="1" max="8"></label>
+        </div>
+        <div>
+            <label><input type="checkbox" id="showBuckets" checked> Show Buckets</label>
+        </div>
+        <div style="margin-top: 5px; font-size: 11px; color: #aaa;">
+            Bucket size: <span id="bucketSize">64x64</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // =============================================
+        // Three.js Scene Setup
+        // =============================================
+        const canvas3d = document.getElementById('canvas3d');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const controls = new THREE.OrbitControls(camera, canvas3d);
+        controls.enableDamping = true;
+
+        // =============================================
+        // Cornell Box Geometry
+        // =============================================
+        const boxSize = 5;
+        const sceneObjects = [];
+
+        function addObject(mesh, type, color, emission = null) {
+            scene.add(mesh);
+            sceneObjects.push({ 
+                mesh, 
+                type, 
+                color, 
+                emission,
+                // Pre-compute world matrix
+                worldMatrix: mesh.matrixWorld.clone()
+            });
+        }
+
+        // Left wall (red)
+        const leftWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xff0000, side: THREE.DoubleSide })
+        );
+        leftWall.position.set(-boxSize/2, 0, 0);
+        leftWall.rotation.y = Math.PI / 2;
+        addObject(leftWall, 'diffuse', [1, 0, 0]);
+
+        // Right wall (green)
+        const rightWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0x00ff00, side: THREE.DoubleSide })
+        );
+        rightWall.position.set(boxSize/2, 0, 0);
+        rightWall.rotation.y = -Math.PI / 2;
+        addObject(rightWall, 'diffuse', [0, 1, 0]);
+
+        // Back wall (white)
+        const backWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+        );
+        backWall.position.set(0, 0, -boxSize/2);
+        addObject(backWall, 'diffuse', [0.95, 0.95, 0.95]);
+
+        // Floor (white)
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+        );
+        floor.position.set(0, -boxSize/2, 0);
+        floor.rotation.x = Math.PI / 2;
+        addObject(floor, 'diffuse', [0.95, 0.95, 0.95]);
+
+        // Ceiling (white)
+        const ceiling = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+        );
+        ceiling.position.set(0, boxSize/2, 0);
+        ceiling.rotation.x = -Math.PI / 2;
+        addObject(ceiling, 'diffuse', [0.95, 0.95, 0.95]);
+
+        // Light (area light) - much brighter
+        const lightSize = 1.5;
+        const light = new THREE.Mesh(
+            new THREE.PlaneGeometry(lightSize, lightSize),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+        );
+        light.position.set(0, boxSize/2 - 0.05, 0);
+        light.rotation.x = -Math.PI / 2;
+        addObject(light, 'emissive', [1, 1, 1], [20, 20, 20]);
+
+        // Sphere 1 (diffuse white)
+        const sphere1 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.7, 32, 32),
+            new THREE.MeshLambertMaterial({ color: 0xffffff })
+        );
+        sphere1.position.set(-1.2, -boxSize/2 + 0.7, 0.5);
+        addObject(sphere1, 'diffuse', [0.9, 0.9, 0.9]);
+
+        // Sphere 2 (reflective)
+        const sphere2 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.7, 32, 32),
+            new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 })
+        );
+        sphere2.position.set(1.2, -boxSize/2 + 0.7, -0.5);
+        addObject(sphere2, 'reflective', [0.95, 0.95, 0.95]);
+
+        // Add some lighting for Three.js preview
+        const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+        pointLight.position.set(0, boxSize/2 - 0.5, 0);
+        scene.add(pointLight);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        camera.position.set(0, 0, 8);
+        controls.update();
+
+        // Update world matrices
+        scene.updateMatrixWorld(true);
+        sceneObjects.forEach(obj => {
+            obj.worldMatrix = obj.mesh.matrixWorld.clone();
+        });
+
+        // =============================================
+        // Multi-Core Bucket Rendering System
+        // =============================================
+        const canvasPT = document.getElementById('canvasPT');
+        const ctx = canvasPT.getContext('2d');
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvasPT.width = width;
+        canvasPT.height = height;
+
+        const BUCKET_SIZE = 64;
+        const numCores = navigator.hardwareConcurrency || 4;
+        document.getElementById('cores').textContent = numCores;
+
+        let workers = [];
+        let buckets = [];
+        let bucketsCompleted = 0;
+        let isTracing = false;
+        let sampleCount = 0;
+        let imageData = ctx.createImageData(width, height);
+
+        // Create bucket list in spiral order from center
+        function createBuckets() {
+            buckets = [];
+            const cols = Math.ceil(width / BUCKET_SIZE);
+            const rows = Math.ceil(height / BUCKET_SIZE);
+            
+            const allBuckets = [];
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    allBuckets.push({
+                        x: x * BUCKET_SIZE,
+                        y: y * BUCKET_SIZE,
+                        width: Math.min(BUCKET_SIZE, width - x * BUCKET_SIZE),
+                        height: Math.min(BUCKET_SIZE, height - y * BUCKET_SIZE),
+                        completed: false,
+                        gridX: x,
+                        gridY: y
+                    });
+                }
+            }
+            
+            // Sort buckets in spiral order from center
+            const centerX = cols / 2;
+            const centerY = rows / 2;
+            
+            allBuckets.sort((a, b) => {
+                const distA = Math.sqrt(Math.pow(a.gridX - centerX, 2) + Math.pow(a.gridY - centerY, 2));
+                const distB = Math.sqrt(Math.pow(b.gridX - centerX, 2) + Math.pow(b.gridY - centerY, 2));
+                
+                if (Math.abs(distA - distB) < 0.5) {
+                    // Same distance ring, sort by angle for spiral effect
+                    const angleA = Math.atan2(a.gridY - centerY, a.gridX - centerX);
+                    const angleB = Math.atan2(b.gridY - centerY, b.gridX - centerX);
+                    return angleA - angleB;
+                }
+                
+                return distA - distB;
+            });
+            
+            buckets = allBuckets;
+            
+            document.getElementById('bucketsTotal').textContent = buckets.length;
+            document.getElementById('bucketSize').textContent = `${BUCKET_SIZE}x${BUCKET_SIZE}`;
+        }
+
+        // Worker code as a blob
+        const workerCode = `
+            const raycaster = {};
+            
+            function intersectRay(origin, direction, objects) {
+                let closest = null;
+                let minDist = Infinity;
+                
+                for (const obj of objects) {
+                    const result = intersectObject(origin, direction, obj);
+                    if (result && result.distance < minDist) {
+                        minDist = result.distance;
+                        closest = result;
+                        closest.object = obj;
+                    }
+                }
+                
+                return closest;
+            }
+            
+            function intersectObject(origin, direction, obj) {
+                if (obj.geometry === 'sphere') {
+                    return intersectSphere(origin, direction, obj);
+                } else if (obj.geometry === 'plane') {
+                    return intersectPlane(origin, direction, obj);
+                }
+                return null;
+            }
+            
+            function intersectSphere(origin, direction, obj) {
+                const center = obj.position;
+                const radius = obj.radius;
+                const oc = [origin[0] - center[0], origin[1] - center[1], origin[2] - center[2]];
+                const a = direction[0]*direction[0] + direction[1]*direction[1] + direction[2]*direction[2];
+                const b = 2.0 * (oc[0]*direction[0] + oc[1]*direction[1] + oc[2]*direction[2]);
+                const c = oc[0]*oc[0] + oc[1]*oc[1] + oc[2]*oc[2] - radius*radius;
+                const discriminant = b*b - 4*a*c;
+                
+                if (discriminant < 0) return null;
+                
+                const t = (-b - Math.sqrt(discriminant)) / (2*a);
+                if (t < 0.001) return null;
+                
+                const point = [
+                    origin[0] + direction[0] * t,
+                    origin[1] + direction[1] * t,
+                    origin[2] + direction[2] * t
+                ];
+                
+                const normal = [
+                    (point[0] - center[0]) / radius,
+                    (point[1] - center[1]) / radius,
+                    (point[2] - center[2]) / radius
+                ];
+                
+                return { distance: t, point, normal };
+            }
+            
+            function intersectPlane(origin, direction, obj) {
+                const normal = obj.normal;
+                const point = obj.position;
+                
+                const denom = normal[0]*direction[0] + normal[1]*direction[1] + normal[2]*direction[2];
+                if (Math.abs(denom) < 0.0001) return null;
+                
+                const diff = [point[0] - origin[0], point[1] - origin[1], point[2] - origin[2]];
+                const t = (diff[0]*normal[0] + diff[1]*normal[1] + diff[2]*normal[2]) / denom;
+                
+                if (t < 0.001) return null;
+                
+                const hitPoint = [
+                    origin[0] + direction[0] * t,
+                    origin[1] + direction[1] * t,
+                    origin[2] + direction[2] * t
+                ];
+                
+                // Check if hit point is within plane bounds
+                const localPoint = [
+                    hitPoint[0] - point[0],
+                    hitPoint[1] - point[1],
+                    hitPoint[2] - point[2]
+                ];
+                
+                const size = obj.size;
+                const u = obj.uAxis;
+                const v = obj.vAxis;
+                
+                const uCoord = localPoint[0]*u[0] + localPoint[1]*u[1] + localPoint[2]*u[2];
+                const vCoord = localPoint[0]*v[0] + localPoint[1]*v[1] + localPoint[2]*v[2];
+                
+                if (Math.abs(uCoord) > size/2 || Math.abs(vCoord) > size/2) return null;
+                
+                return { distance: t, point: hitPoint, normal };
+            }
+            
+            function random() {
+                return Math.random();
+            }
+            
+            function randomInUnitSphere() {
+                while (true) {
+                    const v = [random() * 2 - 1, random() * 2 - 1, random() * 2 - 1];
+                    if (v[0]*v[0] + v[1]*v[1] + v[2]*v[2] < 1) return v;
+                }
+            }
+            
+            function randomInHemisphere(normal) {
+                const v = randomInUnitSphere();
+                const dot = v[0]*normal[0] + v[1]*normal[1] + v[2]*normal[2];
+                if (dot > 0) return v;
+                return [-v[0], -v[1], -v[2]];
+            }
+            
+            function reflect(v, n) {
+                const dot = v[0]*n[0] + v[1]*n[1] + v[2]*n[2];
+                return [v[0] - 2*dot*n[0], v[1] - 2*dot*n[1], v[2] - 2*dot*n[2]];
+            }
+            
+            function normalize(v) {
+                const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+                return len > 0 ? [v[0]/len, v[1]/len, v[2]/len] : v;
+            }
+            
+            function trace(origin, direction, depth, maxDepth, objects) {
+                if (depth >= maxDepth) return [0, 0, 0];
+                
+                const hit = intersectRay(origin, direction, objects);
+                if (!hit) return [0, 0, 0]; // Black background, no ambient light
+                
+                const obj = hit.object;
+                const hitPoint = hit.point;
+                const normal = hit.normal;
+                
+                const offset = 0.001;
+                const offsetPoint = [
+                    hitPoint[0] + normal[0] * offset,
+                    hitPoint[1] + normal[1] * offset,
+                    hitPoint[2] + normal[2] * offset
+                ];
+                
+                // If we hit a light source, return its emission
+                if (obj.type === 'emissive') {
+                    return obj.emission;
+                }
+                
+                // For diffuse surfaces, use proper BRDF with cosine weighting
+                const attenuation = obj.color;
+                
+                if (obj.type === 'reflective') {
+                    // Perfect specular reflection
+                    const newDir = reflect(direction, normal);
+                    const normalized = normalize(newDir);
+                    const incoming = trace(offsetPoint, normalized, depth + 1, maxDepth, objects);
+                    return [
+                        attenuation[0] * incoming[0],
+                        attenuation[1] * incoming[1],
+                        attenuation[2] * incoming[2]
+                    ];
+                } else {
+                    // Diffuse reflection with proper importance sampling
+                    const newDir = randomInHemisphere(normal);
+                    const normalized = normalize(newDir);
+                    
+                    // Cosine term (Lambert's law)
+                    const cosTheta = Math.max(0, 
+                        normalized[0] * normal[0] + 
+                        normalized[1] * normal[1] + 
+                        normalized[2] * normal[2]
+                    );
+                    
+                    const incoming = trace(offsetPoint, normalized, depth + 1, maxDepth, objects);
+                    
+                    // BRDF = albedo / PI, PDF = 1 / (2*PI) for uniform hemisphere sampling
+                    // Combined with cosine term: (albedo / PI) * incoming * cosTheta / (1 / (2*PI))
+                    // Simplifies to: albedo * incoming * cosTheta * 2
+                    const scale = 2.0 * cosTheta;
+                    
+                    return [
+                        attenuation[0] * incoming[0] * scale,
+                        attenuation[1] * incoming[1] * scale,
+                        attenuation[2] * incoming[2] * scale
+                    ];
+                }
+            }
+            
+            self.onmessage = function(e) {
+                const { bucket, camera, objects, samplesPerPixel, maxBounces, width, height } = e.data;
+                
+                const data = new Float32Array(bucket.width * bucket.height * 3);
+                
+                for (let y = 0; y < bucket.height; y++) {
+                    for (let x = 0; x < bucket.width; x++) {
+                        const screenX = bucket.x + x;
+                        const screenY = bucket.y + y;
+                        
+                        let color = [0, 0, 0];
+                        
+                        for (let s = 0; s < samplesPerPixel; s++) {
+                            const u = (screenX + random()) / width;
+                            const v = (screenY + random()) / height;
+                            
+                            const px = (u * 2 - 1) * camera.tanFov * camera.aspect;
+                            const py = -(v * 2 - 1) * camera.tanFov;
+                            
+                            let dir = [px, py, -1];
+                            const len = Math.sqrt(dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2]);
+                            dir = [dir[0]/len, dir[1]/len, dir[2]/len];
+                            
+                            // Apply camera rotation
+                            const q = camera.quaternion;
+                            const rotated = rotateByQuaternion(dir, q);
+                            
+                            const sample = trace(camera.position, rotated, 0, maxBounces, objects);
+                            color[0] += sample[0];
+                            color[1] += sample[1];
+                            color[2] += sample[2];
+                        }
+                        
+                        const idx = (y * bucket.width + x) * 3;
+                        data[idx] = color[0] / samplesPerPixel;
+                        data[idx + 1] = color[1] / samplesPerPixel;
+                        data[idx + 2] = color[2] / samplesPerPixel;
+                    }
+                }
+                
+                self.postMessage({ bucket, data });
+            };
+            
+            function rotateByQuaternion(v, q) {
+                const qx = q[0], qy = q[1], qz = q[2], qw = q[3];
+                const x = v[0], y = v[1], z = v[2];
+                
+                const ix = qw * x + qy * z - qz * y;
+                const iy = qw * y + qz * x - qx * z;
+                const iz = qw * z + qx * y - qy * x;
+                const iw = -qx * x - qy * y - qz * z;
+                
+                return [
+                    ix * qw + iw * -qx + iy * -qz - iz * -qy,
+                    iy * qw + iw * -qy + iz * -qx - ix * -qz,
+                    iz * qw + iw * -qz + ix * -qy - iy * -qx
+                ];
+            }
+        `;
+
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(blob);
+
+        // Create workers
+        function initWorkers() {
+            workers.forEach(w => w.terminate());
+            workers = [];
+            
+            for (let i = 0; i < numCores; i++) {
+                const worker = new Worker(workerUrl);
+                worker.onmessage = handleWorkerResult;
+                worker.idle = true;
+                workers.push(worker);
+            }
+        }
+
+        // Convert Three.js objects to worker-compatible format
+        function serializeObjects() {
+            const serialized = [];
+            
+            for (const obj of sceneObjects) {
+                const mesh = obj.mesh;
+                
+                if (mesh.geometry.type === 'SphereGeometry') {
+                    serialized.push({
+                        geometry: 'sphere',
+                        position: [mesh.position.x, mesh.position.y, mesh.position.z],
+                        radius: mesh.geometry.parameters.radius,
+                        type: obj.type,
+                        color: obj.color,
+                        emission: obj.emission
+                    });
+                } else if (mesh.geometry.type === 'PlaneGeometry') {
+                    const normal = new THREE.Vector3(0, 0, 1);
+                    normal.applyQuaternion(mesh.quaternion).normalize();
+                    
+                    const uAxis = new THREE.Vector3(1, 0, 0);
+                    uAxis.applyQuaternion(mesh.quaternion).normalize();
+                    
+                    const vAxis = new THREE.Vector3(0, 1, 0);
+                    vAxis.applyQuaternion(mesh.quaternion).normalize();
+                    
+                    serialized.push({
+                        geometry: 'plane',
+                        position: [mesh.position.x, mesh.position.y, mesh.position.z],
+                        normal: [normal.x, normal.y, normal.z],
+                        uAxis: [uAxis.x, uAxis.y, uAxis.z],
+                        vAxis: [vAxis.x, vAxis.y, vAxis.z],
+                        size: Math.max(mesh.geometry.parameters.width, mesh.geometry.parameters.height),
+                        type: obj.type,
+                        color: obj.color,
+                        emission: obj.emission
+                    });
+                }
+            }
+            
+            return serialized;
+        }
+
+        // Handle worker results
+        function handleWorkerResult(e) {
+            const { bucket, data } = e.data;
+            
+            // Update image data
+            for (let y = 0; y < bucket.height; y++) {
+                for (let x = 0; x < bucket.width; x++) {
+                    const srcIdx = (y * bucket.width + x) * 3;
+                    const dstIdx = ((bucket.y + y) * width + (bucket.x + x)) * 4;
+                    
+                    let r = data[srcIdx];
+                    let g = data[srcIdx + 1];
+                    let b = data[srcIdx + 2];
+                    
+                    // Gamma correction
+                    r = Math.pow(r, 1/2.2);
+                    g = Math.pow(g, 1/2.2);
+                    b = Math.pow(b, 1/2.2);
+                    
+                    imageData.data[dstIdx] = Math.min(255, r * 255);
+                    imageData.data[dstIdx + 1] = Math.min(255, g * 255);
+                    imageData.data[dstIdx + 2] = Math.min(255, b * 255);
+                    imageData.data[dstIdx + 3] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            
+            // Mark bucket as completed
+            const bucketIndex = buckets.findIndex(b => 
+                b.x === bucket.x && b.y === bucket.y && !b.completed
+            );
+            if (bucketIndex !== -1) {
+                buckets[bucketIndex].completed = true;
+                bucketsCompleted++;
+                document.getElementById('bucketsCompleted').textContent = bucketsCompleted;
+                
+                // Visualize completed bucket
+                if (document.getElementById('showBuckets').checked) {
+                    visualizeBucket(bucket);
+                }
+            }
+            
+            // Mark worker as idle and assign next bucket
+            e.target.idle = true;
+            assignNextBucket(e.target);
+        }
+
+        // Visualize bucket being rendered
+        function visualizeBucket(bucket) {
+            const div = document.createElement('div');
+            div.className = 'bucket';
+            div.style.left = bucket.x + 'px';
+            div.style.top = bucket.y + 'px';
+            div.style.width = bucket.width + 'px';
+            div.style.height = bucket.height + 'px';
+            document.getElementById('bucketViz').appendChild(div);
+            
+            setTimeout(() => div.remove(), 500);
+        }
+
+        // Assign next bucket to worker
+        function assignNextBucket(worker) {
+            if (!isTracing) return;
+            
+            const nextBucket = buckets.find(b => !b.completed);
+            if (!nextBucket) {
+                // All buckets completed, start next pass
+                if (isTracing) {
+                    sampleCount += parseInt(document.getElementById('spp').value);
+                    document.getElementById('samples').textContent = sampleCount;
+                    startNewPass();
+                }
+                return;
+            }
+            
+            worker.idle = false;
+            
+            const cameraData = {
+                position: [camera.position.x, camera.position.y, camera.position.z],
+                quaternion: [camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w],
+                tanFov: Math.tan(camera.fov * Math.PI / 360),
+                aspect: camera.aspect
+            };
+            
+            worker.postMessage({
+                bucket: nextBucket,
+                camera: cameraData,
+                objects: serializeObjects(),
+                samplesPerPixel: parseInt(document.getElementById('spp').value),
+                maxBounces: parseInt(document.getElementById('bounces').value),
+                width: width,
+                height: height
+            });
+        }
+
+        // Start new rendering pass
+        function startNewPass() {
+            bucketsCompleted = 0;
+            document.getElementById('bucketsCompleted').textContent = '0';
+            
+            buckets.forEach(b => b.completed = false);
+            
+            // Keep spiral order, don't shuffle
+            
+            // Assign buckets to all idle workers
+            workers.filter(w => w.idle).forEach(w => assignNextBucket(w));
+        }
+
+        // Start rendering
+        function startRendering() {
+            isTracing = true;
+            createBuckets();
+            initWorkers();
+            
+            // Start all workers
+            workers.forEach(w => assignNextBucket(w));
+        }
+
+        // Stop rendering
+        function stopRendering() {
+            isTracing = false;
+        }
+
+        // Reset
+        function resetRendering() {
+            stopRendering();
+            ctx.clearRect(0, 0, width, height);
+            imageData = ctx.createImageData(width, height);
+            sampleCount = 0;
+            bucketsCompleted = 0;
+            document.getElementById('samples').textContent = '0';
+            document.getElementById('bucketsCompleted').textContent = '0';
+            document.getElementById('bucketViz').innerHTML = '';
+        }
+
+        // =============================================
+        // Controls
+        // =============================================
+        document.getElementById('togglePT').addEventListener('click', () => {
+            if (isTracing) {
+                stopRendering();
+                document.getElementById('togglePT').textContent = 'Resume Path Tracing';
+            } else {
+                if (bucketsCompleted === 0) {
+                    startRendering();
+                } else {
+                    isTracing = true;
+                    startNewPass();
+                }
+                document.getElementById('togglePT').textContent = 'Pause Path Tracing';
+            }
+        });
+
+        document.getElementById('reset').addEventListener('click', resetRendering);
+
+        // =============================================
+        // Animation Loop
+        // =============================================
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+            
+            canvasPT.width = width;
+            canvasPT.height = height;
+            resetRendering();
+        });
+    </script>
+</body>
+</html>

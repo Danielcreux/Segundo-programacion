@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>IA Web Creator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-container">
+    <header class="app-header">
+        <h1>IA Web Creator</h1>
+        <p>Describe la web que quieres y la IA generará el HTML+CSS.</p>
+    </header>
+
+    <main class="columns">
+        <!-- LEFT COLUMN: Prompt -->
+        <section class="column left-column">
+            <form id="prompt-form">
+                <label for="prompt" class="label-title">Describe tu página web:</label>
+                <textarea id="prompt" name="prompt" rows="10"
+                          placeholder="Ejemplo: &quot;Una landing moderna para un curso de programación, con cabecera grande, sección de características en 3 columnas y un pie de página oscuro&quot;"></textarea>
+
+                <button type="submit" id="generate-btn">Generar página</button>
+
+                <div id="status" class="status"></div>
+            </form>
+
+            <div class="hint-box">
+                <h2>Consejos de uso</h2>
+                <ul>
+                    <li>Pide colores, tipografías, secciones concretas…</li>
+                    <li>Ejemplo: &quot;Portfolio minimalista con foto grande, sección de proyectos y sección de contacto.&quot;</li>
+                    <li>Ejemplo: &quot;Página para un restaurante italiano con menú, horarios y mapa.&quot;</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Preview -->
+        <section class="column right-column">
+            <h2>Vista previa generada</h2>
+            <iframe id="preview-frame" title="Vista previa IA"></iframe>
+        </section>
+    </main>
+</div>
+
+<script>
+    const GENERATE_URL = "{{ url_for('generate') }}";
+</script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
+

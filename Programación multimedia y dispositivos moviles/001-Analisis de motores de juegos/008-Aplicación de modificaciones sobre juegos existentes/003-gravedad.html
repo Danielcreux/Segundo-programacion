@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Minecraft Clone</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.min.js"></script>
+    <script>
+        // Block class
+        class Block {
+            constructor(x, y, z, type = 'grass') {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.type = type;
+                this.mesh = null;
+                
+                this.createMesh();
+            }
+            
+            createMesh() {
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                
+                const colors = {
+                    'grass': 0x4CAF50,
+                    'dirt': 0x795548,
+                    'stone': 0x9E9E9E
+                };
+                
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: colors[this.type] || 0x4CAF50 
+                });
+                
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.set(this.x, this.y, this.z);
+            }
+            
+            addToScene(scene) {
+                if (this.mesh) {
+                    scene.add(this.mesh);
+                }
+            }
+            
+            removeFromScene(scene) {
+                if (this.mesh) {
+                    scene.remove(this.mesh);
+                }
+            }
+            
+            getBoundingBox() {
+                return new THREE.Box3().setFromObject(this.mesh);
+            }
+        }
+
+        // Game class
+        class MinecraftGame {
+            constructor() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x87CEEB);
+                
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(0, 2, 5);
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(this.renderer.domElement);
+                
+                this.controls = null;
+                this.blocks = [];
+                this.moveState = { forward: false, backward: false, left: false, right: false, jump: false };
+                this.velocity = new THREE.Vector3();
+                this.direction = new THREE.Vector3();
+                
+                // Physics properties
+                this.onGround = false;
+                this.gravity = -20;
+                this.jumpForce = 8;
+                this.playerHeight = 1.8;
+                this.playerRadius = 0.3;
+                
+                this.setupLights();
+                this.createFloor();
+                this.setupControls();
+                this.setupEventListeners();
+                
+                this.clock = new THREE.Clock();
+                this.animate();
+            }
+            
+            setupLights() {
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(50, 50, 50);
+                this.scene.add(directionalLight);
+            }
+            
+            createFloor() {
+                const gridSize = 10;
+                
+                for (let x = -gridSize/2; x < gridSize/2; x++) {
+                    for (let z = -gridSize/2; z < gridSize/2; z++) {
+                        let type = 'grass';
+                        if (Math.random() > 0.8) type = 'dirt';
+                        if (Math.random() > 0.95) type = 'stone';
+                        
+                        const block = new Block(x, -0.5, z, type);
+                        block.addToScene(this.scene);
+                        this.blocks.push(block);
+                    }
+                }
+                
+                // Add some raised blocks for collision testing
+                for (let i = 0; i < 5; i++) {
+                    const x = Math.floor(Math.random() * 8 - 4);
+                    const z = Math.floor(Math.random() * 8 - 4);
+                    const block = new Block(x, 0.5, z, 'stone');
+                    block.addToScene(this.scene);
+                    this.blocks.push(block);
+                }
+            }
+            
+            setupControls() {
+                this.controls = new THREE.PointerLockControls(this.camera, document.body);
+                
+                const instructions = document.createElement('div');
+                instructions.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0,0,0,0.8);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    text-align: center;
+                    font-family: Arial;
+                `;
+                instructions.innerHTML = `
+                    <h2>Minecraft Clone</h2>
+                    <p>Click to play</p>
+                    <p>WASD: Move | Mouse: Look around</p>
+                    <p>Space: Jump</p>
+                `;
+                document.body.appendChild(instructions);
+                
+                const startGame = () => {
+                    this.controls.lock();
+                    instructions.style.display = 'none';
+                };
+                
+                document.body.addEventListener('click', startGame);
+                
+                this.controls.addEventListener('lock', () => {
+                    instructions.style.display = 'none';
+                });
+                
+                this.controls.addEventListener('unlock', () => {
+                    instructions.style.display = 'block';
+                });
+            }
+            
+            setupEventListeners() {
+                document.addEventListener('keydown', (event) => {
+                    switch (event.code) {
+                        case 'KeyW':
+                            this.moveState.forward = true;
+                            break;
+                        case 'KeyS':
+                            this.moveState.backward = true;
+                            break;
+                        case 'KeyA':
+                            this.moveState.left = true;
+                            break;
+                        case 'KeyD':
+                            this.moveState.right = true;
+                            break;
+                        case 'Space':
+                            if (this.onGround) {
+                                this.moveState.jump = true;
+                            }
+                            event.preventDefault();
+                            break;
+                    }
+                });
+                
+                document.addEventListener('keyup', (event) => {
+                    switch (event.code) {
+                        case 'KeyW':
+                            this.moveState.forward = false;
+                            break;
+                        case 'KeyS':
+                            this.moveState.backward = false;
+                            break;
+                        case 'KeyA':
+                            this.moveState.left = false;
+                            break;
+                        case 'KeyD':
+                            this.moveState.right = false;
+                            break;
+                        case 'Space':
+                            this.moveState.jump = false;
+                            break;
+                    }
+                });
+                
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+            
+            checkCollision(newPosition) {
+                const playerBox = new THREE.Box3(
+                    new THREE.Vector3(
+                        newPosition.x - this.playerRadius,
+                        newPosition.y - this.playerHeight,
+                        newPosition.z - this.playerRadius
+                    ),
+                    new THREE.Vector3(
+                        newPosition.x + this.playerRadius,
+                        newPosition.y,
+                        newPosition.z + this.playerRadius
+                    )
+                );
+                
+                for (const block of this.blocks) {
+                    const blockBox = block.getBoundingBox();
+                    if (playerBox.intersectsBox(blockBox)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            updateMovement(delta) {
+                if (!this.controls.isLocked) return;
+                
+                const speed = 5.0;
+                this.velocity.x = 0;
+                this.velocity.z = 0;
+                
+                // Fixed movement directions
+                if (this.moveState.forward) this.velocity.z = -speed * delta;
+                if (this.moveState.backward) this.velocity.z = speed * delta;
+                if (this.moveState.left) this.velocity.x = -speed * delta;
+                if (this.moveState.right) this.velocity.x = speed * delta;
+                
+                // Apply movement relative to camera direction
+                this.velocity.applyEuler(new THREE.Euler(0, this.camera.rotation.y, 0));
+                
+                // Store current position for collision checking
+                const oldPosition = this.camera.position.clone();
+                
+                // Apply horizontal movement with collision detection
+                const newHorizontalPos = oldPosition.clone().add(this.velocity);
+                if (!this.checkCollision(newHorizontalPos)) {
+                    this.camera.position.x = newHorizontalPos.x;
+                    this.camera.position.z = newHorizontalPos.z;
+                }
+                
+                // Apply vertical movement (gravity and jumping)
+                if (this.moveState.jump && this.onGround) {
+                    this.velocity.y = this.jumpForce;
+                    this.onGround = false;
+                    this.moveState.jump = false;
+                }
+                
+                this.velocity.y += this.gravity * delta;
+                
+                const newVerticalPos = this.camera.position.clone();
+                newVerticalPos.y += this.velocity.y * delta;
+                
+                // Check if we're on the ground plane or outside bounds
+                const gridSize = 10;
+                const isOutsideGrid = Math.abs(this.camera.position.x) > gridSize/2 || 
+                                    Math.abs(this.camera.position.z) > gridSize/2;
+                
+                if (isOutsideGrid) {
+                    // Allow falling off edges
+                    if (!this.checkCollision(newVerticalPos)) {
+                        this.camera.position.y = newVerticalPos.y;
+                    }
+                    this.onGround = false;
+                } else {
+                    // Normal collision detection
+                    if (!this.checkCollision(newVerticalPos)) {
+                        this.camera.position.y = newVerticalPos.y;
+                        this.onGround = false;
+                    } else {
+                        // We hit something vertically
+                        if (this.velocity.y < 0) {
+                            // Hit the ground
+                            this.onGround = true;
+                            this.velocity.y = 0;
+                        } else {
+                            // Hit ceiling
+                            this.velocity.y = 0;
+                        }
+                    }
+                }
+                
+                // Reset if player falls too far
+                if (this.camera.position.y < -10) {
+                    this.camera.position.set(0, 5, 0);
+                    this.velocity.set(0, 0, 0);
+                }
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                const delta = Math.min(this.clock.getDelta(), 0.1); // Cap delta for stability
+                
+                if (this.controls.isLocked) {
+                    this.updateMovement(delta);
+                }
+                
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Start the game
+        new MinecraftGame();
+    </script>
+</body>
+</html>

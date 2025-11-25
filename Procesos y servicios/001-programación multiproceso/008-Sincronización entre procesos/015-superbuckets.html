@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Path Tracer — 4×4 Tiles, Multicore, Low-RAM + Direct Light Sampling</title>
+  <style>
+    body { margin:0; overflow:hidden; font-family:Arial, sans-serif; }
+    #canvas3d, #canvasPT { position:absolute; top:0; left:0; }
+    #controls{
+      position:absolute; top:10px; left:10px;
+      background:rgba(0,0,0,.7); color:#fff; padding:10px; border-radius:6px;
+      font-size:12px; max-width:360px; line-height:1.4; user-select:none;
+    }
+    label{display:block; margin-top:6px}
+    input[type="number"]{width:90px}
+    button{margin:6px 0; padding:6px 10px; cursor:pointer}
+  </style>
+</head>
+<body>
+  <canvas id="canvas3d"></canvas>
+  <canvas id="canvasPT"></canvas>
+
+  <div id="controls">
+    <div><strong>Monte Carlo Path Tracer (NEE)</strong></div>
+    <div>Cores (Workers): <input type="number" id="workers" value="16" min="1" max="64"> <span style="opacity:.7">/ tiles: 16</span></div>
+    <div>OS hints (hardwareConcurrency): <span id="hwc">?</span></div>
+    <div>Total Patches: <span id="samples">0</span></div>
+    <div>Patches/sec: <span id="sps">0</span></div>
+
+    <button id="togglePT">Start Path Tracing</button>
+    <button id="reset">Reset</button>
+
+    <label>Pixel Size:
+      <input type="number" id="pixelSize" value="2" min="1" max="16">
+      <span style="font-size:10px; color:#aaa">(1 = full quality)</span>
+    </label>
+    <label>Samples/Batch (per worker tick):
+      <input type="number" id="spp" value="2000" min="50" max="50000">
+    </label>
+    <label>Max Bounces:
+      <input type="number" id="bounces" value="6" min="1" max="10">
+    </label>
+    <label>Fade Half-Life (s):
+      <input type="number" id="fadeHalfLife" value="20" step="0.05" min="0.05" max="60">
+    </label>
+
+    <div style="margin-top:6px; font-size:11px; color:#aaa">
+      Click to enable FPS controls. <b>W</b>=forward, <b>S</b>=backward, <b>A</b>=left, <b>D</b>=right. Space=up, Shift=sprint (or down if no move).
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+  <script>
+    // ---------- Basic scene ----------
+    const canvas3d = document.getElementById('canvas3d');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.01, 1000);
+    const renderer = new THREE.WebGLRenderer({canvas: canvas3d, antialias:true});
+    renderer.setSize(innerWidth, innerHeight);
+    const orbit = new THREE.OrbitControls(camera, canvas3d); orbit.enabled = false;
+
+    // FPS controls (WASD)
+    const keys = { w:false, a:false, s:false, d:false, shift:false, space:false };
+    let pitch=0, yaw=0, locked=false;
+    const mouseSensitivity=0.002, moveSpeed=0.04;
+
+    document.body.addEventListener('click', ()=>{ if(!locked) document.body.requestPointerLock(); });
+    document.addEventListener('pointerlockchange', ()=> locked = document.pointerLockElement===document.body);
+    window.addEventListener('keydown', e=>{ const k=e.key.toLowerCase(); if(k in keys){keys[k]=true; e.preventDefault();}});
+    window.addEventListener('keyup',   e=>{ const k=e.key.toLowerCase(); if(k in keys){keys[k]=false; e.preventDefault();}});
+    window.addEventListener('mousemove', e=>{
+      if(!locked) return;
+      yaw   -= e.movementX * mouseSensitivity;
+      pitch -= e.movementY * mouseSensitivity;
+      pitch = Math.max(-Math.PI/2+0.01, Math.min(Math.PI/2-0.01, pitch));
+      camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+    });
+
+    function updateMovement(){
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+      const right   = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).normalize();
+      const speed = keys.shift && (keys.w||keys.a||keys.s||keys.d) ? moveSpeed*2 : moveSpeed;
+
+      if (keys.w) camera.position.addScaledVector(forward,  speed);
+      if (keys.s) camera.position.addScaledVector(forward, -speed);
+      if (keys.d) camera.position.addScaledVector(right,    speed);
+      if (keys.a) camera.position.addScaledVector(right,   -speed);
+      if (keys.space) camera.position.y += speed;
+      if (keys.shift && !(keys.w||keys.a||keys.s||keys.d)) camera.position.y -= speed; // "down" only when not moving
+    }
+
+    // ---------- Cornell Box geometry ----------
+    const boxSize=5, half=boxSize/2, objs=[];
+    function add(mesh, type, color, emission=null){ scene.add(mesh); objs.push({mesh, type, color, emission}); }
+    const mkPlane=(w,h,color)=> new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshLambertMaterial({color, side:THREE.DoubleSide}));
+    const mkSphere=(r,mat)=> new THREE.Mesh(new THREE.SphereGeometry(r,32,32), mat);
+
+    // Left, Right, Back, Floor, Ceiling. Front is open.
+    const left = mkPlane(boxSize,boxSize,0xff0000); left.position.set(-half,0,0); left.rotation.y=Math.PI/2; add(left,'diffuse',[1,0,0]);
+    const right= mkPlane(boxSize,boxSize,0x00ff00); right.position.set( half,0,0); right.rotation.y=-Math.PI/2; add(right,'diffuse',[0,1,0]);
+    const back = mkPlane(boxSize,boxSize,0xffffff); back.position.set(0,0,-half); add(back,'diffuse',[0.95,0.95,0.95]);
+    const floor= mkPlane(boxSize,boxSize,0xffffff); floor.position.set(0,-half,0); floor.rotation.x=-Math.PI/2; add(floor,'diffuse',[0.95,0.95,0.95]);
+    const ceil = mkPlane(boxSize,boxSize,0xffffff); ceil.position.set(0, half,0); ceil.rotation.x=-Math.PI/2; add(ceil,'diffuse',[0.95,0.95,0.95]);
+
+    // Area light
+    const lightSize=1.6;
+    const lamp = new THREE.Mesh(new THREE.PlaneGeometry(lightSize, lightSize), new THREE.MeshBasicMaterial({color:0xffffff, side:THREE.DoubleSide}));
+    lamp.position.set(0, half-0.05, 0); lamp.rotation.x=-Math.PI/2;
+    add(lamp,'emissive',[1,1,1],[40,40,40]); // strong emission to converge faster
+
+    // Spheres
+    const s1 = mkSphere(0.7, new THREE.MeshLambertMaterial({color:0xffffff})); s1.position.set(-1.1,-half+0.7,0.5); add(s1,'diffuse',[0.9,0.9,0.9]);
+    const s2 = mkSphere(0.7, new THREE.MeshPhongMaterial({color:0xffffff, shininess:100})); s2.position.set(1.1,-half+0.7,-0.5); add(s2,'reflective',[0.95,0.95,0.95]);
+
+    // Three.js preview lights only
+    const pl = new THREE.PointLight(0xffffff,1,100); pl.position.set(0, half-0.5, 0); scene.add(pl);
+    scene.add(new THREE.AmbientLight(0x404040));
+
+    // Classic Cornell camera: outside, looking inward
+    camera.position.set(0, 1.2, 7.5);
+    pitch = 0; yaw = 0;
+    camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+    scene.updateMatrixWorld(true);
+
+    // ---------- Path-tracer canvas ----------
+    const canvasPT = document.getElementById('canvasPT');
+    const ctx = canvasPT.getContext('2d');
+    let width=innerWidth, height=innerHeight;
+    canvasPT.width=width; canvasPT.height=height;
+
+    // 4×4 tiles
+    const TILES_PER_SIDE = 4;
+    let tiles=[];
+    function rebuildTiles(){
+      tiles=[];
+      const tw=Math.ceil(width/TILES_PER_SIDE), th=Math.ceil(height/TILES_PER_SIDE);
+      for(let ty=0; ty<TILES_PER_SIDE; ty++){
+        for(let tx=0; tx<TILES_PER_SIDE; tx++){
+          const x=tx*tw, y=ty*th;
+          tiles.push({ id:ty*TILES_PER_SIDE+tx, x, y, width:Math.min(tw, width-x), height:Math.min(th, height-y) });
+        }
+      }
+    }
+    rebuildTiles();
+
+    // ---------- Worker code (per-tile display; RGBA patches; with NEE) ----------
+    const workerCode = `
+      let objects=null, running=false, cfg=null, cam=null, tile=null, width=0, height=0;
+      let disp=null; // Float32 display buffer (tileW*tileH*3)
+      let rgba=null, imageW=0, imageH=0;
+      let lastTS=performance.now();
+
+      function ensureBuffers(){
+        if(!tile) return;
+        const w=tile.width, h=tile.height;
+        if(!disp || imageW!==w || imageH!==h){
+          disp = new Float32Array(w*h*3);
+          rgba = new Uint8ClampedArray(w*h*4);
+          imageW=w; imageH=h;
+        }
+      }
+
+      // --- Geometry & math ---
+      function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]}
+      function sub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]}
+      function len(v){return Math.hypot(v[0],v[1],v[2])}
+      function norm(v){const L=len(v); return L>0?[v[0]/L,v[1]/L,v[2]/L]:[0,0,0]}
+      function muls(v,s){return [v[0]*s,v[1]*s,v[2]*s]}
+      function add(a,b){return [a[0]+b[0],a[1]+b[1],a[2]+b[2]]}
+
+      function intersectRay(o,d,objs){let c=null,m=1/0;
+        for(const ob of objs){const h=ob.geometry==='sphere'?isSphere(o,d,ob):ob.geometry==='plane'?isPlane(o,d,ob):null;
+          if(h&&h.distance<m){m=h.distance;c=h;c.object=ob}}
+        return c}
+      function isSphere(o,d,ob){
+        const c=ob.position,r=ob.radius; const oc=[o[0]-c[0],o[1]-c[1],o[2]-c[2]];
+        const a=dot(d,d); const b=2*dot(oc,d); const c2=dot(oc,oc)-r*r; const disc=b*b-4*a*c2;
+        if(disc<0) return null; const t=(-b-Math.sqrt(disc))/(2*a); if(t<0.001) return null;
+        const p=add(o,muls(d,t)); const n=muls(sub(p,c),1/r); return {distance:t, point:p, normal:n};}
+      function isPlane(o,d,ob){
+        const n=ob.normal, p0=ob.position; const denom=dot(n,d); if(Math.abs(denom)<1e-4) return null;
+        const t=dot(sub(p0,o),n)/denom; if(t<0.001) return null;
+        const hp=add(o,muls(d,t)); const lp=sub(hp,p0);
+        const uC=dot(lp,ob.uAxis), vC=dot(lp,ob.vAxis); const half=ob.size*0.5;
+        if(Math.abs(uC)>half || Math.abs(vC)>half) return null;
+        const fn = denom>0?[-n[0],-n[1],-n[2]]:n;
+        return {distance:t, point:hp, normal:fn, uv:[uC,vC]};}
+      function rUnit(){for(;;){const v=[Math.random()*2-1,Math.random()*2-1,Math.random()*2-1]; if(dot(v,v)<1) return v;}}
+      function rHemi(n){const v=rUnit(); return dot(v,n)>0?v:[-v[0],-v[1],-v[2]];}
+      function reflect(v,n){const d=dot(v,n); return [v[0]-2*d*n[0], v[1]-2*d*n[1], v[2]-2*d*n[2]];}
+      function rotQ(v,q){const [qx,qy,qz,qw]=q; const [x,y,z]=v;
+        const ix=qw*x+qy*z-qz*y, iy=qw*y+qz*x-qx*z, iz=qw*z+qx*y-qy*x, iw=-qx*x-qy*y-qz*z;
+        return [ix*qw+iw*-qx+iy*-qz-iz*-qy, iy*qw+iw*-qy+iz*-qx-ix*-qz, iz*qw+iw*-qz+ix*-qy-iy*-qx];}
+
+      // --- Next-Event Estimation (sample emissive planes directly) ---
+      function sampleAreaLight(point, normal, objs){
+        let Ld=[0,0,0];
+        for(const ob of objs){
+          if(ob.type!=='emissive' || ob.geometry!=='plane') continue;
+          const half=ob.size*0.5;
+          // uniform on area
+          const su = (Math.random()*2-1)*half;
+          const sv = (Math.random()*2-1)*half;
+          const xL = add(ob.position, add(muls(ob.uAxis, su), muls(ob.vAxis, sv)));
+
+          const toL = sub(xL, point);
+          const dist2 = Math.max(1e-6, dot(toL,toL));
+          const dist = Math.sqrt(dist2);
+          const wi = muls(toL, 1/dist);
+
+          const cosSurf = Math.max(0, dot(normal, wi));
+          const cosLight = Math.max(0, dot(ob.normal, muls(wi,-1))); // angle at light
+          if(cosSurf<=0 || cosLight<=0) continue;
+
+          // Visibility (shadow ray)
+          const eps=0.001;
+          const shadowOrig = add(point, muls(normal, eps));
+          const hit = intersectRay(shadowOrig, wi, objs);
+          if(!hit) continue;
+          // Consider it visible only if we hit the light itself (within small epsilon of xL)
+          if(hit.object!==ob) continue;
+
+          const area = ob.size * ob.size;
+          const G = (cosSurf * cosLight) / dist2;
+          const pdf = 1/area; // uniform area sampling
+          const scale = G / pdf; // = G * area
+
+          Ld = add(Ld, muls(ob.emission, scale));
+        }
+        return Ld;
+      }
+
+      function trace(o,d,depth,maxDepth,objs){
+        if(depth>=maxDepth) return [0,0,0];
+        const hit=intersectRay(o,d,objs); if(!hit) return [0,0,0];
+        const ob=hit.object, p=hit.point, n=hit.normal; const eps=0.001; const po=add(p, muls(n, eps));
+
+        if(ob.type==='emissive') return ob.emission;
+
+        const al=ob.color;
+
+        // Direct lighting for diffuse surfaces
+        let Lo = [0,0,0];
+        if(ob.type!=='reflective'){
+          const Ld = sampleAreaLight(p, n, objs); // radiance arriving from light
+          // BRDF = albedo / PI
+          Lo = add(Lo, muls(Ld, 1/Math.PI));
+        }
+
+        if(ob.type==='reflective'){
+          const nd=norm(reflect(d,n));
+          const inc=trace(po,nd,depth+1,maxDepth,objs);
+          return [al[0]*inc[0]+Lo[0], al[1]*inc[1]+Lo[1], al[2]*inc[2]+Lo[2]];
+        }else{
+          // Diffuse bounce (indirect)
+          const nd=norm(rHemi(n));
+          const cosT=Math.max(0, dot(nd,n));
+          const inc=trace(po,nd,depth+1,maxDepth,objs);
+          // MIS-less: cosine hemisphere with BRDF=albedo/PI, pdf=cos/PI -> cancels to albedo
+          const indir = [al[0]*inc[0], al[1]*inc[1], al[2]*inc[2]];
+          return [Lo[0] + indir[0], Lo[1] + indir[1], Lo[2] + indir[2]];
+        }
+      }
+
+      function batch(samples){
+        const ps=cfg.pixelSize|0, maxB=cfg.maxBounces|0;
+        const w=tile.width, h=tile.height, x0=tile.x, y0=tile.y;
+        const gxMax=Math.max(1,(w/ps)|0), gyMax=Math.max(1,(h/ps)|0);
+
+        const acc = new Float32Array(w*h*3);
+        const cnt = new Uint16Array(w*h);
+
+        for(let s=0;s<samples;s++){
+          const gx=(Math.random()*gxMax)|0, gy=(Math.random()*gyMax)|0;
+          const px=x0 + gx*ps, py=y0 + gy*ps;
+          const u=(px + Math.random()*ps) / width;
+          const v=(py + Math.random()*ps) / height;
+          const dx=(u*2-1)*cam.tanFov*cam.aspect, dy=-(v*2-1)*cam.tanFov;
+          let dir=[dx,dy,-1]; dir=norm(dir);
+          dir=rotQ(dir, cam.quaternion);
+          const c = trace(cam.position, dir, 0, maxB, objects);
+
+          for(let oy=0; oy<ps && (gy*ps+oy)<h; oy++){
+            for(let ox=0; ox<ps && (gx*ps+ox)<w; ox++){
+              const ix = (gy*ps+oy)*w + (gx*ps+ox);
+              const i3 = ix*3;
+              acc[i3  ]+=c[0]; acc[i3+1]+=c[1]; acc[i3+2]+=c[2]; cnt[ix]++;
+            }
+          }
+        }
+
+        const now=performance.now();
+        const dt=Math.max(0,(now-lastTS)/1000); lastTS=now;
+        const half=Math.max(0.05, cfg.fadeHalfLife||0.75);
+        const decay=Math.pow(0.5, dt/half), oneMinus=1-decay;
+
+        for(let i=0;i<w*h;i++){
+          const i3=i*3;
+          const n = cnt[i] ? 1.0/cnt[i] : 0.0;
+          const nr = acc[i3]*n, ng=acc[i3+1]*n, nb=acc[i3+2]*n;
+          let dr=disp[i3]*decay + nr*oneMinus;
+          let dg=disp[i3+1]*decay + ng*oneMinus;
+          let db=disp[i3+2]*decay + nb*oneMinus;
+          disp[i3]=dr; disp[i3+1]=dg; disp[i3+2]=db;
+
+          // gamma -> sRGB-ish
+          dr = Math.pow(Math.max(0,dr), 1/2.2);
+          dg = Math.pow(Math.max(0,dg), 1/2.2);
+          db = Math.pow(Math.max(0,db), 1/2.2);
+          const j=i*4;
+          rgba[j  ] = dr*255;
+          rgba[j+1] = dg*255;
+          rgba[j+2] = db*255;
+          rgba[j+3] = 255;
+        }
+      }
+
+      function loop(){
+        if(!running) return;
+        ensureBuffers();
+        batch(cfg.spp|0);
+        postMessage({type:'PATCH', x:tile.x, y:tile.y, w:imageW, h:imageH, buf:rgba}, [rgba.buffer]);
+        rgba = new Uint8ClampedArray(imageW*imageH*4);
+        setTimeout(loop, 0);
+      }
+
+      onmessage=(e)=>{
+        const {type}=e.data;
+        if(type==='INIT'){
+          objects=e.data.objects; width=e.data.width; height=e.data.height;
+          tile=e.data.tile; cfg=e.data.cfg; cam=e.data.camera; ensureBuffers();
+        }else if(type==='CONFIG'){
+          cfg=e.data.cfg; width=e.data.width; height=e.data.height; tile=e.data.tile; ensureBuffers();
+        }else if(type==='CAM'){ cam=e.data.camera;
+        }else if(type==='START'){ running=true; loop();
+        }else if(type==='STOP'){ running=false;
+        }else if(type==='RESET'){ running=false; disp=null; rgba=null; }
+      };
+    `;
+
+    const blobURL = URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'}));
+
+    // ---------- Worker management ----------
+    let workers=[];
+    let isTracing=false;
+    let totalSamples=0, lastSamples=0, lastT=Date.now();
+
+    function serializeObjects(){
+      const out=[];
+      for(const o of objs){
+        const m=o.mesh;
+        if(m.geometry.type==='SphereGeometry'){
+          out.push({
+            geometry:'sphere',
+            position:[m.position.x, m.position.y, m.position.z],
+            radius:m.geometry.parameters.radius,
+            type:o.type, color:o.color, emission:o.emission
+          });
+        }else if(m.geometry.type==='PlaneGeometry'){
+          const normal = new THREE.Vector3(0,0,1).applyQuaternion(m.quaternion).normalize();
+          const uAxis  = new THREE.Vector3(1,0,0).applyQuaternion(m.quaternion).normalize();
+          const vAxis  = new THREE.Vector3(0,1,0).applyQuaternion(m.quaternion).normalize();
+          out.push({
+            geometry:'plane',
+            position:[m.position.x, m.position.y, m.position.z],
+            normal:[normal.x,normal.y,normal.z],
+            uAxis:[uAxis.x,uAxis.y,uAxis.z],
+            vAxis:[vAxis.x,vAxis.y,vAxis.z],
+            size:Math.max(m.geometry.parameters.width, m.geometry.parameters.height),
+            type:o.type, color:o.color, emission:o.emission
+          });
+        }
+      }
+      return out;
+    }
+    function currentCamera(){
+      return {
+        position:[camera.position.x, camera.position.y, camera.position.z],
+        quaternion:[camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w],
+        tanFov: Math.tan(camera.fov * Math.PI / 360),
+        aspect: camera.aspect
+      };
+    }
+    function cfgFromUI(){
+      return {
+        spp: parseInt(document.getElementById('spp').value,10),
+        pixelSize: parseInt(document.getElementById('pixelSize').value,10),
+        maxBounces: parseInt(document.getElementById('bounces').value,10),
+        fadeHalfLife: parseFloat(document.getElementById('fadeHalfLife').value)
+      };
+    }
+
+    function initWorkers(){
+      for(const w of workers){ try{ w.postMessage({type:'STOP'}); w.terminate(); }catch{} }
+      workers=[];
+
+      const want = Math.max(1, Math.min(parseInt(document.getElementById('workers').value,10)||16, tiles.length));
+      document.getElementById('workers').value = want;
+
+      const objects = serializeObjects();
+      const cfg = cfgFromUI();
+      const cam = currentCamera();
+
+      for(let i=0;i<want;i++){
+        const w = new Worker(blobURL);
+        w.onmessage = onWorkerMessage;
+        const tile = tiles[i];
+        w.postMessage({type:'INIT', objects, width, height, tile, cfg, camera:cam});
+        workers.push(w);
+      }
+      document.getElementById('hwc').textContent = (navigator.hardwareConcurrency||'?') + " (hint)";
+    }
+    function startWorkers(){
+      const cfg = cfgFromUI();
+      const cam = currentCamera();
+      for(let i=0;i<workers.length;i++){
+        workers[i].postMessage({type:'CONFIG', cfg, width, height, tile: tiles[i]});
+        workers[i].postMessage({type:'CAM', camera:cam});
+        workers[i].postMessage({type:'START'});
+      }
+    }
+    function stopWorkers(){ for(const w of workers) w.postMessage({type:'STOP'}); }
+    function resetWorkers(){
+      for(const w of workers) w.postMessage({type:'RESET'});
+      ctx.clearRect(0,0,width,height);
+      totalSamples=0; lastSamples=0; lastT=Date.now();
+      document.getElementById('samples').textContent = '0';
+      document.getElementById('sps').textContent = '0';
+    }
+
+    function onWorkerMessage(e){
+      if(e.data.type==='PATCH'){
+        const {x,y,w,h,buf} = e.data;
+        const img = new ImageData(buf, w, h);
+        ctx.putImageData(img, x, y);
+        totalSamples += 1;
+      }
+    }
+
+    // ---------- UI / lifecycle ----------
+    const btnToggle = document.getElementById('togglePT');
+    document.getElementById('reset').addEventListener('click', ()=>{ resetWorkers(); });
+
+    btnToggle.addEventListener('click', ()=>{
+      if(isTracing){
+        isTracing=false; btnToggle.textContent='Resume Path Tracing'; stopWorkers();
+      }else{
+        if(workers.length===0) initWorkers();
+        isTracing=true; btnToggle.textContent='Pause Path Tracing'; startWorkers();
+      }
+    });
+
+    // keep camera/renderer fresh
+    let frame=0;
+    function animate(){
+      requestAnimationFrame(animate);
+      updateMovement();
+      renderer.setSize(innerWidth, innerHeight, false);
+      renderer.render(scene, camera);
+
+      // stream camera occasionally to workers (to follow motion)
+      if(isTracing && (frame % 8 === 0)){
+        const cam = currentCamera();
+        for(const w of workers) w.postMessage({type:'CAM', camera:cam});
+      }
+
+      // stats
+      const t=Date.now(), el=(t-lastT)/1000;
+      if(el>1){
+        document.getElementById('sps').textContent = Math.floor((totalSamples-lastSamples)/el).toLocaleString();
+        lastSamples = totalSamples; lastT=t;
+      }
+      document.getElementById('samples').textContent = totalSamples.toLocaleString();
+      frame++;
+    }
+    animate();
+
+    // resize
+    window.addEventListener('resize', ()=>{
+      width=innerWidth; height=innerHeight;
+      camera.aspect=width/height; camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+      canvasPT.width=width; canvasPT.height=height;
+      rebuildTiles();
+      resetWorkers();
+      if(workers.length){ initWorkers(); if(isTracing) startWorkers(); }
+    });
+
+    // show hardwareConcurrency hint
+    document.getElementById('hwc').textContent = (navigator.hardwareConcurrency || '?') + " (hint)";
+  </script>
+</body>
+</html>
+

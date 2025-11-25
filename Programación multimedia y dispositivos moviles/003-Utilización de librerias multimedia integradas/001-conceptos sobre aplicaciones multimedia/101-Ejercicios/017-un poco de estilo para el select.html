@@ -1,0 +1,149 @@
+    <!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <style>
+                #contenedorvideo video{
+                    border-radius: 10px;
+                    width: 100%;
+                    height: 100%;
+                }
+                #contenedorvideo{
+                    display:flex;
+                    position:relative;
+                    width: 800px;
+                    height: 500px;
+                    justify-content: center;
+                    align-items: center;
+                }
+                #contenedorvideo video{
+                    position: absolute;
+                    top:0px;
+                    left:0px;
+                }
+                #contenedorvideo #controlesvideo{
+                    position:absolute;
+                    padding: 20px;
+                    background: rgba(0,0,0,0.5);
+                    border-radius: 40px;
+                    backdrop-filter: blur(5px);
+                    opacity:1;
+                    transition:all 1s;
+                    display:flex;
+                    gap:10px;
+                }
+                #contenedorvideo #controlesvideo:hover{
+                   opacity:1;
+                }
+                #contenedorvideo #controlesvideo button{
+                    width: 30px;
+                    height: 30px;
+                    border: none;
+                    background: white;
+                    color:black;
+                    text-align: center;
+                    border-radius: 30px;
+                }
+                #contenedorvideo #controlesvideo select{
+                    width: 60px;
+                    height: 30px;
+                    border: none;
+                    background: white;
+                    color:black;
+                    text-align: center;
+                    border-radius: 30px;
+                }
+
+            </style>
+         </head>
+         <body>
+            <div id="contenedorvideo">
+            <video src="viaje.mp4" controls></video>
+            <div id="controlesvideo">
+            <button id="rebobinar">
+                <svg viewBox="0 0 30 30">
+                  <path d="m5 5v20h7v-20zm13 0v20h7v-20z" fill="currentColor"/>
+                </svg>    
+            </button>
+            <button id="menosdiez">
+                <svg viewBox="0 0 30 30">
+                  <path d="m5 15 15-10v20zm20-10v20h-7v-20z" fill="currentColor"/>
+                </svg>
+            </button>
+            <button id="reproducir">
+                <svg viewBox="0 0 30 30">
+                  <path d="m0 0v30l30-15z" fill="#000"/>
+                </svg>
+            </button>
+            <button id="parar">
+                <svg viewBox="0 0 30 30">
+                  <rect x="5" y="5" width="20" height="20" fill="currentColor"/>
+                </svg>    
+            </button>
+            <button id="masdiez">
+                <svg viewBox="0 0 30 30">
+                  <path d="m25 15-15-10v20zm-20-10v20h7v-20z" fill="currentColor"/>
+                </svg>    
+            </button>
+             <input id="volumen" type="range" min="0" max="1" step="0.02" value="1">          <select id="resoluciones"></select>
+            </div>
+            </div>
+
+
+             <script>
+                 let video = document.querySelector("video");
+                 let botones = document.querySelectorAll("button");
+                 let volumen = document.querySelector("#volumen")
+                 botones.forEach(function(boton){
+                     boton.onclick=function(){
+                         switch(this.getAttribute("id")){
+                            case "rebobinar":
+                                video.currentTime = 0
+                                break;
+                            case "menosdiez":
+                                 video.currentTime -= 10
+                                break;  
+                            case "reproducir":
+                                video.play()
+                                break;
+                            case "parar":
+                                video.pause()
+                                break;
+                            case "masdiez":
+                                video.currentTime += 10 
+                                break;
+                         }
+
+                     }
+                 })
+                 volumen.onchange = function(){
+                     video.volume = this.value
+                 }
+                   fetch("output/video_versions.json")
+            .then(function(response){return response.json()})
+            .then(function(datos){
+            console.log(datos)
+            let selector = document.querySelector("select")
+            Object.entries(datos).forEach(function([calidad, dato]){
+                let opcion = document.createElement("option")
+                opcion.value = dato.filename
+                opcion.textContent = calidad
+                selector.appendChild(opcion)
+            })
+
+            selector.onchange = function() {
+                let tiempoactual = video.currentTime
+                let estabaPausado = video.paused
+
+                video.src = "output/" + this.value
+                video.currentTime = tiempoactual
+                
+                if (!estabaPausado) {
+                    video.play()
+        }
+
+            }
+        })
+
+             </script>
+       </body>
+    </html>

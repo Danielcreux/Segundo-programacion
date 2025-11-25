@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>jocarsa|ux – Enhanced with Grid & Menu (v0.3)</title>
+  <style>
+    body,html{padding:0;margin:0;height:100%;}
+    body{display:flex;}
+    nav{flex:1;overflow-y:auto;}
+    main{flex:8;overflow:auto;}
+  </style>
+</head>
+<body>
+  <nav></nav>
+  <main></main>
+
+  <script src="/static/jocarsaux.js"></script>
+  <script>
+    const ux = new JocarsaUX();
+    const navEl = document.querySelector("nav");
+    const mainEl = document.querySelector("main");
+
+    // Mensaje de bienvenida
+    mainEl.innerHTML = `
+      <div style="max-width:800px;margin:60px auto;padding:0 20px;font-family:system-ui;text-align:center;">
+        <h1 style="font-size:clamp(24px,5vw,42px);margin-bottom:16px;color:#0f172a;">jocarsa|ux Framework</h1>
+        <p style="font-size:18px;color:#64748b;margin-bottom:32px;">Version 0.3 - Now with Grid Cards & Menu Components</p>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:32px;text-align:left;">
+          <h2 style="font-size:20px;margin-bottom:16px;color:#0f172a;">✨ Nuevas características</h2>
+          <ul style="color:#475569;line-height:1.8;margin:0;">
+            <li><strong>Grid Card View:</strong> Tarjetas responsivas con efectos hover</li>
+            <li><strong>Menu Component:</strong> Menús navegables por secciones</li>
+            <li><strong>Table View:</strong> Tabla con búsqueda, ordenación y paginación</li>
+            <li><strong>Form View:</strong> Formularios con tipos inteligentes</li>
+            <li><strong>Chart View:</strong> Gráficos automáticos para datos categóricos</li>
+          </ul>
+          <p style="margin-top:24px;color:#64748b;font-size:14px;">👈 Elige una opción del menú para empezar</p>
+        </div>
+      </div>
+    `;
+
+    // Helpers
+    const fetchJSON = (url) =>
+      fetch(url, { headers: { "Accept": "application/json" } })
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        });
+
+    // Cargar tablas desde Flask (/tablas) y montar el menú
+    fetchJSON("/tablas")
+      .then(raw => {
+        // Normaliza: puede venir como [{tabla:"nombre"}] o ["nombre"]
+        const tablas = Array.isArray(raw)
+          ? raw.map(t => (typeof t === "string" ? t : t.tabla)).filter(Boolean)
+          : [];
+
+        const makeLoader = (tabla, renderer) => () => {
+          fetchJSON(`/seleccionar/${encodeURIComponent(tabla)}`)
+            .then(datos => renderer(tabla, datos))
+            .catch(err => {
+              console.error("Error cargando datos de tabla:", err);
+              alert("No se pudo cargar la tabla. Revisa la consola.");
+            });
+        };
+
+        const sections = [
+          {
+            header: '📊 Tablas',
+            items: tablas.map(t => ({
+              label: t,
+              value: t,
+              onClick: makeLoader(t, (name, datos) => {
+                ux.tableRenderer({
+                  target: 'main',
+                  data: datos,
+                  title: `${name} - Table View`,
+                  subtitle: 'Búsqueda, ordenación y paginación',
+                  rowsPerPage: 10
+                });
+              })
+            }))
+          },
+          {
+            header: '🎴 Grid Cards',
+            items: tablas.map(t => ({
+              label: t,
+              value: t,
+              onClick: makeLoader(t, (name, datos) => {
+                ux.gridRenderer({
+                  target: 'main',
+                  data: datos,
+                  title: `${name} - Grid View`,
+                  subtitle: 'Tarjetas interactivas con búsqueda y paginación',
+                  cardsPerPage: 6,
+                  onCardClick: (row, idx) => {
+                    console.log('Card clicked:', row);
+                    alert(`Card ${idx + 1} clicked (ver consola)`);
+                  }
+                });
+              })
+            }))
+          },
+          {
+            header: '📝 Formularios',
+            items: tablas.map(t => ({
+              label: t,
+              value: t,
+              onClick: makeLoader(t, (name, datos) => {
+                ux.formRenderer({
+                  target: 'main',
+                  data: datos,
+                  title: `${name} - Form View`,
+                  subtitle: 'Campos detectados automáticamente',
+                  columns: 2,
+                  // Guardado automático al backend usando /insertar/<tabla>
+                  save: {
+                    table: name,
+                    onSuccess: (resp) => {
+                      console.log('Insert OK:', resp);
+                      alert(`Insertados: ${resp.insertados ?? 0}`);
+                      // Tras guardar, refrescamos la tabla para ver el registro nuevo
+                      fetchJSON(`/seleccionar/${encodeURIComponent(name)}`)
+                        .then(datos2 => {
+                          ux.tableRenderer({
+                            target: 'main',
+                            data: datos2,
+                            title: `${name} - Table View`,
+                            subtitle: 'Actualizado tras inserción',
+                            rowsPerPage: 10
+                          });
+                        })
+                        .catch(err => console.error('Error refrescando tabla:', err));
+                    },
+                    onError: (err) => {
+                      console.error('Insert ERROR:', err);
+                      alert(`Error insertando: ${err?.mensaje || 'ver consola'}`);
+                    }
+                  }
+                });
+              })
+            }))
+          },
+          {
+            header: '📈 Gráficos',
+            items: tablas.map(t => ({
+              label: t,
+              value: t,
+              onClick: makeLoader(t, (name, datos) => {
+                ux.chartRenderer({
+                  target: 'main',
+                  data: datos,
+                  title: `${name} - Chart Analysis`,
+                  subtitle: 'Gráficos de sectores automáticos'
+                });
+              })
+            }))
+          }
+        ];
+
+        ux.menuRenderer({
+          target: 'nav',
+          title: 'jocarsa|ux',
+          sections,
+          color: '#dc143c'
+        });
+      })
+      .catch(err => {
+        console.error('Error cargando /tablas:', err);
+
+        // Muestra demo si la API falla
+        const demoSections = [
+          {
+            header: '📊 Demo Data',
+            items: [
+              {
+                label: 'Sample Table',
+                onClick: () => {
+                  const sampleData = [
+                    {id: 1, name: 'John Doe', email: 'john@example.com', status: 'active'},
+                    {id: 2, name: 'Jane Smith', email: 'jane@example.com', status: 'inactive'},
+                    {id: 3, name: 'Bob Wilson', email: 'bob@example.com', status: 'active'}
+                  ];
+                  ux.tableRenderer({
+                    target: 'main',
+                    data: sampleData,
+                    title: 'Sample Data - Table View',
+                    subtitle: 'Demo con datos de ejemplo'
+                  });
+                }
+              },
+              {
+                label: 'Sample Grid',
+                onClick: () => {
+                  const sampleData = [
+                    {id: 1, name: 'Product A', category: 'Electronics', price: 299},
+                    {id: 2, name: 'Product B', category: 'Books', price: 19},
+                    {id: 3, name: 'Product C', category: 'Electronics', price: 499}
+                  ];
+                  ux.gridRenderer({
+                    target: 'main',
+                    data: sampleData,
+                    title: 'Sample Data - Grid View',
+                    subtitle: 'Demo con datos de ejemplo'
+                  });
+                }
+              }
+            ]
+          },
+          {
+            header: '⚠️ API Status',
+            items: [
+              {
+                label: 'API no disponible',
+                onClick: () => alert('API no disponible. Usando datos de demo.')
+              }
+            ]
+          }
+        ];
+
+        ux.menuRenderer({
+          target: 'nav',
+          title: 'jocarsa|ux',
+          sections: demoSections,
+          color: '#dc143c'
+        });
+      });
+  </script>
+</body>
+</html>
+

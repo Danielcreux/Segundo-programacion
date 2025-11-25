@@ -1,0 +1,1 @@
+py "007-aplicacion de terminal.py" -i 0802.mp3 -o alta_res.png -W 1600 -H 300 -n 800 -t 4

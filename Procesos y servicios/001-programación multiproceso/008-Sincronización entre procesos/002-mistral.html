@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bidirectional Path Tracer - Cornell Box</title>
+    <style>body { margin: 0; overflow: hidden; }</style>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <script>
+        // =============================================
+        // Scene Setup
+        // =============================================
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Add orbit controls for navigation
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        // =============================================
+        // Cornell Box Geometry
+        // =============================================
+        const boxSize = 5;
+        const wallMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+
+        // Walls
+        const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, boxSize, boxSize), wallMaterial);
+        const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, boxSize, boxSize), wallMaterial);
+        const backWall = new THREE.Mesh(new THREE.BoxGeometry(boxSize, boxSize, 0.5), wallMaterial);
+        const floor = new THREE.Mesh(new THREE.BoxGeometry(boxSize, 0.5, boxSize), wallMaterial);
+        const ceiling = new THREE.Mesh(new THREE.BoxGeometry(boxSize, 0.5, boxSize), wallMaterial);
+
+        leftWall.position.set(-boxSize/2, 0, 0);
+        rightWall.position.set(boxSize/2, 0, 0);
+        backWall.position.set(0, 0, -boxSize/2);
+        floor.position.set(0, -boxSize/2, 0);
+        ceiling.position.set(0, boxSize/2, 0);
+
+        scene.add(leftWall, rightWall, backWall, floor, ceiling);
+
+        // Light (emissive rectangle)
+        const lightMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 5
+        });
+        const light = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.01), lightMaterial);
+        light.position.set(0, boxSize/2 - 0.5, boxSize/2 - 0.5);
+        scene.add(light);
+
+        // Spheres (diffuse and reflective)
+        const sphere1 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5, 32, 32),
+            new THREE.MeshLambertMaterial({ color: 0xff0000 })
+        );
+        sphere1.position.set(-1, -1, 0);
+        scene.add(sphere1);
+
+        const sphere2 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.5, 32, 32),
+            new THREE.MeshPhongMaterial({ color: 0x00ff00, shininess: 30 })
+        );
+        sphere2.position.set(1, -1, 0);
+        scene.add(sphere2);
+
+        // =============================================
+        // Camera Position
+        // =============================================
+        camera.position.set(0, 2, 10);
+        controls.update();
+
+        // =============================================
+        // Bidirectional Path Tracer (Simplified)
+        // =============================================
+        // This is a conceptual implementation.
+        // In practice, you'd use WebGL shaders or a custom renderer.
+        class PathTracer {
+            constructor(scene, camera, width, height) {
+                this.scene = scene;
+                this.camera = camera;
+                this.width = width;
+                this.height = height;
+                this.maxDepth = 5;
+                this.samples = 0;
+                this.renderTarget = new THREE.WebGLRenderTarget(width, height);
+            }
+
+            // Generate a random direction in a hemisphere
+            sampleHemisphere(normal) {
+                const u = Math.random();
+                const v = Math.random();
+                const theta = 2 * Math.PI * u;
+                const phi = Math.acos(2 * v - 1);
+                const x = Math.sin(phi) * Math.cos(theta);
+                const y = Math.sin(phi) * Math.sin(theta);
+                const z = Math.cos(phi);
+                const dir = new THREE.Vector3(x, y, z);
+                if (dir.dot(normal) < 0) dir.negate();
+                return dir;
+            }
+
+            // Trace a path from a point and direction
+            tracePath(origin, direction, depth) {
+                if (depth > this.maxDepth) return new THREE.Color(0, 0, 0);
+
+                const raycaster = new THREE.Raycaster(origin, direction);
+                const intersects = raycaster.intersectObjects(this.scene.children, true);
+                if (intersects.length === 0) return new THREE.Color(0, 0, 0);
+
+                const hit = intersects[0];
+                const hitObj = hit.object;
+                const hitPoint = hit.point;
+                const hitNormal = hit.normal;
+
+                // If hit a light, return its emission
+                if (hitObj.material.emissive) {
+                    return hitObj.material.emissive.clone().multiplyScalar(hitObj.material.emissiveIntensity || 1);
+                }
+
+                // Sample new direction (diffuse reflection)
+                const newDir = this.sampleHemisphere(hitNormal);
+                const brdf = 1 / Math.PI; // Lambertian BRDF
+
+                // Recursively trace
+                const incoming = this.tracePath(hitPoint, newDir, depth + 1);
+                return incoming.multiplyScalar(brdf);
+            }
+
+            // Connect light and eye paths (simplified)
+            connectPaths(lightPath, eyePath) {
+                // In a full implementation, you'd connect the last vertex of lightPath
+                // to the first vertex of eyePath and compute the contribution.
+                // This is a placeholder for the concept.
+                return new THREE.Color(0.5, 0.5, 0.5);
+            }
+
+            // Render a pixel
+            renderPixel(x, y) {
+                const px = (x / this.width) * 2 - 1;
+                const py = -(y / this.height) * 2 + 1;
+                const direction = new THREE.Vector3(px, py, -1).unproject(this.camera).sub(this.camera.position).normalize();
+                const color = this.tracePath(this.camera.position, direction, 0);
+                return color;
+            }
+
+            // Render the scene (simplified)
+            render() {
+                const data = new Uint8Array(this.width * this.height * 4);
+                for (let y = 0; y < this.height; y++) {
+                    for (let x = 0; x < this.width; x++) {
+                        const color = this.renderPixel(x, y);
+                        const idx = (y * this.width + x) * 4;
+                        data[idx] = Math.floor(color.r * 255);
+                        data[idx + 1] = Math.floor(color.g * 255);
+                        data[idx + 2] = Math.floor(color.b * 255);
+                        data[idx + 3] = 255;
+                    }
+                }
+                const texture = new THREE.DataTexture(data, this.width, this.height, THREE.RGBAFormat);
+                texture.needsUpdate = true;
+                this.renderTarget.texture = texture;
+                return this.renderTarget.texture;
+            }
+        }
+
+        // =============================================
+        // Initialize Path Tracer
+        // =============================================
+        const pathTracer = new PathTracer(scene, camera, 256, 256);
+        const resultTexture = pathTracer.render();
+
+        // Display result (simplified)
+        const resultMaterial = new THREE.MeshBasicMaterial({ map: resultTexture });
+        const resultQuad = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), resultMaterial);
+        resultQuad.position.z = -5;
+        scene.add(resultQuad);
+
+        // =============================================
+        // Animation Loop
+        // =============================================
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
+

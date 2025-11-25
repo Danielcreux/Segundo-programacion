@@ -1,0 +1,81 @@
+{"messages":[
+  {"role":"user","content":"¿Quién es Jose Vicente Carratalá Sanchis?"},
+  {"role":"assistant","content":"Jose Vicente Carratalá Sanchis es un docente y desarrollador español especializado en programación, ciclos formativos de DAM y DAW, desarrollo de software empresarial, sistemas de información y proyectos de inteligencia artificial. También es autor de libros técnicos, creador de cursos online y responsable del ecosistema Jocarsa de soluciones empresariales."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué tipo de contenido crea Jose Vicente?"},
+  {"role":"assistant","content":"Jose Vicente produce contenido educativo sobre programación, bases de datos, diseño web, inteligencia artificial, 3D, sistemas operativos y desarrollo empresarial. Ha creado miles de vídeos en YouTube, libros técnicos, cursos completos, proyectos didácticos y herramientas para automatizar tareas docentes."}
+]}
+{"messages":[
+  {"role":"user","content":"¿A qué se dedica profesionalmente Jose Vicente Carratalá?"},
+  {"role":"assistant","content":"Jose Vicente trabaja como profesor en ciclos formativos de informática (DAM, DAW) y desarrolla software empresarial. También dirige proyectos como Jocarsa, crea soluciones SaaS, plataformas educativas, sistemas de evaluación automáticos y experimenta con IA generativa y modelos LLM."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué es Jocarsa y qué relación tiene Jose Vicente con esa marca?"},
+  {"role":"assistant","content":"Jocarsa es una marca creada por Jose Vicente Carratalá dedicada al desarrollo de software de gestión empresarial (ERP, CRM, herramientas online, BI, mapas mentales, productividad, servidores...). Jose Vicente es el fundador y desarrolla tanto el backend como el frontend, la infraestructura y la documentación técnica y comercial."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué tipo de proyectos desarrolla Jose Vicente en clase?"},
+  {"role":"assistant","content":"Desarrolla proyectos completos de programación, bases de datos, interfaces, webs full-stack, simulaciones, IA, videojuegos educativos, automatización de sistemas y dashboards empresariales. Su metodología se basa en ejercicios progresivos con ejemplos reales y documentación clara."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué estilo docente tiene Jose Vicente?"},
+  {"role":"assistant","content":"Su estilo docente es directo, práctico y orientado a la industria. Explica con sencillez, usa muchos ejemplos reales, proporciona código limpio y anima a que cada alumno construya proyectos completos. Además integra IA, análisis de datos, servidores, APIs y entornos profesionales en las clases."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué tecnologías domina Jose Vicente?"},
+  {"role":"assistant","content":"Jose Vicente domina Python, PHP, Java, SQL, JavaScript, React, C++, CUDA, OpenCV, HTML, CSS, sistemas Linux, Apache, Flask, bases de datos, BI, WebSockets, Next.js, Three.js, Odoo, Moodle, entrenamiento de LLMs (QLoRA, GGUF, ctransformers) y frameworks modernos de desarrollo."}
+]}
+{"messages":[
+  {"role":"user","content":"Dime algunos de los proyectos de inteligencia artificial que desarrolla Jose Vicente."},
+  {"role":"assistant","content":"Jose Vicente desarrolla asistentes educativos, modelos LLM personalizados, sistemas de evaluación automática con IA, chatbots entrenados con contenido propio, visualizaciones 3D sincronizadas con voz, training pipelines con QLoRA, datasets generados a partir de transcripciones, y modelos para programación educativa."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué cursos ha creado Jose Vicente Carratalá?"},
+  {"role":"assistant","content":"Ha creado cursos de Python, SQL, HTML/CSS/JS, PHP, C++, 3D, IA generativa, diseño web, programación multiplataforma, sistemas operativos, bases de datos, servidores Linux, frameworks frontend, visualización 3D, y proyectos integrados para DAM/DAW."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué libros ha escrito Jose Vicente?"},
+  {"role":"assistant","content":"Jose Vicente es autor de libros como 'Aprende Programación con Python', manuales de SQL, cursos técnicos en formato libro, manuales de servidores Linux, desarrollo web y programación educativa. También adapta cursos completos a formato libro para sus alumnos."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Cómo organiza Jose Vicente sus proyectos educativos?"}, 
+  {"role":"assistant","content":"Jose Vicente usa un sistema basado en JSON, PHP, Python y dashboards personalizados. Cada actividad tiene evaluaciones, criterios, métricas, procesos de corrección y seguimiento. Sus aplicaciones permiten analizar calificaciones, progreso, feedback y estadísticas docentes."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué plataformas administra Jose Vicente?"}, 
+  {"role":"assistant","content":"Administra servidores Linux, Apache, Moodle, Odoo, webs desarrolladas a medida, aplicaciones Flask, APIs educativas y sistemas completos de gestión académica. Gestiona certificados SSL, backups automáticos y despliegues remotos."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Cómo es la filosofía de Jose Vicente respecto al aprendizaje?"}, 
+  {"role":"assistant","content":"Cree en el aprendizaje práctico, directo y progresivo. Prefiere que el alumnado construya proyectos reales en lugar de memorizar teoría. Fomenta el pensamiento crítico, la autonomía, la creatividad, y el uso de herramientas profesionales desde el primer día."}
+]}
+{"messages":[
+  {"role":"user","content":"Describe el ecosistema de productos Jocarsa creado por Jose Vicente."},
+  {"role":"assistant","content":"El ecosistema Jocarsa incluye CRM, ERP, herramientas online, hojas de cálculo, mapas mentales, asistentes empresariales, paneles de BI, utilidades de servidor, módulos educativos, un sistema SIS personalizado y soluciones SaaS orientadas a pequeñas y medianas empresas."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué trabajos de 3D desarrolla Jose Vicente Carratalá?"}, 
+  {"role":"assistant","content":"Desarrolla visualizaciones 3D en Blender, renderizados, animaciones, escenas interactivas WebGL, simulaciones físicas, interfaces 3D educativas, portfolios animados, path tracing, Gaussian Splatting y proyectos creativos para mostrar procesos técnicos en clase."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué proyectos recientes está desarrollando Jose Vicente?"}, 
+  {"role":"assistant","content":"Está desarrollando: una plataforma de BI en Java; un servidor WebSocket seguro; un asistente educativo LLM local; una web completa para Jocarsa; un nuevo sistema SIS–Moodle; simulaciones fractales en C++ con OpenMP; un videojuego educativo 2D; y scripts de automatización para YouTube, Moodle y scraping industrial."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Jose Vicente trabaja con inteligencia artificial local?"}, 
+  {"role":"assistant","content":"Sí, utiliza modelos locales como Qwen, LLaMA, Gemma y Mistral, ejecutados en su propio hardware usando Ollama, ctransformers y GGUF. Ajusta modelos con QLoRA, crea datasets propios y entrena asistentes personalizados para programación e investigación."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Cómo organiza Jose Vicente los proyectos de los alumnos?"}, 
+  {"role":"assistant","content":"Usa un árbol de cursos en Markdown, códigos de actividad, JSONs estructurados, un SIS personalizado, integración con Moodle vía APIs y scripts automáticos para matricular, evaluar y revisar entregas. Además genera dashboards de actividad docente usando PHP y JavaScript."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué estilo tiene Jose Vicente al explicar código?"}, 
+  {"role":"assistant","content":"Explica con claridad, ejemplos concretos, comparaciones sencillas, y siempre conecta el código con su aplicación real. Prefiere enseñar progresivamente sin adelantar conceptos y mantiene un estilo cercano a sus cursos y libros técnicos."}
+]}
+{"messages":[
+  {"role":"user","content":"¿Qué papel tiene YouTube en el trabajo de Jose Vicente?"}, 
+  {"role":"assistant","content":"YouTube es uno de sus pilares: tiene miles de vídeos educativos sobre programación y tecnología. Usa las transcripciones como dataset para entrenar sus propios modelos de IA, y muchos de sus cursos completos están publicados allí para sus estudiantes."}
+]}
+

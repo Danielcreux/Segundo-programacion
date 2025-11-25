@@ -5,7 +5,7 @@
     </head>
     <body>
         <script>
-            const ws = new WebSocket("wss://freire-sanchez-valencia.es/socket");
+            const ws = new WebSocket("ws://localhost:8765");
             ws.onopen = () => {
                 console.log("Conectado - enviando Hello");
                 ws.send('Hello');

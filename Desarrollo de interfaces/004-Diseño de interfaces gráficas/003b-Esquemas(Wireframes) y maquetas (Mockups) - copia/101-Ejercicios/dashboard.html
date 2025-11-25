@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>ERP Formación - Dashboard</title>
+  <link rel="stylesheet" href="css/erp.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="logo-ensensyem-240x52.png" alt="Logo" />
+        <div class="sidebar-brand-text">
+          <span>ERP</span>
+          <strong>Formación</strong>
+        </div>
+      </div>
+
+      <div class="sidebar-section-title">Módulos</div>
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-item active">
+          <span class="icon">📚</span>
+          <span>SIS Académico</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">📈</span>
+          <span>Marketing</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">👥</span>
+          <span>CRM</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">💶</span>
+          <span>Facturación</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">⚙️</span>
+          <span>Común</span>
+        </li>
+      </ul>
+
+      <div class="sidebar-section-title">Entidades</div>
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-item" onclick="openEntityTable()">
+          <span class="icon">👨‍🎓</span>
+          <span>Alumnos</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">🏢</span>
+          <span>Empresas</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">🧑‍🏫</span>
+          <span>Profesores</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">📆</span>
+          <span>Grupos / Ediciones</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">🏫</span>
+          <span>Aulas</span>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div>Sesión: <strong>Administrador</strong></div>
+        <div><a href="modules.html">Cambiar de módulo</a></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="main-header">
+        <div class="main-header-left">
+          <h1>Resumen del módulo SIS</h1>
+          <span>Visión general de cursos, matrículas y ocupación de aulas.</span>
+        </div>
+        <div class="main-header-right">
+          <button class="btn btn-secondary">Hoy</button>
+          <button class="btn btn-secondary">Este mes</button>
+          <button class="btn btn-primary">Nueva edición de curso</button>
+        </div>
+      </header>
+
+      <section class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Cursos activos</div>
+          <div class="kpi-value">18</div>
+          <div class="kpi-trend">+3 vs. mes anterior</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Alumnos matriculados</div>
+          <div class="kpi-value">247</div>
+          <div class="kpi-trend">+12,5%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Ocupación presencial</div>
+          <div class="kpi-value">78%</div>
+          <div class="kpi-trend">+5% vs. media</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Grupos bonificados</div>
+          <div class="kpi-value">11</div>
+          <div class="kpi-trend">+2 este mes</div>
+        </div>
+      </section>
+
+      <section class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Matrículas por curso</div>
+              <div class="chart-subtitle">Top 4 cursos activos</div>
+            </div>
+            <select>
+              <option>Últimos 30 días</option>
+              <option>Últimos 90 días</option>
+              <option>Año actual</option>
+            </select>
+          </div>
+          <div class="chart-body">
+            <div class="chart-bar" style="height: 72%;">
+              <span>Revit</span>
+            </div>
+            <div class="chart-bar" style="height: 60%;">
+              <span>AutoCAD</span>
+            </div>
+            <div class="chart-bar" style="height: 48%;">
+              <span>SketchUp</span>
+            </div>
+            <div class="chart-bar" style="height: 35%;">
+              <span>Office</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Canales de captación</div>
+              <div class="chart-subtitle">Distribución de altas de alumnos</div>
+            </div>
+          </div>
+          <div class="chart-pie">
+            <div class="chart-pie-circle"></div>
+          </div>
+          <div class="chart-legend">
+            <div class="chart-legend-item">
+              <div class="chart-legend-dot" style="background: var(--color-primary);"></div>
+              Web / SEO (40%)
+            </div>
+            <div class="chart-legend-item">
+              <div class="chart-legend-dot" style="background: var(--color-accent);"></div>
+              Empresas (25%)
+            </div>
+            <div class="chart-legend-item">
+              <div class="chart-legend-dot" style="background: #e2e8f0;"></div>
+              Otros / Recomendaciones (35%)
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    function openEntityTable() {
+      window.location.href = "entity-table.html";
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+{
+  "autor": "Federico García Lorca",
+  "periodo": "Generación del 27",
+  "obras_poeticas": [
+    {
+      "libro": "Libro de Poemas",
+      "año": 1921,
+      "estilo": "Modernismo",
+      "poemas": [
+        {
+          "titulo": "Canción otoñal",
+          "primera_estrofa": "Fragmento representativo..."
+        },
+        {
+          "titulo": "Balada triste",
+          "primera_estrofa": "Fragmento representativo..."
+        }
+      ]
+    },
+    {
+      "libro": "Poema del Cante Jondo",
+      "año": 1921,
+      "estilo": "Neopopularismo",
+      "poemas": [
+        {
+          "titulo": "Preciosa y el aire",
+          "primera_estrofa": "Fragmento representativo..."
+        },
+        {
+          "titulo": "Baladilla de los tres ríos",
+          "primera_estrofa": "Fragmento representativo..."
+        }
+      ]
+    },
+    {
+      "libro": "Romancero Gitano",
+      "año": 1928,
+      "estilo": "Neopopularismo",
+      "poemas": [
+        {
+          "titulo": "Romance de la luna, luna",
+          "primera_estrofa": "La luna vino a la fragua..."
+        },
+        {
+          "titulo": "Preciosa y el aire",
+          "primera_estrofa": "Fragmento representativo..."
+        },
+        {
+          "titulo": "Romance sonámbulo",
+          "primera_estrofa": "Verde que te quiero verde..."
+        }
+      ]
+    },
+    {
+      "libro": "Poeta en Nueva York",
+      "año": 1940,
+      "estilo": "Surrealismo",
+      "poemas": [
+        {
+          "titulo": "La aurora",
+          "primera_estrofa": "Fragmento representativo..."
+        },
+        {
+          "titulo": "Norma y paraíso de los negros",
+          "primera_estrofa": "Fragmento representativo..."
+        }
+      ]
+    },
+    {
+      "libro": "Llanto por Ignacio Sánchez Mejías",
+      "año": 1935,
+      "estilo": "Elegía",
+      "poemas": [
+        {
+          "titulo": "Llanto por Ignacio Sánchez Mejías",
+          "secciones": [
+            "La cogida y la muerte",
+            "La sangre derramada",
+            "Cuerpo presente",
+            "Alma ausente"
+          ]
+        }
+      ]
+    },
+    {
+      "libro": "Diván del Tamarit",
+      "año": 1936,
+      "estilo": "Neopopularismo árabe",
+      "poemas": [
+        {
+          "titulo": "Gacela del amor imprevisto",
+          "primera_estrofa": "Fragmento representativo..."
+        }
+      ]
+    },
+    {
+      "libro": "Sonetos del amor oscuro",
+      "año": 1936,
+      "estilo": "Soneto",
+      "poemas": [
+        {
+          "titulo": "Soneto de la dulce queja",
+          "primera_estrofa": "Fragmento representativo..."
+        }
+      ]
+    }
+  ]
+}

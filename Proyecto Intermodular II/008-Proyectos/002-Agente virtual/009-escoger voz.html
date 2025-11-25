@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Avatar + Face Follow + Conversación simulada (voz femenina)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="icon" href="data:,">
+
+<!-- Import map for Three.js -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#0e0f13; color:#e9eef3; font-family:system-ui, Segoe UI, Roboto, Ubuntu, Cantarell; }
+  #stage { position:fixed; inset:0; }
+
+  :root { --preview-w:260px; --preview-h:195px; }
+  .preview {
+    position:fixed; right:16px; bottom:16px; width:var(--preview-w); height:var(--preview-h);
+    border-radius:12px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.45);
+    border:1px solid rgba(255,255,255,.08); background:#14161d; z-index:10;
+  }
+  .preview video, .preview canvas { position:absolute; width:100%; height:100%; object-fit:cover; }
+  .preview video { transform:scaleX(-1); }
+  .header { position:absolute; inset:0 0 auto 0; height:28px; background:linear-gradient(180deg, rgba(0,0,0,.55), transparent);
+    font-size:12px; display:flex; align-items:center; gap:8px; padding:0 10px; color:#c9d2db; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#e74c3c; box-shadow:0 0 10px rgba(231,76,60,.8); }
+
+  .hud {
+    position:fixed; top:12px; left:12px; z-index:20; background:rgba(20,22,29,.75);
+    border:1px solid rgba(255,255,255,.12); padding:10px 12px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .btn { appearance:none; border:1px solid rgba(255,255,255,.18); background:#1e2230; color:#e9eef3; padding:6px 10px; border-radius:8px; font-size:13px; cursor:pointer; }
+  .btn[aria-pressed="true"] { background:#2a3550; border-color:#6aa1ff; }
+  .status { font-size:12px; opacity:0.85 }
+  .kbd { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); padding:1px 6px; border-radius:6px; font-family:ui-monospace,monospace; font-size:12px; }
+  select.kbd { color:#e9eef3; }
+
+  /* Floating transcription window */
+  .float {
+    position:fixed; left:16px; bottom:16px; width:min(560px, 46vw); height:260px; z-index:25;
+    background:rgba(14,17,23,.9); border:1px solid rgba(255,255,255,.12); border-radius:12px; backdrop-filter: blur(6px);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45); display:flex; flex-direction:column; resize: both; overflow: hidden;
+  }
+  .float-header { user-select:none; cursor:move; padding:8px 10px; display:flex; align-items:center; justify-content:space-between;
+    font-size:12px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)); }
+  .float-body { padding:8px 10px; overflow:auto; font-size:13px; line-height:1.35; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.18); font-size:11px; opacity:.9 }
+  .pulse { animation:pulse 1.2s infinite; }
+  @keyframes pulse { 0%{opacity:.4} 50%{opacity:1} 100%{opacity:.4} }
+  .u { color:#9ad1ff }   /* user */
+  .b { color:#ffd28b }   /* bot */
+</style>
+</head>
+<body>
+  <div id="stage"></div>
+
+  <!-- Mic HUD -->
+  <div class="hud">
+    <button id="btnMic" class="btn" aria-pressed="false">🎤 Start</button>
+    <span class="status" id="micStatus">idle</span>
+    <span class="status">Lang: <span class="kbd" id="langTag">es-ES</span></span>
+    <span class="status">Voz:
+      <select id="voiceSel" class="kbd" style="background:transparent;border-radius:6px;padding:1px 4px"></select>
+    </span>
+    <span class="status">Toggle bbox: <span class="kbd">B</span></span>
+  </div>
+
+  <!-- Floating transcription window -->
+  <div class="float" id="float">
+    <div class="float-header" id="floatDrag">
+      <strong>Transcripción</strong>
+      <span id="recPill" class="pill">mic: <span>off</span></span>
+    </div>
+    <div class="float-body" id="transcript"></div>
+  </div>
+
+  <!-- Webcam preview -->
+  <div class="preview">
+    <div class="header"><span class="dot" id="camDot"></span> Webcam</div>
+    <video id="vid" autoplay playsinline muted></video>
+    <canvas id="overlay" width="640" height="480" style="display:none"></canvas>
+  </div>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+    import { FaceDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+    /* ---------- THREE.JS + AVATAR ---------- */
+    const container = document.getElementById("stage");
+    const renderer  = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0e0f13);
+
+    const camera = new THREE.PerspectiveCamera(10, window.innerWidth/window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.3, 3);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x334455, 0.6));
+    const dir = new THREE.DirectionalLight(0xffffff, 1);
+    dir.position.set(3,5,5);
+    dir.castShadow = true;
+    scene.add(dir);
+
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(20,20),
+      new THREE.MeshStandardMaterial({ color:0x0f1116, roughness:0.95, metalness:0 })
+    );
+    ground.rotation.x = -Math.PI/2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const avatarRoot = new THREE.Group();
+    avatarRoot.position.set(0, 1.0, 0);
+    scene.add(avatarRoot);
+
+    let avatar;
+    new GLTFLoader().load("./avatar.glb", (gltf)=>{
+      avatar = gltf.scene;
+      avatar.traverse(o=>{ if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; }});
+      avatar.rotation.y = Math.PI;
+
+      // Normalize size & center
+      const box = new THREE.Box3().setFromObject(avatar);
+      const size = new THREE.Vector3(); box.getSize(size);
+      const scale = 1.2 / Math.max(size.x, size.y, size.z);
+      avatar.scale.setScalar(scale);
+      const center = new THREE.Vector3(); box.getCenter(center);
+      avatar.position.sub(center.multiplyScalar(scale));
+
+      avatarRoot.add(avatar);
+    });
+
+    window.addEventListener("resize", ()=>{
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    /* ---------- MEDIAPIPE FACE FOLLOW ---------- */
+    const video   = document.getElementById("vid");
+    const overlay = document.getElementById("overlay");
+    const octx    = overlay.getContext("2d");
+    const camDot  = document.getElementById("camDot");
+
+    let showBBox = false;
+    window.addEventListener("keydown", (e)=>{
+      if (e.key.toLowerCase() === "b") {
+        showBBox = !showBBox;
+        overlay.style.display = showBBox ? "block" : "none";
+      }
+    });
+
+    const smoother = (alpha=0.18)=>{
+      let sx=null, sy=null;
+      return (x,y)=>{ if(sx==null){sx=x; sy=y;} sx += alpha*(x-sx); sy += alpha*(y-sy); return [sx,sy]; };
+    };
+    const smoothXY = smoother(0.18);
+
+    async function setupCam(){
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480 } });
+      video.srcObject = stream; await video.play();
+    }
+
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+    );
+    const detector = await FaceDetector.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite"
+      },
+      runningMode: "VIDEO",
+      minDetectionConfidence: 0.5
+    });
+
+    await setupCam();
+
+    function drawBox(bb){
+      const W = overlay.width = 640, H = overlay.height = 480;
+      octx.clearRect(0,0,W,H);
+      const x = W - (bb.originX + bb.width); const y = bb.originY;
+      octx.strokeStyle = "rgba(0,200,255,0.9)"; octx.lineWidth = 2; octx.strokeRect(x,y,bb.width,bb.height);
+    }
+
+    const yawMax   = THREE.MathUtils.degToRad(20);
+    const pitchMax = THREE.MathUtils.degToRad(12);
+    const yawMultiplier   = 1.2;
+    const pitchMultiplier = 1.5;
+    const invertYaw       = 1;
+    const invertPitch     = 1;
+
+    const clamp=(v,min,max)=> Math.max(min, Math.min(max, v));
+    const current={x:0,y:0};
+    const lerp=(a,b,t)=> a + (b - a) * t;
+
+    function animate(){
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+      avatarRoot.rotation.x = lerp(avatarRoot.rotation.x, current.x, 0.15);
+      avatarRoot.rotation.y = lerp(avatarRoot.rotation.y, current.y, 0.15);
+    }
+    animate();
+
+    function tick(){
+      const res = detector.detectForVideo(video, performance.now());
+      if (res?.detections?.length) {
+        const best = res.detections.reduce((a,b)=>(a.categories?.[0]?.score||0)>=(b.categories?.[0]?.score||0)?a:b);
+        const bb = best.boundingBox;
+        const cx = (bb.originX + bb.width*0.5) / video.videoWidth;
+        const cy = (bb.originY + bb.height*0.5) / video.videoHeight;
+
+        const mx = 1 - cx, my = cy;
+        const [sx, sy] = smoothXY(mx, my);
+        const dx = sx - 0.5, dy = sy - 0.5;
+
+        current.y = clamp(invertYaw   * dx * 2 * yawMax   * yawMultiplier,   -yawMax,   yawMax);
+        current.x = clamp(invertPitch * dy * 2 * pitchMax * pitchMultiplier, -pitchMax, pitchMax);
+
+        camDot.style.background = "#2ecc71"; camDot.style.boxShadow = "0 0 10px rgba(46,204,113,.9)";
+        if (showBBox) drawBox(bb); else octx.clearRect(0,0,overlay.width,overlay.height);
+      } else {
+        current.x = lerp(current.x, 0, 0.05); current.y = lerp(current.y, 0, 0.05);
+        camDot.style.background = "#e74c3c"; camDot.style.boxShadow = "0 0 10px rgba(231,76,60,.8)";
+        octx.clearRect(0,0,overlay.width,overlay.height);
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    /* ---------- CONVERSACIÓN SIMULADA (ASR + TTS con voz femenina) ---------- */
+    const btnMic       = document.getElementById("btnMic");
+    const micStatus    = document.getElementById("micStatus");
+    const langTag      = document.getElementById("langTag");
+    const recPill      = document.getElementById("recPill");
+    const transcriptEl = document.getElementById("transcript");
+    const voiceSel     = document.getElementById("voiceSel");
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const synth = window.speechSynthesis;
+
+    // TTS voice selection (prefer Spanish female)
+    let currentVoice = null;
+    const FEMALE_HINTS = [
+      "female","mujer","sabina","elena","sofia","lola","lucia","paula",
+      "neural2-a","standard-a","es-es-a","es-ES Standard-A","es-ES Neural2-A"
+    ];
+    const PREFERRED_NAME_HINTS = ["google", "microsoft", "español", "es-es", ...FEMALE_HINTS];
+
+    function scoreVoice(v){
+      let s = 0;
+      const name = (v.name||"").toLowerCase();
+      const lang = (v.lang||"").toLowerCase();
+      if (lang.startsWith("es")) s += 5;
+      if (lang === "es-es") s += 3;
+      if (PREFERRED_NAME_HINTS.some(h => name.includes(h))) s += 4;
+      if (name.includes("female") || name.includes("mujer")) s += 3;
+      if (name.includes("google")) s += 1;
+      return s;
+    }
+    function pickPreferredVoice(){
+      const voices = synth.getVoices();
+      voices.sort((a,b)=>scoreVoice(b)-scoreVoice(a));
+      return voices[0] || null;
+    }
+    function populateVoices(){
+      const voices = synth.getVoices();
+      voiceSel.innerHTML = "";
+      const es = voices.filter(v=>v.lang?.toLowerCase().startsWith("es"));
+      const others = voices.filter(v=>!v.lang?.toLowerCase().startsWith("es"));
+      const list = [...es, ...others];
+      for (const v of list){
+        const opt = document.createElement("option");
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang})`;
+        voiceSel.appendChild(opt);
+      }
+      currentVoice = pickPreferredVoice();
+      if (currentVoice) voiceSel.value = currentVoice.name;
+    }
+    voiceSel.addEventListener("change", ()=>{
+      const v = synth.getVoices().find(vo=>vo.name===voiceSel.value);
+      if (v) currentVoice = v;
+    });
+    if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = populateVoices;
+    populateVoices();
+
+    // Turn-taking states: 'idle' | 'listening' | 'speaking' | 'stopping'
+    let recog = null, state = 'idle', shouldRestart = false;
+    let interimText = "", stackText = "";
+    let pauseTimer = null;
+    const PAUSE_MS = 3000;
+
+    function setMicUI(active, note="") {
+      btnMic.setAttribute("aria-pressed", active ? "true" : "false");
+      btnMic.textContent = active ? "🛑 Stop" : "🎤 Start";
+      micStatus.textContent = note || (active ? "listening…" : "idle");
+      recPill.innerHTML = active ? 'mic: <span class="pulse">on</span>' : 'mic: <span>off</span>';
+    }
+    function addLine(html){
+      const p = document.createElement("div");
+      p.innerHTML = html;
+      transcriptEl.appendChild(p);
+      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    }
+    function updateLiveView(){
+      const last = transcriptEl.lastElementChild;
+      if (last && last.dataset?.live === "1") last.textContent = interimText;
+      else {
+        const p = document.createElement("div");
+        p.dataset.live = "1"; p.className = "u"; p.textContent = interimText;
+        transcriptEl.appendChild(p);
+      }
+      transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    }
+    function finalizeUserTurn(text){
+      const last = transcriptEl.lastElementChild;
+      if (last && last.dataset?.live === "1") last.remove();
+      if (text.trim()) addLine(`<span class="u">👤 ${text}</span>`);
+    }
+
+    function ensureRecog(){
+      if (!SpeechRecognition) { alert("Tu navegador no soporta Web Speech API."); return null; }
+      if (!recog){
+        recog = new SpeechRecognition();
+        recog.lang = "es-ES"; langTag.textContent = recog.lang;
+        recog.continuous = true; recog.interimResults = true;
+
+        recog.onstart = () => { state = 'listening'; setMicUI(true, "listening…"); };
+        recog.onresult = (ev) => {
+          clearTimeout(pauseTimer);
+          pauseTimer = setTimeout(onPauseDetected, PAUSE_MS);
+
+          interimText = "";
+          for (let i=ev.resultIndex; i<ev.results.length; i++){
+            const r = ev.results[i], t = r[0].transcript.trim();
+            if (r.isFinal) stackText += (stackText ? " " : "") + t;
+            else interimText = t;
+          }
+          if (interimText) updateLiveView();
+        };
+        recog.onerror = (e) => {
+          if (["network","no-speech","aborted"].includes(e.error)) return;
+          micStatus.textContent = `error: ${e.error}`;
+        };
+        recog.onend = () => {
+          if (state === 'speaking' || state === 'stopping') return;
+          if (shouldRestart) { try { recog.start(); } catch(_){} }
+          else { state='idle'; setMicUI(false, "idle"); }
+        };
+      }
+      return recog;
+    }
+
+    function startListening(){
+      if (state !== 'idle') return;
+      const r = ensureRecog(); if (!r) return;
+      shouldRestart = true; stackText=""; interimText="";
+      try { state='listening'; r.start(); } catch(_) {}
+    }
+    function stopListening(){
+      shouldRestart = false; clearTimeout(pauseTimer);
+      if (recog && state !== 'idle'){ state='stopping'; try { recog.abort(); } catch(_){} }
+      setMicUI(false, "stopped"); state='idle';
+    }
+
+    function onPauseDetected(){
+      clearTimeout(pauseTimer);
+      const text = (stackText||"").trim();
+      if (!text){ pauseTimer = setTimeout(onPauseDetected, PAUSE_MS); return; }
+      shouldRestart = false; if (recog){ try { recog.abort(); } catch(_){} }
+      finalizeUserTurn(text);
+      speakThenResume(text);
+      stackText=""; interimText="";
+    }
+
+    function speakThenResume(text){
+      if (!text.trim()){ startListening(); return; }
+      const utter = new SpeechSynthesisUtterance(text);
+      // Apply selected / preferred female voice
+      if (currentVoice){ utter.voice = currentVoice; utter.lang = currentVoice.lang || "es-ES"; }
+      else { utter.lang = "es-ES"; }
+      utter.rate = 1.0; utter.pitch = 1.0; utter.volume = 1.0;
+
+      utter.onstart = () => { state='speaking'; setMicUI(false, "speaking…"); addLine(`<span class="b">🤖 ${text}</span>`); };
+      utter.onend   = () => { state='idle'; startListening(); };
+      utter.onerror = () => { state='idle'; startListening(); };
+
+      try { window.speechSynthesis.cancel(); } catch(_){}
+      window.speechSynthesis.speak(utter);
+    }
+
+    // Mic button
+    btnMic.addEventListener("click", ()=>{
+      if (state === 'idle') startListening();
+      else { try { window.speechSynthesis.cancel(); } catch(_){}; stopListening(); }
+    });
+
+    // Draggable transcript window
+    (function enableDrag(){
+      const panel = document.getElementById("float");
+      const drag = document.getElementById("floatDrag");
+      let isDown=false, ox=0, oy=0, sx=0, sy=0;
+      drag.addEventListener("pointerdown",(e)=>{ isDown=true; sx=e.clientX; sy=e.clientY; const r=panel.getBoundingClientRect(); ox=r.left; oy=r.top; panel.setPointerCapture(e.pointerId); });
+      drag.addEventListener("pointermove",(e)=>{ if(!isDown) return; const dx=e.clientX-sx, dy=e.clientY-sy; panel.style.left=(ox+dx)+"px"; panel.style.top=(oy+dy)+"px"; });
+      drag.addEventListener("pointerup",(e)=>{ isDown=false; try{ panel.releasePointerCapture(e.pointerId); }catch(_){} });
+    })();
+  </script>
+</body>
+</html>
+

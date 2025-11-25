@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Face-controlled crosshair (MediaPipe FaceDetector)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="icon" href="data:,"><!-- silence favicon 404 -->
+<style>
+  :root { --preview-w: 260px; --preview-h: 195px; }
+  html, body { margin:0; height:100%; overflow:hidden; background:#0e0f13; color:#e9eef3; font-family:system-ui, Segoe UI, Roboto, Ubuntu, Cantarell; }
+
+  /* Crosshair UI */
+  .crosshair {
+    position:fixed; top:50vh; left:50vw; width:32px; height:32px;
+    margin:-16px 0 0 -16px; pointer-events:none;
+  }
+  .crosshair::before, .crosshair::after {
+    content:""; position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%); box-sizing:border-box;
+  }
+  .crosshair::before {
+    width:32px; height:32px; border:2px solid rgba(255,255,255,.9); border-radius:50%;
+    box-shadow:0 0 16px rgba(0,0,0,.35), inset 0 0 12px rgba(255,255,255,.15);
+  }
+  .crosshair::after {
+    width:36px; height:36px;
+    background:
+      linear-gradient(to right, transparent 49%, rgba(255,255,255,.9) 50%, transparent 51%) center/100% 2px no-repeat,
+      linear-gradient(to bottom, transparent 49%, rgba(255,255,255,.9) 50%, transparent 51%) center/2px 100% no-repeat;
+    filter: drop-shadow(0 0 6px rgba(0,0,0,.5));
+  }
+
+  /* Corner webcam preview */
+  .preview {
+    position:fixed; right:16px; bottom:16px; width:var(--preview-w); height:var(--preview-h);
+    border-radius:12px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.45);
+    border:1px solid rgba(255,255,255,.08); background:#14161d;
+  }
+  .header { position:absolute; inset:0 0 auto 0; height:28px; background:linear-gradient(180deg, rgba(0,0,0,.55), transparent); font-size:12px; display:flex; align-items:center; gap:8px; padding:0 10px; color:#c9d2db; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#e74c3c; box-shadow:0 0 10px rgba(231,76,60,.8); }
+  .preview video, .preview canvas { position:absolute; width:100%; height:100%; object-fit:cover; }
+  .preview video { transform:scaleX(-1); } /* mirror for natural feel */
+
+  .hint { position:fixed; top:16px; left:16px; background:rgba(20,22,29,.75); border:1px solid rgba(255,255,255,.08); padding:10px 12px; border-radius:10px; font-size:13px; }
+  .hint kbd { background:rgba(255,255,255,.08); padding:2px 6px; border-radius:6px; border:1px solid rgba(255,255,255,.12); font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
+</style>
+</head>
+<body>
+  <div class="hint">Mueve tu cabeza en la previsualización (abajo-derecha). La mira sigue el <em>centro</em> de tu cara. <small>Pulsa <kbd>B</kbd> para mostrar/ocultar el bbox.</small></div>
+
+  <div class="crosshair" id="crosshair" aria-hidden="true"></div>
+
+  <div class="preview">
+    <div class="header"><span class="dot" id="camDot"></span> Webcam</div>
+    <video id="vid" autoplay playsinline muted></video>
+    <canvas id="overlay" width="640" height="480" style="display:none"></canvas>
+  </div>
+
+  <!-- MediaPipe Tasks (ESM) -->
+  <script type="module">
+    import { FaceDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+    const video     = document.getElementById("vid");
+    const overlay   = document.getElementById("overlay");
+    const octx      = overlay.getContext("2d");
+    const crosshair = document.getElementById("crosshair");
+    const camDot    = document.getElementById("camDot");
+
+    // Show/hide bbox overlay (debug)
+    let showBBox = false;
+    window.addEventListener("keydown", (e) => {
+      if (e.key.toLowerCase() === "b") {
+        showBBox = !showBBox;
+        overlay.style.display = showBBox ? "block" : "none";
+      }
+    });
+
+    // Simple exponential smoother to reduce jitter
+    const smoother = (alpha=0.2) => {
+      let sx=null, sy=null;
+      return (x,y)=>{ if(sx==null){sx=x; sy=y;} sx += alpha*(x-sx); sy += alpha*(y-sy); return [sx,sy]; };
+    };
+    const smoothXY = smoother(0.2);
+
+    // Get webcam
+    async function setupCam() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      video.srcObject = stream;
+      await video.play();
+    }
+
+    // Load FaceDetector (BlazeFace short-range)
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+    );
+
+    // NOTE: Public BlazeFace model path (works in browser).
+    // If you host your own, replace the URL below.
+    const detector = await FaceDetector.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite"
+      },
+      runningMode: "VIDEO",
+      minDetectionConfidence: 0.5,
+      minSuppressionThreshold: 0.3
+    });
+
+    await setupCam();
+
+    // Draw bbox on preview (mirrored)
+    function drawBox(bb) {
+      const W = overlay.width, H = overlay.height;
+      octx.clearRect(0,0,W,H);
+      // Because the preview is mirrored horizontally, flip X for drawing
+      const x = W - (bb.originX + bb.width);
+      const y = bb.originY;
+      octx.lineWidth = 2;
+      octx.strokeStyle = "rgba(0, 200, 255, 0.9)";
+      octx.strokeRect(x, y, bb.width, bb.height);
+      // center dot (debug)
+      octx.beginPath();
+      octx.arc(x + bb.width/2, y + bb.height/2, 3, 0, Math.PI*2);
+      octx.fillStyle = "rgba(0, 200, 255, 1)";
+      octx.fill();
+    }
+
+    // Main loop
+    function tick() {
+      const now = performance.now();
+      const res = detector.detectForVideo(video, now);
+
+      if (res?.detections?.length) {
+        // choose highest score
+        const best = res.detections.reduce((a,b)=> (a.categories?.[0]?.score||0) >= (b.categories?.[0]?.score||0) ? a : b);
+        const bb = best.boundingBox; // {originX, originY, width, height} in *video pixels*
+
+        // bbox center in video pixels
+        const cx = bb.originX + bb.width * 0.5;
+        const cy = bb.originY + bb.height * 0.5;
+
+        // normalize 0..1
+        const nx = cx / video.videoWidth;
+        const ny = cy / video.videoHeight;
+
+        // preview is mirrored → invert X for intuitive motion
+        const mx = 1 - nx;
+        const my = ny;
+
+        // map to viewport
+        const pageX = mx * window.innerWidth;
+        const pageY = my * window.innerHeight;
+
+        const [sx, sy] = smoothXY(pageX, pageY);
+        crosshair.style.left = sx + "px";
+        crosshair.style.top  = sy + "px";
+
+        camDot.style.background = "#2ecc71";
+        camDot.style.boxShadow = "0 0 10px rgba(46,204,113,.9)";
+
+        if (showBBox) {
+          // keep overlay canvas resolution constant (matches detector input)
+          overlay.width  = 640;
+          overlay.height = 480;
+          drawBox(bb);
+        } else {
+          octx.clearRect(0,0,overlay.width,overlay.height);
+        }
+      } else {
+        // no face → ease back to center
+        const [sx, sy] = smoothXY(window.innerWidth/2, window.innerHeight/2);
+        crosshair.style.left = sx + "px";
+        crosshair.style.top  = sy + "px";
+        camDot.style.background = "#e74c3c";
+        camDot.style.boxShadow = "0 0 10px rgba(231,76,60,.8)";
+        octx.clearRect(0,0,overlay.width,overlay.height);
+      }
+
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
+

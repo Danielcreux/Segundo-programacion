@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Minecraft Clone</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.min.js"></script>
+    <script>
+        // Block class
+        class Block {
+            constructor(x, y, z, type = 'grass') {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.type = type;
+                this.mesh = null;
+                
+                this.createMesh();
+            }
+            
+            createMesh() {
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                
+                // Different colors for different block types
+                const colors = {
+                    'grass': 0x4CAF50,
+                    'dirt': 0x795548,
+                    'stone': 0x9E9E9E
+                };
+                
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: colors[this.type] || 0x4CAF50 
+                });
+                
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.set(this.x, this.y, this.z);
+            }
+            
+            addToScene(scene) {
+                if (this.mesh) {
+                    scene.add(this.mesh);
+                }
+            }
+            
+            removeFromScene(scene) {
+                if (this.mesh) {
+                    scene.remove(this.mesh);
+                }
+            }
+        }
+
+        // Game class
+        class MinecraftGame {
+            constructor() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x87CEEB); // Sky blue
+                
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(0, 10, 0);
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(this.renderer.domElement);
+                
+                this.controls = null;
+                this.blocks = [];
+                this.moveState = { forward: false, backward: false, left: false, right: false };
+                this.velocity = new THREE.Vector3();
+                this.direction = new THREE.Vector3();
+                
+                this.setupLights();
+                this.createFloor();
+                this.setupControls();
+                this.setupEventListeners();
+                
+                this.animate();
+            }
+            
+            setupLights() {
+                // Ambient light
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
+                
+                // Directional light (sun)
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(50, 50, 50);
+                directionalLight.castShadow = true;
+                this.scene.add(directionalLight);
+            }
+            
+            createFloor() {
+                const gridSize = 10;
+                
+                for (let x = -gridSize/2; x < gridSize/2; x++) {
+                    for (let z = -gridSize/2; z < gridSize/2; z++) {
+                        // Create different block types in a pattern
+                        let type = 'grass';
+                        if (Math.random() > 0.8) type = 'dirt';
+                        if (Math.random() > 0.95) type = 'stone';
+                        
+                        const block = new Block(x, -0.5, z, type);
+                        block.addToScene(this.scene);
+                        this.blocks.push(block);
+                    }
+                }
+                
+                console.log(`Created ${this.blocks.length} blocks`);
+            }
+            
+            setupControls() {
+                // Pointer lock controls for FPS movement
+                this.controls = new THREE.PointerLockControls(this.camera, document.body);
+                
+                // Instructions
+                const instructions = document.createElement('div');
+                instructions.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0,0,0,0.8);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    text-align: center;
+                    font-family: Arial;
+                `;
+                instructions.innerHTML = `
+                    <h2>Minecraft Clone</h2>
+                    <p>Click to play</p>
+                    <p>WASD: Move | Mouse: Look around</p>
+                    <p>Space: Jump | Shift: Move faster</p>
+                `;
+                document.body.appendChild(instructions);
+                
+                // Click to start
+                const startGame = () => {
+                    this.controls.lock();
+                    instructions.style.display = 'none';
+                };
+                
+                document.body.addEventListener('click', startGame);
+                
+                this.controls.addEventListener('lock', () => {
+                    instructions.style.display = 'none';
+                });
+                
+                this.controls.addEventListener('unlock', () => {
+                    instructions.style.display = 'block';
+                });
+            }
+            
+            setupEventListeners() {
+                // Keyboard controls
+                document.addEventListener('keydown', (event) => {
+                    switch (event.code) {
+                        case 'KeyW':
+                            this.moveState.forward = true;
+                            break;
+                        case 'KeyS':
+                            this.moveState.backward = true;
+                            break;
+                        case 'KeyA':
+                            this.moveState.left = true;
+                            break;
+                        case 'KeyD':
+                            this.moveState.right = true;
+                            break;
+                    }
+                });
+                
+                document.addEventListener('keyup', (event) => {
+                    switch (event.code) {
+                        case 'KeyW':
+                            this.moveState.forward = false;
+                            break;
+                        case 'KeyS':
+                            this.moveState.backward = false;
+                            break;
+                        case 'KeyA':
+                            this.moveState.left = false;
+                            break;
+                        case 'KeyD':
+                            this.moveState.right = false;
+                            break;
+                    }
+                });
+                
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+            
+            updateMovement(delta) {
+                if (!this.controls.isLocked) return;
+                
+                const speed = 10.0;
+                this.velocity.x = 0;
+                this.velocity.z = 0;
+                
+                if (this.moveState.forward) this.velocity.z -= speed * delta;
+                if (this.moveState.backward) this.velocity.z += speed * delta;
+                if (this.moveState.left) this.velocity.x -= speed * delta;
+                if (this.moveState.right) this.velocity.x += speed * delta;
+                
+                // Apply movement relative to camera direction
+                this.controls.moveRight(this.velocity.x);
+                this.controls.moveForward(this.velocity.z);
+                
+                // Simple gravity and ground collision
+                if (this.camera.position.y > 1) {
+                    this.camera.position.y -= 9.8 * delta; // gravity
+                } else {
+                    this.camera.position.y = 1; // ground level
+                }
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                const delta = 0.016; // approx 60fps
+                
+                if (this.controls.isLocked) {
+                    this.updateMovement(delta);
+                }
+                
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Start the game
+        new MinecraftGame();
+    </script>
+</body>
+</html>

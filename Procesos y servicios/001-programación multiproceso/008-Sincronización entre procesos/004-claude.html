@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Path Tracer - Cornell Box</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        #canvas3d { position: absolute; top: 0; left: 0; }
+        #canvasPT { position: absolute; top: 0; left: 0; }
+        #controls { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            background: rgba(0,0,0,0.7); 
+            color: white; 
+            padding: 10px; 
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        button { margin: 5px 0; padding: 5px 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas3d"></canvas>
+    <canvas id="canvasPT"></canvas>
+    <div id="controls">
+        <div>Samples: <span id="samples">0</span></div>
+        <div>Progress: <span id="progress">0%</span></div>
+        <button id="togglePT">Start Path Tracing</button>
+        <button id="reset">Reset</button>
+        <div style="margin-top: 10px;">
+            <label>Samples/Frame: <input type="number" id="spp" value="1" min="1" max="10"></label>
+        </div>
+        <div>
+            <label>Max Bounces: <input type="number" id="bounces" value="4" min="1" max="8"></label>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // =============================================
+        // Three.js Scene Setup
+        // =============================================
+        const canvas3d = document.getElementById('canvas3d');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const controls = new THREE.OrbitControls(camera, canvas3d);
+        controls.enableDamping = true;
+
+        // =============================================
+        // Cornell Box Geometry
+        // =============================================
+        const boxSize = 5;
+        const objects = [];
+
+        // Left wall (red)
+        const leftWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xff0000, side: THREE.DoubleSide })
+        );
+        leftWall.position.set(-boxSize/2, 0, 0);
+        leftWall.rotation.y = Math.PI / 2;
+        scene.add(leftWall);
+        objects.push({ mesh: leftWall, type: 'diffuse', color: [1, 0, 0] });
+
+        // Right wall (green)
+        const rightWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0x00ff00, side: THREE.DoubleSide })
+        );
+        rightWall.position.set(boxSize/2, 0, 0);
+        rightWall.rotation.y = -Math.PI / 2;
+        scene.add(rightWall);
+        objects.push({ mesh: rightWall, type: 'diffuse', color: [0, 1, 0] });
+
+        // Back wall (white)
+        const backWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
+        );
+        backWall.position.set(0, 0, -boxSize/2);
+        scene.add(backWall);
+        objects.push({ mesh: backWall, type: 'diffuse', color: [0.8, 0.8, 0.8] });
+
+        // Floor (white)
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
+        );
+        floor.position.set(0, -boxSize/2, 0);
+        floor.rotation.x = Math.PI / 2;
+        scene.add(floor);
+        objects.push({ mesh: floor, type: 'diffuse', color: [0.8, 0.8, 0.8] });
+
+        // Ceiling (white)
+        const ceiling = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
+        );
+        ceiling.position.set(0, boxSize/2, 0);
+        ceiling.rotation.x = -Math.PI / 2;
+        scene.add(ceiling);
+        objects.push({ mesh: ceiling, type: 'diffuse', color: [0.8, 0.8, 0.8] });
+
+        // Light (area light)
+        const lightSize = 1.5;
+        const light = new THREE.Mesh(
+            new THREE.PlaneGeometry(lightSize, lightSize),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+        );
+        light.position.set(0, boxSize/2 - 0.05, 0);
+        light.rotation.x = -Math.PI / 2;
+        scene.add(light);
+        objects.push({ mesh: light, type: 'emissive', color: [1, 1, 1], emission: [15, 15, 15] });
+
+        // Sphere 1 (diffuse white)
+        const sphere1 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.7, 32, 32),
+            new THREE.MeshLambertMaterial({ color: 0xffffff })
+        );
+        sphere1.position.set(-1.2, -boxSize/2 + 0.7, 0.5);
+        scene.add(sphere1);
+        objects.push({ mesh: sphere1, type: 'diffuse', color: [0.9, 0.9, 0.9] });
+
+        // Sphere 2 (reflective)
+        const sphere2 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.7, 32, 32),
+            new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 })
+        );
+        sphere2.position.set(1.2, -boxSize/2 + 0.7, -0.5);
+        scene.add(sphere2);
+        objects.push({ mesh: sphere2, type: 'reflective', color: [0.95, 0.95, 0.95] });
+
+        // Add some lighting for Three.js preview
+        const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+        pointLight.position.set(0, boxSize/2 - 0.5, 0);
+        scene.add(pointLight);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        camera.position.set(0, 0, 8);
+        controls.update();
+
+        // =============================================
+        // Path Tracer
+        // =============================================
+        const canvasPT = document.getElementById('canvasPT');
+        const ctx = canvasPT.getContext('2d');
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvasPT.width = width;
+        canvasPT.height = height;
+
+        let imageData = ctx.createImageData(width, height);
+        let accumBuffer = new Float32Array(width * height * 3);
+        let sampleCount = 0;
+        let isTracing = false;
+        let currentPixel = 0;
+
+        const raycaster = new THREE.Raycaster();
+
+        function random() {
+            return Math.random();
+        }
+
+        function randomInUnitSphere() {
+            while (true) {
+                const v = [random() * 2 - 1, random() * 2 - 1, random() * 2 - 1];
+                if (v[0]*v[0] + v[1]*v[1] + v[2]*v[2] < 1) return v;
+            }
+        }
+
+        function randomInHemisphere(normal) {
+            const v = randomInUnitSphere();
+            const dot = v[0]*normal[0] + v[1]*normal[1] + v[2]*normal[2];
+            if (dot > 0) return v;
+            return [-v[0], -v[1], -v[2]];
+        }
+
+        function reflect(v, n) {
+            const dot = v[0]*n[0] + v[1]*n[1] + v[2]*n[2];
+            return [
+                v[0] - 2*dot*n[0],
+                v[1] - 2*dot*n[1],
+                v[2] - 2*dot*n[2]
+            ];
+        }
+
+        function normalize(v) {
+            const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+            return [v[0]/len, v[1]/len, v[2]/len];
+        }
+
+        function trace(origin, direction, depth, maxDepth) {
+            if (depth >= maxDepth) return [0, 0, 0];
+
+            raycaster.set(
+                new THREE.Vector3(origin[0], origin[1], origin[2]),
+                new THREE.Vector3(direction[0], direction[1], direction[2])
+            );
+
+            const intersects = raycaster.intersectObjects(objects.map(o => o.mesh));
+            if (intersects.length === 0) return [0.1, 0.1, 0.15]; // Sky color
+
+            const hit = intersects[0];
+            const obj = objects.find(o => o.mesh === hit.object);
+            
+            const hitPoint = [hit.point.x, hit.point.y, hit.point.z];
+            const hitNormal = [hit.face.normal.x, hit.face.normal.y, hit.face.normal.z];
+            
+            // Transform normal to world space
+            const normalMatrix = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
+            const worldNormal = new THREE.Vector3(hitNormal[0], hitNormal[1], hitNormal[2])
+                .applyMatrix3(normalMatrix).normalize();
+            const normal = [worldNormal.x, worldNormal.y, worldNormal.z];
+
+            // Offset hit point slightly along normal to avoid self-intersection
+            const offset = 0.001;
+            hitPoint[0] += normal[0] * offset;
+            hitPoint[1] += normal[1] * offset;
+            hitPoint[2] += normal[2] * offset;
+
+            // If hit emissive surface, return emission
+            if (obj.type === 'emissive') {
+                return obj.emission;
+            }
+
+            // Sample new direction based on material
+            let newDir;
+            let attenuation = obj.color;
+
+            if (obj.type === 'reflective') {
+                newDir = reflect(direction, normal);
+                newDir = normalize(newDir);
+            } else {
+                newDir = randomInHemisphere(normal);
+                newDir = normalize(newDir);
+            }
+
+            // Recursive trace
+            const incoming = trace(hitPoint, newDir, depth + 1, maxDepth);
+            return [
+                attenuation[0] * incoming[0],
+                attenuation[1] * incoming[1],
+                attenuation[2] * incoming[2]
+            ];
+        }
+
+        function getRay(x, y) {
+            // Add random offset for anti-aliasing
+            const u = (x + random()) / width;
+            const v = (y + random()) / height;
+            
+            const px = (u * 2 - 1) * Math.tan(camera.fov * Math.PI / 360) * camera.aspect;
+            const py = -(v * 2 - 1) * Math.tan(camera.fov * Math.PI / 360);
+            
+            const dir = new THREE.Vector3(px, py, -1);
+            dir.applyQuaternion(camera.quaternion);
+            dir.normalize();
+            
+            return {
+                origin: [camera.position.x, camera.position.y, camera.position.z],
+                direction: [dir.x, dir.y, dir.z]
+            };
+        }
+
+        function pathTraceFrame() {
+            if (!isTracing) return;
+
+            const samplesPerFrame = parseInt(document.getElementById('spp').value);
+            const maxBounces = parseInt(document.getElementById('bounces').value);
+            const pixelsPerFrame = Math.min(width * height, 1000);
+
+            for (let i = 0; i < pixelsPerFrame; i++) {
+                const pixelIndex = currentPixel;
+                const x = pixelIndex % width;
+                const y = Math.floor(pixelIndex / width);
+
+                for (let s = 0; s < samplesPerFrame; s++) {
+                    const ray = getRay(x, y);
+                    const color = trace(ray.origin, ray.direction, 0, maxBounces);
+                    
+                    const idx = (y * width + x) * 3;
+                    accumBuffer[idx] += color[0];
+                    accumBuffer[idx + 1] += color[1];
+                    accumBuffer[idx + 2] += color[2];
+                }
+
+                currentPixel++;
+                if (currentPixel >= width * height) {
+                    currentPixel = 0;
+                    sampleCount += samplesPerFrame;
+                }
+            }
+
+            // Update display
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 3;
+                    const imgIdx = (y * width + x) * 4;
+                    
+                    const scale = 1.0 / (sampleCount || 1);
+                    let r = accumBuffer[idx] * scale;
+                    let g = accumBuffer[idx + 1] * scale;
+                    let b = accumBuffer[idx + 2] * scale;
+                    
+                    // Gamma correction
+                    r = Math.pow(r, 1/2.2);
+                    g = Math.pow(g, 1/2.2);
+                    b = Math.pow(b, 1/2.2);
+                    
+                    imageData.data[imgIdx] = Math.min(255, r * 255);
+                    imageData.data[imgIdx + 1] = Math.min(255, g * 255);
+                    imageData.data[imgIdx + 2] = Math.min(255, b * 255);
+                    imageData.data[imgIdx + 3] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            
+            document.getElementById('samples').textContent = sampleCount;
+            document.getElementById('progress').textContent = 
+                Math.floor((currentPixel / (width * height)) * 100) + '%';
+        }
+
+        // =============================================
+        // Controls
+        // =============================================
+        document.getElementById('togglePT').addEventListener('click', () => {
+            isTracing = !isTracing;
+            document.getElementById('togglePT').textContent = 
+                isTracing ? 'Pause Path Tracing' : 'Resume Path Tracing';
+        });
+
+        document.getElementById('reset').addEventListener('click', () => {
+            accumBuffer.fill(0);
+            sampleCount = 0;
+            currentPixel = 0;
+            ctx.clearRect(0, 0, width, height);
+        });
+
+        // =============================================
+        // Animation Loop
+        // =============================================
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+            
+            if (isTracing) {
+                pathTraceFrame();
+            }
+        }
+        animate();
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+            
+            canvasPT.width = width;
+            canvasPT.height = height;
+            imageData = ctx.createImageData(width, height);
+            accumBuffer = new Float32Array(width * height * 3);
+            sampleCount = 0;
+            currentPixel = 0;
+        });
+    </script>
+</body>
+</html>

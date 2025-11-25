@@ -37,7 +37,7 @@
         <!-- Earth -->
         <a-sphere
           radius="3"
-          material="src: #texturatierra; metalness: 0.01; roughness: 0.8; roughnessMap: #rugosidadtierra"
+          material="src: #texturatierra; metalness: 0.03; roughness: 0.8; roughnessMap: #rugosidadtierra"
         ></a-sphere>
 
         <!-- Clouds (slightly emissive to trigger bloom nicely) -->
@@ -50,8 +50,8 @@
             alphaMap: #nubes;
             transparent: true;
             side: double;
-            metalness: 0;
-            roughness: 1;
+            metalness: 2;
+            roughness: 3;
             emissive: #ffffff;
             emissiveIntensity: 0.25;
             emissiveMap: #nubes;

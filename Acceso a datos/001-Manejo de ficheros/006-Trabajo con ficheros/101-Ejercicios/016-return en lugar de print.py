@@ -76,7 +76,7 @@ def draw_tree(
 
 
 # === Usage ===
-ruta = "C:\\xampp\\htdocs\\Segundo-programacion"
+ruta = "C:\\xampp\\htdocs\\Segundo-programacion\\Acceso a datos"
 tree_lines = draw_tree(ruta, show_hidden=False, max_depth=None)
 
 # Print to screen

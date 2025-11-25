@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>ERP Formación - Login</title>
+  <link rel="stylesheet" href="css/erp.css" />
+</head>
+<body>
+  <div class="login-page">
+    <section class="login-hero">
+      <div class="login-hero-bg"></div>
+      <header class="topbar" style="position: static; background: transparent; border-bottom: none; padding: 0; margin-bottom: 32px;">
+        <div class="topbar-brand">
+          <!-- Sustituir LOGO_URL_AQUI por el logo real -->
+          <img src="logo-ensensyem-240x52.png" alt="Logo" />
+          <span>ERP Formación</span>
+        </div>
+      </header>
+
+      <div class="login-hero-title">
+        <h1>Centraliza tus cursos, alumnos y empresas en un solo lugar.</h1>
+        <p>Gestión académica, CRM, facturación y FUNDAE bajo el mismo panel, con automatizaciones y reportes en tiempo real.</p>
+      </div>
+
+      <div class="login-hero-metrics">
+        <div class="login-hero-metric">
+          <span>Cursos activos</span>
+          <strong>18</strong>
+        </div>
+        <div class="login-hero-metric">
+          <span>Matrículas este mes</span>
+          <strong>124</strong>
+        </div>
+        <div class="login-hero-metric">
+          <span>Empresas bonificando</span>
+          <strong>9</strong>
+        </div>
+      </div>
+
+      <div class="login-illustration">
+        <div class="login-illustration-bar">
+          <div></div><div></div><div></div><div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="login-form-wrapper">
+      <div class="login-form-card card">
+        <h2>Accede a tu ERP</h2>
+        <p class="login-form-subtitle">Introduce tus credenciales para continuar.</p>
+
+        <form action="modules.html" method="get">
+          <div class="form-group">
+            <label for="email">Correo electrónico</label>
+            <input id="email" type="email" required placeholder="tucorreo@empresa.com" />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Contraseña</label>
+            <input id="password" type="password" required placeholder="••••••••" />
+          </div>
+
+          <div class="form-inline">
+            <label class="login-remember">
+              <input type="checkbox" />
+              <span>Recordar sesión</span>
+            </label>
+            <a href="#" class="btn-link">¿Has olvidado la contraseña?</a>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width:100%;">
+            Entrar al ERP
+          </button>
+
+          <p class="login-footer-note">
+            Acceso restringido al equipo interno. Si necesitas ayuda, contacta con
+            soporte.
+          </p>
+        </form>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

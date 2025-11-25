@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minimal JS BDPT — Cornell Box</title>
+  <style>
+    html, body { height: 100%; margin: 0; background:#0b0d10; color:#e8edf2; font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell; }
+    .wrap { display:flex; gap:16px; padding:16px; align-items:flex-start; }
+    canvas { image-rendering: pixelated; border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,.35); background:#000; }
+    .panel { max-width: 380px; }
+    .panel h1 { font-size:18px; margin:0 0 8px; }
+    .row { display:flex; gap:8px; align-items:center; margin:6px 0; }
+    input[type=range] { width: 180px; }
+    button { background:#1f2937; color:#e8edf2; border:1px solid #2b3646; border-radius:10px; padding:8px 10px; cursor:pointer; }
+    .pill { display:inline-block; padding:2px 8px; border:1px solid #2b3646; border-radius:999px; font-size:12px; }
+    a { color:#9bd; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <canvas id="view" width="320" height="240"></canvas>
+    <div class="panel">
+      <h1>Minimal JS Bidirectional Path Tracer</h1>
+      <div class="row"><span class="pill">Scene</span><span>Cornell Box (diffuse walls + ceiling light)</span></div>
+      <div class="row"><label>Resolution</label>
+        <button id="half">½x</button>
+        <button id="one">1x</button>
+        <button id="double">2x</button>
+      </div>
+      <div class="row"><label>Samples / frame</label><input id="spp" type="range" min="1" max="16" value="1"><span id="sppv">1</span></div>
+      <div class="row"><label>Max depth</label><input id="depth" type="range" min="2" max="8" value="5"><span id="depthv">5</span></div>
+      <div class="row"><label>Pause</label><button id="toggle">⏸️</button><button id="reset">Reset</button></div>
+      <div class="row"><span id="stats">0 spp</span></div>
+      <p><em>Note:</em> This is a tiny educational BDPT. It connects camera and light subpaths with a very simple weight (no full MIS), so it's not production-accurate but great to learn from.</p>
+      <p>Controls: drag to look, scroll to dolly.</p>
+      <p>Source: single-file, vanilla JS. No WebGL/WebGPU; pure CPU.</p>
+    </div>
+  </div>
+<script>
+(() => {
+  // ===== Linear algebra helpers =====
+  const V = {
+    add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
+    sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],
+    mul:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],
+    had:(a,b)=>[a[0]*b[0],a[1]*b[1],a[2]*b[2]],
+    dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+    cross:(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
+    len:(a)=>Math.hypot(a[0],a[1],a[2]),
+    norm:(a)=>{const l=V.len(a)||1e-16; return [a[0]/l,a[1]/l,a[2]/l];},
+    clamp01:(a)=>[Math.min(1,Math.max(0,a[0])),Math.min(1,Math.max(0,a[1])),Math.min(1,Math.max(0,a[2]))],
+  };
+
+  function rng() { return Math.random(); }
+
+  // ===== Ray / Triangle intersection (Möller–Trumbore) =====
+  function rayTri(ro, rd, v0, v1, v2) {
+    const eps=1e-6;
+    const e1=V.sub(v1,v0), e2=V.sub(v2,v0);
+    const p = V.cross(rd,e2);
+    const det = V.dot(e1,p);
+    if (Math.abs(det) < eps) return null;
+    const inv = 1/det;
+    const tvec = V.sub(ro,v0);
+    const u = V.dot(tvec,p) * inv; if (u<0||u>1) return null;
+    const q = V.cross(tvec,e1);
+    const v = V.dot(rd,q) * inv; if (v<0||u+v>1) return null;
+    const t = V.dot(e2,q) * inv; if (t<eps) return null;
+    const n = V.norm(V.cross(e1,e2));
+    return { t, n };
+  }
+
+  // ===== Scene setup: Cornell Box (units ~ meters) =====
+  // Materials: purely diffuse (Lambert), with optional emission
+  const materials = [];
+  function makeMat(albedo, emit=[0,0,0]) { return { albedo, emit }; }
+  const MAT_WHITE = materials.push(makeMat([0.8,0.8,0.8]))-1;
+  const MAT_RED   = materials.push(makeMat([0.75,0.15,0.15]))-1;
+  const MAT_GREEN = materials.push(makeMat([0.15,0.75,0.2]))-1;
+  // Strong small area light for fast convergence
+  const MAT_LIGHT = materials.push(makeMat([0,0,0],[18,18,18]))-1;
+
+  // Triangle list with per-triangle material ids
+  const tris = []; const triMat = [];
+  function addQuad(a,b,c,d, mat) { // two tris
+    tris.push(a,b,c,  a,c,d); triMat.push(mat,mat);
+  }
+
+  // Box dimensions
+  // Room: x in [-1,1], y in [0,2], z in [-1,1]
+  const y0=0, y1=2, x0=-1, x1=1, z0=-1, z1=1;
+  // Floor
+  addQuad([x0,y0,z1],[x1,y0,z1],[x1,y0,z0],[x0,y0,z0], MAT_WHITE);
+  // Ceiling (with light hole we will overlay a light patch)
+  addQuad([x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1], MAT_WHITE);
+  // Back wall (z1)
+  addQuad([x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1], MAT_WHITE);
+  // Left wall (x0) — red
+  addQuad([x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0], MAT_RED);
+  // Right wall (x1) — green
+  addQuad([x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1], MAT_GREEN);
+
+  // Light: small square patch on ceiling
+  const Ls = 0.4; // size of light square
+  const ly = y1 - 1e-4; // slight offset to avoid z-fighting
+  const light = {
+    p0:[-Ls, ly, -Ls], p1:[ Ls, ly, -Ls], p2:[ Ls, ly,  Ls], p3:[-Ls, ly,  Ls],
+    normal: [0,-1,0], area: (2*Ls)*(2*Ls), mat: MAT_LIGHT,
+  };
+  addQuad(light.p0, light.p1, light.p2, light.p3, MAT_LIGHT);
+
+  // Intersection over all triangles
+  function intersect(ro, rd) {
+    let hitT = 1e20, hitN = null, hitIdx = -1;
+    for (let i=0;i<tris.length;i+=3) {
+      const v0=tris[i], v1=tris[i+1], v2=tris[i+2];
+      const h = rayTri(ro, rd, v0, v1, v2);
+      if (h && h.t < hitT) { hitT = h.t; hitN = h.n; hitIdx = i/3; }
+    }
+    if (hitIdx<0) return null;
+    const mat = triMat[hitIdx];
+    const pos = [ro[0]+rd[0]*hitT, ro[1]+rd[1]*hitT, ro[2]+rd[2]*hitT];
+    return { t: hitT, n: hitN, pos, mat };
+  }
+
+  // Visibility check between two points
+  function visible(a, b) {
+    const dir = V.sub(b,a); const dist = V.len(dir); const rd = V.mul(dir, 1/(dist));
+    const eps = 1e-4; const ro = V.add(a, V.mul(rd, eps));
+    const h = intersect(ro, rd);
+    if (!h) return true;
+    return h.t + 1e-4 >= dist; // unobstructed if first hit beyond target
+  }
+
+  // Cosine-weighted hemisphere sample around normal n
+  function cosineHemisphere(n) {
+    const r1 = 2*Math.PI*rng();
+    const r2 = rng(), r2s = Math.sqrt(r2);
+    const u = Math.cos(r1)*r2s, v = Math.sin(r1)*r2s, w = Math.sqrt(1-r2);
+    // Build ONB from n
+    const t = Math.abs(n[1])<0.999 ? V.norm(V.cross([0,1,0], n)) : V.norm(V.cross([1,0,0], n));
+    const b = V.cross(n, t);
+    const d = [ t[0]*u + b[0]*v + n[0]*w,
+                t[1]*u + b[1]*v + n[1]*w,
+                t[2]*u + b[2]*v + n[2]*w ];
+    return V.norm(d);
+  }
+
+  // Sample a point and direction from the light (uniform on area, cosine dir)
+  function sampleLight() {
+    const ux = rng(), uz = rng();
+    const x = (ux*2-1)*0.4; const z = (uz*2-1)*0.4; // within light square of side 0.8
+    const p = [x, light.p0[1], z];
+    const n = light.normal;
+    const d = cosineHemisphere(V.mul(n,-1)); // emit downward (since normal is down)
+    // pdf: area uniform * cosine hemisphere
+    const pdfA = 1 / light.area;
+    const pdfW = Math.max(0, V.dot(V.mul(n,-1), d)) / Math.PI;
+    const emit = materials[MAT_LIGHT].emit; // radiance
+    let throughput = [emit[0], emit[1], emit[2]]; // start with light radiance; scalars below
+    // Scale to account for sampling densities (rough, educational)
+    throughput = V.mul(throughput, 1/(pdfA*pdfW + 1e-8));
+    return { p, n, d, throughput, pdfA, pdfW };
+  }
+
+  // Trace one diffuse bounce; returns next hit or null (escaped)
+  function bounce(ro, rd) {
+    const h = intersect(ro, rd);
+    if (!h) return null;
+    const m = materials[h.mat];
+    return { pos: h.pos, n: h.n, matId: h.mat, mat: m };
+  }
+
+  // ===== BDPT sample for one pixel =====
+  function bdptSample(px, py, cam, maxDepth) {
+    // Camera ray through pixel jitter
+    const u = (px + rng())/cam.w * 2 - 1;
+    const v = (py + rng())/cam.h * 2 - 1;
+    // Screen is at z = -1 in camera space
+    const dirCam = V.norm([u*cam.fovScale, v*cam.fovScale, -1]);
+    // Transform by camera basis
+    const dir = V.norm([
+      cam.right[0]*dirCam[0] + cam.up[0]*dirCam[1] + cam.forward[0]*dirCam[2],
+      cam.right[1]*dirCam[0] + cam.up[1]*dirCam[1] + cam.forward[1]*dirCam[2],
+      cam.right[2]*dirCam[0] + cam.up[2]*dirCam[1] + cam.forward[2]*dirCam[2]
+    ]);
+    const eyeVerts = [];
+    let ro = cam.pos.slice(), rd = dir.slice();
+    let throughput = [1,1,1];
+    for (let d=0; d<maxDepth; d++) {
+      const hit = bounce(ro, rd); if (!hit) break;
+      const nl = V.dot(hit.n, V.mul(rd,-1))>0 ? hit.n : V.mul(hit.n,-1);
+      eyeVerts.push({ pos: hit.pos, n: nl, through: throughput.slice(), matId: hit.matId });
+      const m = hit.mat;
+      if (V.len(m.emit) > 0) { // if we hit light, add emission (eye path endpoint at light)
+        // Simple NEE-like add
+        throughput = V.had(throughput, m.emit);
+        break;
+      }
+      // Diffuse bounce
+      const newDir = cosineHemisphere(nl);
+      const cos = Math.max(0, V.dot(nl, newDir));
+      throughput = V.had(throughput, V.mul(m.albedo, cos/Math.PI));
+      // RR
+      if (d>2) {
+        const q = Math.max(0.05, Math.min(0.95, Math.max(throughput[0], throughput[1], throughput[2])));
+        if (rng()>q) break; else throughput = V.mul(throughput, 1/q);
+      }
+      const eps=1e-4; ro = V.add(hit.pos, V.mul(newDir, eps)); rd = newDir;
+    }
+
+    // Build a short light subpath
+    const lightVerts = [];
+    let Lsamp = sampleLight();
+    let lro = V.add(Lsamp.p, V.mul(Lsamp.d, 1e-4));
+    let lrd = Lsamp.d.slice();
+    let lthrough = Lsamp.throughput.slice();
+    for (let d=0; d<maxDepth; d++) {
+      const hit = bounce(lro, lrd); if (!hit) break;
+      const nl = V.dot(hit.n, V.mul(lrd,-1))>0 ? hit.n : V.mul(hit.n,-1);
+      lightVerts.push({ pos: hit.pos, n: nl, through: lthrough.slice(), matId: hit.matId });
+      const m = hit.mat;
+      if (V.len(m.emit) > 0 && d>0) { // hitting light again; stop
+        break;
+      }
+      // Diffuse bounce
+      const newDir = cosineHemisphere(nl);
+      const cos = Math.max(0, V.dot(nl, newDir));
+      lthrough = V.had(lthrough, V.mul(m.albedo, cos/Math.PI));
+      if (d>2) {
+        const q = Math.max(0.05, Math.min(0.95, Math.max(lthrough[0], lthrough[1], lthrough[2])));
+        if (rng()>q) break; else lthrough = V.mul(lthrough, 1/q);
+      }
+      const eps=1e-4; lro = V.add(hit.pos, V.mul(newDir, eps)); lrd = newDir;
+    }
+
+    // Connect all pairs (eye i) — (light j)
+    let C = [0,0,0];
+    for (let i=0; i<eyeVerts.length; i++) {
+      for (let j=0; j<lightVerts.length; j++) {
+        const a = eyeVerts[i], b = lightVerts[j];
+        if (materials[a.matId]===materials[MAT_LIGHT]) continue; // avoid trivial
+        const dir = V.sub(b.pos, a.pos);
+        const dist2 = Math.max(1e-8, V.dot(dir,dir));
+        const dirN = V.mul(dir, 1/Math.sqrt(dist2));
+        const cos1 = Math.max(0, V.dot(a.n, dirN));
+        const cos2 = Math.max(0, V.dot(b.n, V.mul(dirN,-1)));
+        if (cos1<=0 || cos2<=0) continue;
+        if (!visible(a.pos, b.pos)) continue;
+        const G = (cos1 * cos2) / dist2;
+        const contrib = V.mul(V.had(a.through, V.had(b.through, [G,G,G])), 1 /* no MIS, simple */);
+        C = V.add(C, contrib);
+      }
+    }
+
+    // Also add direct hit to light from last eye vertex (simple NEE)
+    if (eyeVerts.length>0) {
+      const a = eyeVerts[eyeVerts.length-1];
+      // sample one point on light and connect
+      const ux=rng(), uz=rng();
+      const p = [ (ux*2-1)*0.4, light.p0[1], (uz*2-1)*0.4 ];
+      const dir = V.sub(p, a.pos);
+      const dist2 = Math.max(1e-8, V.dot(dir,dir));
+      const dirN = V.mul(dir, 1/Math.sqrt(dist2));
+      const cos1 = Math.max(0, V.dot(a.n, dirN));
+      const cosL = Math.max(0, V.dot(light.normal, V.mul(dirN,-1)));
+      if (cos1>0 && cosL>0 && visible(a.pos, p)) {
+        const G = (cos1 * cosL) / dist2;
+        const Le = materials[MAT_LIGHT].emit;
+        const pdfA = 1/light.area;
+        const contrib = V.mul(V.had(a.through, Le), (G / pdfA));
+        C = V.add(C, contrib);
+      }
+    }
+
+    return C;
+  }
+
+  // ===== Camera / render loop =====
+  const canvas = document.getElementById('view');
+  const ctx = canvas.getContext('2d');
+  let W = canvas.width, H = canvas.height;
+  let accumulation = new Float32Array(W*H*3);
+  let spp = 0;
+
+  const cam = {
+    pos: [0, 1, 3.2],
+    target: [0, 1, 0],
+    upWorld: [0,1,0],
+    fov: 45 * Math.PI/180,
+    w: W, h: H,
+    fovScale: 1,
+    forward:[0,0,-1], right:[1,0,0], up:[0,1,0],
+  };
+  function updateCam() {
+    cam.w=W; cam.h=H;
+    cam.fovScale = Math.tan(cam.fov*0.5);
+    const f = V.norm(V.sub(cam.target, cam.pos));
+    const r = V.norm(V.cross(f, cam.upWorld));
+    const u = V.cross(r, f);
+    cam.forward=f; cam.right=r; cam.up=u;
+  }
+  updateCam();
+
+  // Simple mouse controls
+  let isDown=false, lastX=0, lastY=0; let yaw=0, pitch=0; let dist=3.2;
+  function recalcCamFromAngles() {
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const dir = [sy*cp, sp, -cy*cp];
+    cam.pos = V.add(cam.target, V.mul(dir, dist));
+    updateCam(); resetAccum();
+  }
+  canvas.addEventListener('mousedown', e=>{isDown=true; lastX=e.clientX; lastY=e.clientY;});
+  window.addEventListener('mouseup', ()=>isDown=false);
+  window.addEventListener('mousemove', e=>{
+    if(!isDown) return; const dx=(e.clientX-lastX)/200, dy=(e.clientY-lastY)/200; lastX=e.clientX; lastY=e.clientY;
+    yaw -= dx; pitch = Math.max(-1.2, Math.min(1.2, pitch - dy)); recalcCamFromAngles();
+  });
+  window.addEventListener('wheel', e=>{ dist = Math.max(1.2, Math.min(6, dist + (e.deltaY>0?0.2:-0.2))); recalcCamFromAngles();});
+
+  function resetAccum() { accumulation.fill(0); spp=0; }
+
+  // UI controls
+  const sppSlider = document.getElementById('spp'); const sppVal = document.getElementById('sppv');
+  const depthSlider = document.getElementById('depth'); const depthVal = document.getElementById('depthv');
+  const stats = document.getElementById('stats');
+  sppSlider.oninput = ()=>{ sppVal.textContent = sppSlider.value; };
+  depthSlider.oninput = ()=>{ depthVal.textContent = depthSlider.value; resetAccum(); };
+  document.getElementById('reset').onclick = ()=> resetAccum();
+  document.getElementById('toggle').onclick = ()=> running=!running;
+  document.getElementById('half').onclick = ()=> resizeCanvas(0.5);
+  document.getElementById('one').onclick = ()=> resizeCanvas(1);
+  document.getElementById('double').onclick = ()=> resizeCanvas(2);
+
+  function resizeCanvas(scale) {
+    canvas.width = Math.round(320*scale); canvas.height = Math.round(240*scale);
+    W=canvas.width; H=canvas.height; accumulation = new Float32Array(W*H*3); resetAccum(); updateCam();
+  }
+
+  let running = true;
+
+  function renderFrame() {
+    if (!running) { requestAnimationFrame(renderFrame); return; }
+    const S = parseInt(sppSlider.value,10);
+    const maxDepth = parseInt(depthSlider.value,10);
+    for (let s=0;s<S;s++) {
+      for (let y=0;y<H;y++) {
+        for (let x=0;x<W;x++) {
+          const c = bdptSample(x,y,cam,maxDepth);
+          const idx = (y*W+x)*3;
+          accumulation[idx  ] += c[0];
+          accumulation[idx+1] += c[1];
+          accumulation[idx+2] += c[2];
+        }
+      }
+      spp++;
+    }
+    // tonemap + display
+    const img = ctx.getImageData(0,0,W,H); const d = img.data;
+    const inv = 1/Math.max(1,spp);
+    for (let i=0, p=0; i<accumulation.length; i+=3) {
+      // Simple Reinhard tonemap
+      const r = accumulation[i  ]*inv, g = accumulation[i+1]*inv, b = accumulation[i+2]*inv;
+      const t = (x)=> x/(1+x);
+      d[p++] = Math.pow(t(r), 1/2.2)*255|0;
+      d[p++] = Math.pow(t(g), 1/2.2)*255|0;
+      d[p++] = Math.pow(t(b), 1/2.2)*255|0;
+      d[p++] = 255;
+    }
+    ctx.putImageData(img,0,0);
+    stats.textContent = `${spp} spp — ${W}×${H}`;
+    requestAnimationFrame(renderFrame);
+  }
+  renderFrame();
+})();
+</script>
+</body>
+</html>

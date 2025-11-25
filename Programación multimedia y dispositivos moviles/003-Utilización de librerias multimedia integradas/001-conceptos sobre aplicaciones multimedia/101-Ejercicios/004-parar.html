@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+     </head>
+     <body>
+        <video src="viaje.mp4" controls></video>
+        <button id="reproducir">Reproducir</button>
+        <button id="parar">Parar</button>
+         <script>
+             let video = document.querySelector("video");
+             let boton = document.querySelector("#reproducir");
+             let botonparar = document.querySelector("#parar");
+             boton.onclick = function(){
+                 video.play();
+             }
+             botonparar.onclick = function(){
+                 video.pause();
+             }
+            
+         </script>
+   </body>
+</html>

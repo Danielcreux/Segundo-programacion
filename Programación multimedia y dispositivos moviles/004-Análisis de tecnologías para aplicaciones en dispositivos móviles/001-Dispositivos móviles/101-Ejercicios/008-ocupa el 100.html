@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <title>TAMEify</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+    <style>
+      body,html{background:#121212;color:white;font-family:sans-serif;padding:5px;}
+      body{display:flex;flex-direction:column;gap:20px;}
+      header button{background:magenta;color:white;padding:10px;border:none;border-radius:30px;min-width:40px;}
+      #favoritas{
+        display:grid;
+        grid-template-columns:auto auto;
+        gap:10px;
+      }
+      section article img{
+        height:40px;
+      }
+      section article{
+        gap:20px;
+        display:flex;
+        align-items:center;
+        background:#292929;
+        border-radius:10px;
+      }
+      section article p{
+        font-weight:bold;
+      }
+      #reproductor{
+        width:91%;
+        background:#541010;
+        height:50px;
+        border-radius:10px;
+        padding:10px;
+        position:absolute;
+        top:80%;
+        box-sizing:border-box;
+        transition:all 1s;
+        overflow:hidden;
+      }
+      .pantallacompleta{
+        position:absolute !important;
+        top:0px !important;
+        left:0px;
+        width:100% !important;
+        height:100% !important;
+      }
+    </style>
+  </head>
+  <body>
+    <header>  
+      <button>J</button>
+      <button>Todos</button>
+      <button>Música</button>
+      <button>Podcasts</button>
+    </header>
+    <section id="favoritas">
+      <article>
+        <img src="joshue.jpeg">
+        <p>Artista</p>
+      </article>
+      <article>
+        <img src="joshue.jpeg">
+        <p>Artista</p>
+      </article>
+      <article>
+        <img src="joshue.jpeg">
+        <p>Artista</p>
+      </article>
+      <article>
+        <img src="joshue.jpeg">
+        <p>Artista</p>
+      </article>
+      <article>
+        <img src="joshue.jpeg">
+        <p>Artista</p>
+      </article>
+      <article>
+        <img src="joshue.jpeg">
+        <p>Artista</p>
+      </article>
+      <article>
+        <img src="joshue.jpeg">
+        <p>Artista</p>
+      </article>
+      <article>
+        <img src="joshue.jpeg">
+        <p>Artista</p>
+      </article>
+    </section>
+    <section id="reproductor">
+      <h3>Artista</h3>
+      <img src="joshue.jpeg">
+      <audio src="musica.mp3" controls>
+    </section>
+    <script>
+      let reproductor = document.querySelector("#reproductor");
+      reproductor.onclick = function(){
+        this.classList.add("pantallacompleta")
+      }
+    </script>
+  </body>
+</html>

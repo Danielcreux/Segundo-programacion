@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monte Carlo Path Tracer - Cornell Box</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        #canvas3d { position: absolute; top: 0; left: 0; }
+        #canvasPT { position: absolute; top: 0; left: 0; }
+        #controls { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            background: rgba(0,0,0,0.7); 
+            color: white; 
+            padding: 10px; 
+            border-radius: 5px;
+            font-size: 12px;
+            max-width: 250px;
+        }
+        button { margin: 5px 0; padding: 5px 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas3d"></canvas>
+    <canvas id="canvasPT"></canvas>
+    <div id="controls">
+        <div><strong>Monte Carlo Path Tracer</strong></div>
+        <div>Cores Used: <span id="cores">0</span> / <span id="totalCores">0</span></div>
+        <div>Total Samples: <span id="samples">0</span></div>
+        <div>Samples/sec: <span id="sps">0</span></div>
+        <button id="togglePT">Start Path Tracing</button>
+        <button id="reset">Reset</button>
+        <div style="margin-top: 10px;">
+            <label>Pixel Size: <input type="number" id="pixelSize" value="1" min="1" max="16"></label>
+            <span style="font-size: 10px; color: #aaa;">(1=full quality, 4=4x faster)</span>
+        </div>
+        <div>
+            <label>Samples/Frame: <input type="number" id="spp" value="1000" min="100" max="10000"></label>
+        </div>
+        <div>
+            <label>Max Bounces: <input type="number" id="bounces" value="5" min="1" max="10"></label>
+        </div>
+        <div style="margin-top: 5px; font-size: 11px; color: #aaa;">
+            Click to enable FPS controls<br>
+            WASD: Move | Mouse: Look<br>
+            Space: Up | Shift: Down/Sprint<br>
+            Motion blur effect enabled
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // =============================================
+        // Three.js Scene Setup
+        // =============================================
+        const canvas3d = document.getElementById('canvas3d');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const controls = new THREE.OrbitControls(camera, canvas3d);
+        controls.enableDamping = true;
+        controls.enabled = false; // Disable orbit controls, we'll use FPS controls
+
+        // =============================================
+        // FPS Controls
+        // =============================================
+        const moveSpeed = 0.05;
+        const mouseSensitivity = 0.002;
+        const keys = { w: false, a: false, s: false, d: false, shift: false, space: false };
+        let pitch = 0;
+        let yaw = 0;
+        let isPointerLocked = false;
+
+        // Pointer lock
+        document.body.addEventListener('click', () => {
+            if (!isPointerLocked) {
+                document.body.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            isPointerLocked = document.pointerLockElement === document.body;
+            if (isPointerLocked) {
+                console.log('Pointer locked - use WASD to move, mouse to look');
+            } else {
+                console.log('Pointer unlocked - click to lock again');
+            }
+        });
+
+        // Mouse movement
+        document.addEventListener('mousemove', (e) => {
+            if (!isPointerLocked) return;
+
+            yaw -= e.movementX * mouseSensitivity;
+            pitch -= e.movementY * mouseSensitivity;
+            pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, pitch));
+
+            const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+            camera.quaternion.setFromEuler(euler);
+        });
+
+        // Keyboard input
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (keys.hasOwnProperty(key)) {
+                keys[key] = true;
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (keys.hasOwnProperty(key)) {
+                keys[key] = false;
+                e.preventDefault();
+            }
+        });
+
+        // Update camera position
+        function updateMovement() {
+            const forward = new THREE.Vector3(0, 0, -1);
+            forward.applyQuaternion(camera.quaternion);
+            forward.y = 0;
+            forward.normalize();
+
+            const right = new THREE.Vector3(1, 0, 0);
+            right.applyQuaternion(camera.quaternion);
+            right.y = 0;
+            right.normalize();
+
+            const speed = keys.shift && (keys.w || keys.s || keys.a || keys.d) ? moveSpeed * 2 : moveSpeed;
+
+            if (keys.w) {
+                camera.position.addScaledVector(forward, speed);
+            }
+            if (keys.s) {
+                camera.position.addScaledVector(forward, -speed);
+            }
+            if (keys.d) {
+                camera.position.addScaledVector(right, speed);
+            }
+            if (keys.a) {
+                camera.position.addScaledVector(right, -speed);
+            }
+            if (keys.space) {
+                camera.position.y += speed;
+            }
+            if (keys.shift && !keys.w && !keys.s && !keys.a && !keys.d) {
+                camera.position.y -= speed;
+            }
+        }
+
+        // =============================================
+        // Cornell Box Geometry
+        // =============================================
+        const boxSize = 5;
+        const sceneObjects = [];
+
+        function addObject(mesh, type, color, emission = null) {
+            scene.add(mesh);
+            sceneObjects.push({ 
+                mesh, 
+                type, 
+                color, 
+                emission,
+                worldMatrix: mesh.matrixWorld.clone()
+            });
+        }
+
+        // Left wall (red)
+        const leftWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xff0000, side: THREE.DoubleSide })
+        );
+        leftWall.position.set(-boxSize/2, 0, 0);
+        leftWall.rotation.y = Math.PI / 2;
+        addObject(leftWall, 'diffuse', [1, 0, 0]);
+
+        // Right wall (green)
+        const rightWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0x00ff00, side: THREE.DoubleSide })
+        );
+        rightWall.position.set(boxSize/2, 0, 0);
+        rightWall.rotation.y = -Math.PI / 2;
+        addObject(rightWall, 'diffuse', [0, 1, 0]);
+
+        // Back wall (white)
+        const backWall = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+        );
+        backWall.position.set(0, 0, -boxSize/2);
+        addObject(backWall, 'diffuse', [0.95, 0.95, 0.95]);
+
+        // Floor (white) - facing up
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+        );
+        floor.position.set(0, -boxSize/2, 0);
+        floor.rotation.x = -Math.PI / 2;
+        addObject(floor, 'diffuse', [0.95, 0.95, 0.95]);
+
+        // Ceiling (white)
+        const ceiling = new THREE.Mesh(
+            new THREE.PlaneGeometry(boxSize, boxSize),
+            new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+        );
+        ceiling.position.set(0, boxSize/2, 0);
+        ceiling.rotation.x = -Math.PI / 2;
+        addObject(ceiling, 'diffuse', [0.95, 0.95, 0.95]);
+
+        // Light (area light) - much brighter
+        const lightSize = 1.5;
+        const light = new THREE.Mesh(
+            new THREE.PlaneGeometry(lightSize, lightSize),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+        );
+        light.position.set(0, boxSize/2 - 0.05, 0);
+        light.rotation.x = -Math.PI / 2;
+        addObject(light, 'emissive', [1, 1, 1], [20, 20, 20]);
+
+        // Sphere 1 (diffuse white)
+        const sphere1 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.7, 32, 32),
+            new THREE.MeshLambertMaterial({ color: 0xffffff })
+        );
+        sphere1.position.set(-1.2, -boxSize/2 + 0.7, 0.5);
+        addObject(sphere1, 'diffuse', [0.9, 0.9, 0.9]);
+
+        // Sphere 2 (reflective)
+        const sphere2 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.7, 32, 32),
+            new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 })
+        );
+        sphere2.position.set(1.2, -boxSize/2 + 0.7, -0.5);
+        addObject(sphere2, 'reflective', [0.95, 0.95, 0.95]);
+
+        // Add some lighting for Three.js preview
+        const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+        pointLight.position.set(0, boxSize/2 - 0.5, 0);
+        scene.add(pointLight);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        camera.position.set(0, 0, 8);
+        pitch = 0;
+        yaw = 0;
+        camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+
+        // Update world matrices
+        scene.updateMatrixWorld(true);
+        sceneObjects.forEach(obj => {
+            obj.worldMatrix = obj.mesh.matrixWorld.clone();
+        });
+
+        // =============================================
+        // Monte Carlo Progressive Path Tracer
+        // =============================================
+        const canvasPT = document.getElementById('canvasPT');
+        const ctx = canvasPT.getContext('2d');
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvasPT.width = width;
+        canvasPT.height = height;
+
+        const totalCores = navigator.hardwareConcurrency || 4;
+        const numCores = Math.max(1, Math.floor(totalCores / 1));
+        document.getElementById('cores').textContent = numCores;
+        document.getElementById('totalCores').textContent = totalCores;
+
+        let workers = [];
+        let isTracing = false;
+        let totalSamples = 0;
+        let accumBuffer = new Float32Array(width * height * 3);
+        let imageData = ctx.createImageData(width, height);
+        let lastSampleCount = 0;
+        let lastTime = Date.now();
+
+        // Worker code for Monte Carlo sampling
+        const workerCode = `
+            const raycaster = {};
+            
+            function intersectRay(origin, direction, objects) {
+                let closest = null;
+                let minDist = Infinity;
+                
+                for (const obj of objects) {
+                    const result = intersectObject(origin, direction, obj);
+                    if (result && result.distance < minDist) {
+                        minDist = result.distance;
+                        closest = result;
+                        closest.object = obj;
+                    }
+                }
+                
+                return closest;
+            }
+            
+            function intersectObject(origin, direction, obj) {
+                if (obj.geometry === 'sphere') {
+                    return intersectSphere(origin, direction, obj);
+                } else if (obj.geometry === 'plane') {
+                    return intersectPlane(origin, direction, obj);
+                }
+                return null;
+            }
+            
+            function intersectSphere(origin, direction, obj) {
+                const center = obj.position;
+                const radius = obj.radius;
+                const oc = [origin[0] - center[0], origin[1] - center[1], origin[2] - center[2]];
+                const a = direction[0]*direction[0] + direction[1]*direction[1] + direction[2]*direction[2];
+                const b = 2.0 * (oc[0]*direction[0] + oc[1]*direction[1] + oc[2]*direction[2]);
+                const c = oc[0]*oc[0] + oc[1]*oc[1] + oc[2]*oc[2] - radius*radius;
+                const discriminant = b*b - 4*a*c;
+                
+                if (discriminant < 0) return null;
+                
+                const t = (-b - Math.sqrt(discriminant)) / (2*a);
+                if (t < 0.001) return null;
+                
+                const point = [
+                    origin[0] + direction[0] * t,
+                    origin[1] + direction[1] * t,
+                    origin[2] + direction[2] * t
+                ];
+                
+                const normal = [
+                    (point[0] - center[0]) / radius,
+                    (point[1] - center[1]) / radius,
+                    (point[2] - center[2]) / radius
+                ];
+                
+                return { distance: t, point, normal };
+            }
+            
+            function intersectPlane(origin, direction, obj) {
+                const normal = obj.normal;
+                const point = obj.position;
+                
+                const denom = normal[0]*direction[0] + normal[1]*direction[1] + normal[2]*direction[2];
+                if (Math.abs(denom) < 0.0001) return null;
+                
+                const diff = [point[0] - origin[0], point[1] - origin[1], point[2] - origin[2]];
+                const t = (diff[0]*normal[0] + diff[1]*normal[1] + diff[2]*normal[2]) / denom;
+                
+                if (t < 0.001) return null;
+                
+                const hitPoint = [
+                    origin[0] + direction[0] * t,
+                    origin[1] + direction[1] * t,
+                    origin[2] + direction[2] * t
+                ];
+                
+                const localPoint = [
+                    hitPoint[0] - point[0],
+                    hitPoint[1] - point[1],
+                    hitPoint[2] - point[2]
+                ];
+                
+                const size = obj.size;
+                const u = obj.uAxis;
+                const v = obj.vAxis;
+                
+                const uCoord = localPoint[0]*u[0] + localPoint[1]*u[1] + localPoint[2]*u[2];
+                const vCoord = localPoint[0]*v[0] + localPoint[1]*v[1] + localPoint[2]*v[2];
+                
+                if (Math.abs(uCoord) > size/2 || Math.abs(vCoord) > size/2) return null;
+                
+                let finalNormal = normal;
+                if (denom > 0) {
+                    finalNormal = [-normal[0], -normal[1], -normal[2]];
+                }
+                
+                return { distance: t, point: hitPoint, normal: finalNormal };
+            }
+            
+            function random() {
+                return Math.random();
+            }
+            
+            function randomInUnitSphere() {
+                while (true) {
+                    const v = [random() * 2 - 1, random() * 2 - 1, random() * 2 - 1];
+                    if (v[0]*v[0] + v[1]*v[1] + v[2]*v[2] < 1) return v;
+                }
+            }
+            
+            function randomInHemisphere(normal) {
+                const v = randomInUnitSphere();
+                const dot = v[0]*normal[0] + v[1]*normal[1] + v[2]*normal[2];
+                if (dot > 0) return v;
+                return [-v[0], -v[1], -v[2]];
+            }
+            
+            function reflect(v, n) {
+                const dot = v[0]*n[0] + v[1]*n[1] + v[2]*n[2];
+                return [v[0] - 2*dot*n[0], v[1] - 2*dot*n[1], v[2] - 2*dot*n[2]];
+            }
+            
+            function normalize(v) {
+                const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+                return len > 0 ? [v[0]/len, v[1]/len, v[2]/len] : v;
+            }
+            
+            function trace(origin, direction, depth, maxDepth, objects) {
+                if (depth >= maxDepth) return [0, 0, 0];
+                
+                const hit = intersectRay(origin, direction, objects);
+                if (!hit) return [0, 0, 0];
+                
+                const obj = hit.object;
+                const hitPoint = hit.point;
+                const normal = hit.normal;
+                
+                const offset = 0.001;
+                const offsetPoint = [
+                    hitPoint[0] + normal[0] * offset,
+                    hitPoint[1] + normal[1] * offset,
+                    hitPoint[2] + normal[2] * offset
+                ];
+                
+                if (obj.type === 'emissive') {
+                    return obj.emission;
+                }
+                
+                const attenuation = obj.color;
+                
+                if (obj.type === 'reflective') {
+                    const newDir = reflect(direction, normal);
+                    const normalized = normalize(newDir);
+                    const incoming = trace(offsetPoint, normalized, depth + 1, maxDepth, objects);
+                    return [
+                        attenuation[0] * incoming[0],
+                        attenuation[1] * incoming[1],
+                        attenuation[2] * incoming[2]
+                    ];
+                } else {
+                    const newDir = randomInHemisphere(normal);
+                    const normalized = normalize(newDir);
+                    
+                    const cosTheta = Math.max(0, 
+                        normalized[0] * normal[0] + 
+                        normalized[1] * normal[1] + 
+                        normalized[2] * normal[2]
+                    );
+                    
+                    const incoming = trace(offsetPoint, normalized, depth + 1, maxDepth, objects);
+                    const scale = 2.0 * cosTheta;
+                    
+                    return [
+                        attenuation[0] * incoming[0] * scale,
+                        attenuation[1] * incoming[1] * scale,
+                        attenuation[2] * incoming[2] * scale
+                    ];
+                }
+            }
+            
+            self.onmessage = function(e) {
+                const { camera, objects, samplesPerBatch, maxBounces, width, height, pixelSize } = e.data;
+                
+                const sampleData = [];
+                
+                // Monte Carlo: randomly sample pixels across entire image
+                for (let s = 0; s < samplesPerBatch; s++) {
+                    // Sample at pixelSize intervals
+                    const gridWidth = Math.ceil(width / pixelSize);
+                    const gridHeight = Math.ceil(height / pixelSize);
+                    
+                    const gridX = Math.floor(random() * gridWidth);
+                    const gridY = Math.floor(random() * gridHeight);
+                    
+                    const x = gridX * pixelSize;
+                    const y = gridY * pixelSize;
+                    
+                    // Sample from center of pixel block
+                    const u = (x + pixelSize / 2 + random() * pixelSize - pixelSize / 2) / width;
+                    const v = (y + pixelSize / 2 + random() * pixelSize - pixelSize / 2) / height;
+                    
+                    const px = (u * 2 - 1) * camera.tanFov * camera.aspect;
+                    const py = -(v * 2 - 1) * camera.tanFov;
+                    
+                    let dir = [px, py, -1];
+                    const len = Math.sqrt(dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2]);
+                    dir = [dir[0]/len, dir[1]/len, dir[2]/len];
+                    
+                    const q = camera.quaternion;
+                    const rotated = rotateByQuaternion(dir, q);
+                    
+                    const color = trace(camera.position, rotated, 0, maxBounces, objects);
+                    
+                    // Store as individual samples with pixel block coordinates
+                    sampleData.push({
+                        x: x,
+                        y: y,
+                        pixelSize: pixelSize,
+                        color: color
+                    });
+                }
+                
+                self.postMessage({ sampleData });
+            };
+            
+            function rotateByQuaternion(v, q) {
+                const qx = q[0], qy = q[1], qz = q[2], qw = q[3];
+                const x = v[0], y = v[1], z = v[2];
+                
+                const ix = qw * x + qy * z - qz * y;
+                const iy = qw * y + qz * x - qx * z;
+                const iz = qw * z + qx * y - qy * x;
+                const iw = -qx * x - qy * y - qz * z;
+                
+                return [
+                    ix * qw + iw * -qx + iy * -qz - iz * -qy,
+                    iy * qw + iw * -qy + iz * -qx - ix * -qz,
+                    iz * qw + iw * -qz + ix * -qy - iy * -qx
+                ];
+            }
+        `;
+
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(blob);
+
+        // Create workers
+        function initWorkers() {
+            workers.forEach(w => w.terminate());
+            workers = [];
+            
+            for (let i = 0; i < numCores; i++) {
+                const worker = new Worker(workerUrl);
+                worker.onmessage = handleWorkerResult;
+                worker.idle = true;
+                workers.push(worker);
+            }
+        }
+
+        // Convert Three.js objects to worker-compatible format
+        function serializeObjects() {
+            const serialized = [];
+            
+            for (const obj of sceneObjects) {
+                const mesh = obj.mesh;
+                
+                if (mesh.geometry.type === 'SphereGeometry') {
+                    serialized.push({
+                        geometry: 'sphere',
+                        position: [mesh.position.x, mesh.position.y, mesh.position.z],
+                        radius: mesh.geometry.parameters.radius,
+                        type: obj.type,
+                        color: obj.color,
+                        emission: obj.emission
+                    });
+                } else if (mesh.geometry.type === 'PlaneGeometry') {
+                    const normal = new THREE.Vector3(0, 0, 1);
+                    normal.applyQuaternion(mesh.quaternion).normalize();
+                    
+                    const uAxis = new THREE.Vector3(1, 0, 0);
+                    uAxis.applyQuaternion(mesh.quaternion).normalize();
+                    
+                    const vAxis = new THREE.Vector3(0, 1, 0);
+                    vAxis.applyQuaternion(mesh.quaternion).normalize();
+                    
+                    serialized.push({
+                        geometry: 'plane',
+                        position: [mesh.position.x, mesh.position.y, mesh.position.z],
+                        normal: [normal.x, normal.y, normal.z],
+                        uAxis: [uAxis.x, uAxis.y, uAxis.z],
+                        vAxis: [vAxis.x, vAxis.y, vAxis.z],
+                        size: Math.max(mesh.geometry.parameters.width, mesh.geometry.parameters.height),
+                        type: obj.type,
+                        color: obj.color,
+                        emission: obj.emission
+                    });
+                }
+            }
+            
+            return serialized;
+        }
+
+        // Sample count per pixel buffer for proper averaging
+        let sampleCountPerPixel = new Uint32Array(width * height);
+
+        // Handle worker results
+        function handleWorkerResult(e) {
+            const { sampleData } = e.data;
+            
+            // Accumulate samples into buffer
+            for (const sample of sampleData) {
+                const pixelSize = sample.pixelSize;
+                
+                // Fill all pixels in the block
+                for (let dy = 0; dy < pixelSize && sample.y + dy < height; dy++) {
+                    for (let dx = 0; dx < pixelSize && sample.x + dx < width; dx++) {
+                        const px = sample.x + dx;
+                        const py = sample.y + dy;
+                        const pixelIdx = py * width + px;
+                        const idx = pixelIdx * 3;
+                        
+                        accumBuffer[idx] += sample.color[0];
+                        accumBuffer[idx + 1] += sample.color[1];
+                        accumBuffer[idx + 2] += sample.color[2];
+                        sampleCountPerPixel[pixelIdx]++;
+                    }
+                }
+            }
+            
+            totalSamples += sampleData.length;
+            
+            // Mark worker as idle and continue
+            e.target.idle = true;
+            if (isTracing) {
+                assignWork(e.target);
+            }
+        }
+
+        // Update display (called periodically)
+        function updateDisplay() {
+            if (totalSamples === 0) return;
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const pixelIdx = y * width + x;
+                    const idx = pixelIdx * 3;
+                    const imgIdx = pixelIdx * 4;
+                    
+                    const count = sampleCountPerPixel[pixelIdx];
+                    if (count === 0) {
+                        // No samples yet for this pixel, keep it black
+                        imageData.data[imgIdx] = 0;
+                        imageData.data[imgIdx + 1] = 0;
+                        imageData.data[imgIdx + 2] = 0;
+                        imageData.data[imgIdx + 3] = 255;
+                        continue;
+                    }
+                    
+                    const scale = 1.0 / count;
+                    
+                    let r = accumBuffer[idx] * scale;
+                    let g = accumBuffer[idx + 1] * scale;
+                    let b = accumBuffer[idx + 2] * scale;
+                    
+                    // Gamma correction
+                    r = Math.pow(r, 1/2.2);
+                    g = Math.pow(g, 1/2.2);
+                    b = Math.pow(b, 1/2.2);
+                    
+                    imageData.data[imgIdx] = Math.min(255, r * 255);
+                    imageData.data[imgIdx + 1] = Math.min(255, g * 255);
+                    imageData.data[imgIdx + 2] = Math.min(255, b * 255);
+                    imageData.data[imgIdx + 3] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            document.getElementById('samples').textContent = totalSamples;
+            
+            // Calculate samples per second
+            const now = Date.now();
+            const elapsed = (now - lastTime) / 1000;
+            if (elapsed > 1.0) {
+                const sps = Math.floor((totalSamples - lastSampleCount) / elapsed);
+                document.getElementById('sps').textContent = sps.toLocaleString();
+                lastSampleCount = totalSamples;
+                lastTime = now;
+            }
+        }
+
+        // Assign work to a worker
+        function assignWork(worker) {
+            if (!isTracing) return;
+            
+            worker.idle = false;
+            
+            const cameraData = {
+                position: [camera.position.x, camera.position.y, camera.position.z],
+                quaternion: [camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w],
+                tanFov: Math.tan(camera.fov * Math.PI / 360),
+                aspect: camera.aspect
+            };
+            
+            const pixelSize = parseInt(document.getElementById('pixelSize').value);
+            
+            worker.postMessage({
+                camera: cameraData,
+                objects: serializeObjects(),
+                samplesPerBatch: parseInt(document.getElementById('spp').value),
+                maxBounces: parseInt(document.getElementById('bounces').value),
+                width: width,
+                height: height,
+                pixelSize: pixelSize
+            });
+        }
+
+        // Start rendering
+        function startRendering() {
+            isTracing = true;
+            initWorkers();
+            lastTime = Date.now();
+            lastSampleCount = 0;
+            
+            // Start all workers
+            workers.forEach(w => assignWork(w));
+        }
+
+        // Stop rendering
+        function stopRendering() {
+            isTracing = false;
+        }
+
+        // Reset
+        function resetRendering() {
+            stopRendering();
+            ctx.clearRect(0, 0, width, height);
+            imageData = ctx.createImageData(width, height);
+            accumBuffer = new Float32Array(width * height * 3);
+            sampleCountPerPixel = new Uint32Array(width * height);
+            totalSamples = 0;
+            lastSampleCount = 0;
+            document.getElementById('samples').textContent = '0';
+            document.getElementById('sps').textContent = '0';
+        }
+
+        // =============================================
+        // Controls
+        // =============================================
+        document.getElementById('togglePT').addEventListener('click', () => {
+            if (isTracing) {
+                stopRendering();
+                document.getElementById('togglePT').textContent = 'Resume Path Tracing';
+            } else {
+                if (totalSamples === 0) {
+                    startRendering();
+                } else {
+                    isTracing = true;
+                    workers.filter(w => w.idle).forEach(w => assignWork(w));
+                }
+                document.getElementById('togglePT').textContent = 'Pause Path Tracing';
+            }
+        });
+
+        document.getElementById('reset').addEventListener('click', resetRendering);
+
+        // =============================================
+        // Animation Loop
+        // =============================================
+        let frameCount = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            updateMovement();
+            
+            renderer.render(scene, camera);
+            
+            // Update display every few frames
+            if (isTracing && frameCount++ % 2 === 0) {
+                updateDisplay();
+            }
+        }
+        animate();
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+            
+            canvasPT.width = width;
+            canvasPT.height = height;
+            resetRendering();
+        });
+    </script>
+</body>
+</html>

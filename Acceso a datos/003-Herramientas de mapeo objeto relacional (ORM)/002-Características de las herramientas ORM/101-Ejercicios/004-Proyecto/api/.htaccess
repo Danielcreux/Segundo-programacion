@@ -1,0 +1,6 @@
+RewriteEngine On
+RewriteBase /dam2526/Segundo/Acceso%20a%20datos/003-Herramientas%20de%20mapeo%20objeto%20relacional%20(ORM)/002-Caracter%C3%ADsticas%20de%20las%20herramientas%20ORM/101-Ejercicios/004-Proyecto/api/
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]

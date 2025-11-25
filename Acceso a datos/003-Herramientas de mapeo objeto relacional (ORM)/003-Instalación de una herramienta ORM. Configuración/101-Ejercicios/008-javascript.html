@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Waveform desde micrófono</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+  #controles {
+    display: flex;
+    gap: 0.5rem;
+  }
+  button {
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    border: 1px solid #333;
+    background: #fff;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  #waveform {
+    background: #ffffff;
+    border: 1px solid #ccc;
+  }
+  #estado {
+    font-size: 0.9rem;
+    color: #555;
+  }
+</style>
+</head>
+<body>
+
+<h1>Waveform en Canvas desde micrófono</h1>
+
+<div id="controles">
+  <button id="btnStart">Iniciar captura</button>
+  <button id="btnStop" disabled>Detener</button>
+</div>
+
+<canvas id="waveform" width="1600" height="400"></canvas>
+
+<div id="estado">Pulsa "Iniciar captura" para usar el micrófono.</div>
+
+<script>
+/*
+  Demo de visualización de waveform en canvas usando el micrófono.
+
+  - Pide permiso de acceso al micrófono (navigator.mediaDevices.getUserMedia).
+  - Crea un AudioContext + AnalyserNode.
+  - En cada frame (requestAnimationFrame) obtiene muestras de dominio temporal
+    y dibuja "barras" verticales con extremos redondeados (lineCap = 'round').
+*/
+
+// --- Configuración de la visualización ---
+const CONFIG = {
+  visualSamples: 300,     // número de barras visibles
+  thickness: 6,           // grosor de la barra
+  bgColor: '#ffffff',
+  waveColor: '#000000'
+};
+
+// --- Referencias al DOM ---
+const canvas = document.getElementById('waveform');
+const ctx = canvas.getContext('2d');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
+const estado = document.getElementById('estado');
+
+// --- Variables de audio ---
+let audioContext = null;
+let analyser = null;
+let dataArray = null;
+let mediaStream = null;
+let animationId = null;
+
+// --- Función principal de dibujo ---
+function draw() {
+  if (!analyser) return;
+
+  const ancho = canvas.width;
+  const alto = canvas.height;
+  const centerY = alto / 2;
+  const ampMax = (alto / 2) - 1;
+
+  // Rellenar fondo
+  ctx.fillStyle = CONFIG.bgColor;
+  ctx.fillRect(0, 0, ancho, alto);
+
+  // Obtener datos de waveform
+  analyser.getByteTimeDomainData(dataArray);
+
+  const bufferLength = dataArray.length;
+  const visualSamples = CONFIG.visualSamples;
+  const step = bufferLength / visualSamples;
+  const pasoX = ancho / visualSamples;
+
+  ctx.lineWidth = CONFIG.thickness;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = CONFIG.waveColor;
+
+  // Dibujar barras verticales con extremos redondeados
+  for (let i = 0; i < visualSamples; i++) {
+    const index = Math.floor(i * step);
+    const v = (dataArray[index] - 128) / 128; // rango -1..1
+
+    const yTop = centerY - v * ampMax;
+    const yBottom = centerY + v * ampMax;
+
+    const x = i * pasoX + pasoX / 2;
+
+    // Línea con extremos redondos: una sola primitiva, sin “truco” de círculos
+    ctx.beginPath();
+    ctx.moveTo(x, yTop);
+    ctx.lineTo(x, yBottom);
+    ctx.stroke();
+  }
+
+  animationId = requestAnimationFrame(draw);
+}
+
+// --- Iniciar captura desde el micrófono ---
+async function startCapture() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    estado.textContent = 'Tu navegador no soporta getUserMedia.';
+    return;
+  }
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioContext.createMediaStreamSource(mediaStream);
+
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    const bufferLength = analyser.fftSize;
+    dataArray = new Uint8Array(bufferLength);
+
+    source.connect(analyser);
+
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+    estado.textContent = 'Capturando audio...';
+
+    draw();
+  } catch (err) {
+    console.error(err);
+    estado.textContent = 'Error al acceder al micrófono: ' + err.message;
+  }
+}
+
+// --- Detener captura ---
+function stopCapture() {
+  if (animationId !== null) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(track => track.stop());
+    mediaStream = null;
+  }
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+  analyser = null;
+  dataArray = null;
+
+  btnStart.disabled = false;
+  btnStop.disabled = true;
+  estado.textContent = 'Captura detenida.';
+}
+
+// --- Eventos de los botones ---
+btnStart.addEventListener('click', startCapture);
+btnStop.addEventListener('click', stopCapture);
+</script>
+
+</body>
+</html>
+

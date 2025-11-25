@@ -18,6 +18,8 @@ cursor.execute('''
 ) ENGINE = InnoDB;
 ''')
 
+
+
 conexion.commit()
 
 cursor.close()

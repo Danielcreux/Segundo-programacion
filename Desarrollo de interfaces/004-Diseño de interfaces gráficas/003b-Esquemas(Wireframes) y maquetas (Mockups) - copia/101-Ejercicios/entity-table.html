@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>ERP Formación - Alumnos</title>
+  <link rel="stylesheet" href="css/erp.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="logo-ensensyem-240x52.png" alt="Logo" />
+        <div class="sidebar-brand-text">
+          <span>ERP</span>
+          <strong>Formación</strong>
+        </div>
+      </div>
+
+      <div class="sidebar-section-title">Módulos</div>
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-item active">
+          <span class="icon">📚</span>
+          <span>SIS Académico</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">📈</span>
+          <span>Marketing</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">👥</span>
+          <span>CRM</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">💶</span>
+          <span>Facturación</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">⚙️</span>
+          <span>Común</span>
+        </li>
+      </ul>
+
+      <div class="sidebar-section-title">Entidades</div>
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-item active">
+          <span class="icon">👨‍🎓</span>
+          <span>Alumnos</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">🏢</span>
+          <span>Empresas</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">🧑‍🏫</span>
+          <span>Profesores</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">📆</span>
+          <span>Grupos / Ediciones</span>
+        </li>
+        <li class="sidebar-nav-item">
+          <span class="icon">🏫</span>
+          <span>Aulas</span>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div>Sesión: <strong>Administrador</strong></div>
+        <div><a href="dashboard.html">Volver al dashboard</a></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="table-header">
+        <div class="table-title">
+          <h1>Alumnos</h1>
+          <span>
+            Listado simulado de alumnos del ERP. Aquí luego iría el CRUD real
+            y filtros avanzados.
+          </span>
+        </div>
+        <div class="table-actions">
+          <button class="btn btn-secondary">Exportar Excel</button>
+          <button class="btn btn-primary">Nuevo alumno</button>
+        </div>
+      </header>
+
+      <section class="table-filters">
+        <div style="min-width: 180px;">
+          <input type="text" placeholder="Buscar por nombre, email, empresa..." />
+        </div>
+        <div style="min-width: 150px;">
+          <select>
+            <option>Todos los cursos</option>
+            <option>Revit Avanzado</option>
+            <option>AutoCAD Intensivo</option>
+            <option>SketchUp Básico</option>
+          </select>
+        </div>
+        <div style="min-width: 150px;">
+          <select>
+            <option>Estado de matrícula</option>
+            <option>Pendiente de pago</option>
+            <option>Confirmado</option>
+            <option>Baja</option>
+          </select>
+        </div>
+        <div style="min-width: 150px;">
+          <select>
+            <option>Tipo de cliente</option>
+            <option>Particular</option>
+            <option>Empresa</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Alumno</th>
+              <th>Correo</th>
+              <th>Empresa</th>
+              <th>Curso / Grupo</th>
+              <th>Tipo</th>
+              <th>Bonificación</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Laura Martínez</td>
+              <td>laura.martinez@example.com</td>
+              <td>Particular</td>
+              <td>Revit Avanzado · Grupo R24-03</td>
+              <td>
+                <span class="badge badge-info badge-pill">
+                  <span class="badge-dot"></span> Alumna
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-warning badge-pill">
+                  <span class="badge-dot"></span> No bonificado
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-success badge-pill">
+                  <span class="badge-dot"></span> Confirmado
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td>Carlos Pérez</td>
+              <td>c.perez@acme.com</td>
+              <td>ACME Ingeniería</td>
+              <td>Revit Avanzado · Grupo R24-03</td>
+              <td>
+                <span class="badge badge-info badge-pill">
+                  <span class="badge-dot"></span> Empresa
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-success badge-pill">
+                  <span class="badge-dot"></span> Bonificado
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-success badge-pill">
+                  <span class="badge-dot"></span> Confirmado
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td>María López</td>
+              <td>m.lopez@acme.com</td>
+              <td>ACME Ingeniería</td>
+              <td>Revit Avanzado · Grupo R24-03</td>
+              <td>
+                <span class="badge badge-info badge-pill">
+                  <span class="badge-dot"></span> Empresa
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-success badge-pill">
+                  <span class="badge-dot"></span> Bonificado
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-warning badge-pill">
+                  <span class="badge-dot"></span> Pend. documentación
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td>Javier Ruiz</td>
+              <td>j.ruiz@constructora-x.com</td>
+              <td>Constructora X</td>
+              <td>AutoCAD Intensivo · Grupo A24-02</td>
+              <td>
+                <span class="badge badge-info badge-pill">
+                  <span class="badge-dot"></span> Empresa
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-warning badge-pill">
+                  <span class="badge-dot"></span> No bonificado
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-success badge-pill">
+                  <span class="badge-dot"></span> Confirmado
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td>Andrea Gómez</td>
+              <td>andrea.gomez@example.com</td>
+              <td>Particular</td>
+              <td>SketchUp Básico · Grupo S24-01</td>
+              <td>
+                <span class="badge badge-info badge-pill">
+                  <span class="badge-dot"></span> Alumna
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-success badge-pill">
+                  <span class="badge-dot"></span> Bonificado</span>
+              </td>
+              <td>
+                <span class="badge badge-warning badge-pill">
+                  <span class="badge-dot"></span> Pend. pago
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="table-footer">
+          <div>Mostrando 5 de 32 alumnos</div>
+          <div class="pagination">
+            <button>&laquo;</button>
+            <button class="active">1</button>
+            <button>2</button>
+            <button>3</button>
+            <button>&raquo;</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

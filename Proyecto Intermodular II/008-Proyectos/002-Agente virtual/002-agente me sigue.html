@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Avatar follows your face – Three.js + MediaPipe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="icon" href="data:,">
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#0e0f13; color:#e9eef3; font-family:system-ui, Segoe UI, Roboto, Ubuntu, Cantarell; }
+  /* 3D canvas fills the page */
+  #stage { position:fixed; inset:0; }
+  /* Webcam preview */
+  :root { --preview-w: 260px; --preview-h: 195px; }
+  .preview {
+    position:fixed; right:16px; bottom:16px; width:var(--preview-w); height:var(--preview-h);
+    border-radius:12px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.08); background:#14161d; z-index:10;
+  }
+  .preview video, .preview canvas { position:absolute; width:100%; height:100%; object-fit:cover; }
+  .preview video { transform:scaleX(-1); } /* mirror */
+  .header { position:absolute; inset:0 0 auto 0; height:28px; background:linear-gradient(180deg, rgba(0,0,0,.55), transparent); font-size:12px; display:flex; align-items:center; gap:8px; padding:0 10px; color:#c9d2db; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#e74c3c; box-shadow:0 0 10px rgba(231,76,60,.8); }
+  .hud {
+    position:fixed; top:12px; left:12px; z-index:20; background:rgba(20,22,29,.75); border:1px solid rgba(255,255,255,.08);
+    padding:10px 12px; border-radius:10px; font-size:13px; display:flex; align-items:center; gap:10px;
+  }
+  .hud input[type="file"] { font-size:12px; }
+  .hint { opacity:.8 }
+</style>
+</head>
+<body>
+  <div class="hud">
+    <label><strong>Avatar GLB:</strong> <input id="file" type="file" accept=".glb,.gltf" /></label>
+    <button id="loadSample" title="Loads a placeholder model hosted online">Load sample</button>
+    <span class="hint">Head movement = subtle avatar yaw/pitch. Press <kbd>B</kbd> to show bbox.</span>
+  </div>
+
+  <div id="stage"></div>
+
+  <div class="preview">
+    <div class="header"><span class="dot" id="camDot"></span> Webcam</div>
+    <video id="vid" autoplay playsinline muted></video>
+    <canvas id="overlay" width="640" height="480" style="display:none"></canvas>
+  </div>
+
+  <!-- Three.js + loaders -->
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js";
+    import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/loaders/GLTFLoader.js";
+
+    // ---------- THREE.JS SCENE ----------
+    const container = document.getElementById("stage");
+    const renderer  = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0e0f13);
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.4, 3.2);
+
+    // Soft lights: Hemisphere + soft Directional with shadows
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x334455, 0.65);
+    scene.add(hemi);
+
+    const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+    dir.position.set(3, 5, 5);
+    dir.castShadow = true;
+    dir.shadow.mapSize.set(1024, 1024);
+    dir.shadow.radius = 4;
+    scene.add(dir);
+
+    // Simple ground to catch subtle shadow
+    const groundMat = new THREE.MeshStandardMaterial({ color:0x0f1116, roughness:0.95, metalness:0.0 });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(20,20), groundMat);
+    ground.rotation.x = -Math.PI/2;
+    ground.position.y = 0;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Avatar root (so we can rotate this group)
+    const avatarRoot = new THREE.Group();
+    avatarRoot.position.set(0, 1.0, 0); // Lift a bit above ground
+    scene.add(avatarRoot);
+
+    let avatar; // the loaded GLB scene/object
+    const loader = new GLTFLoader();
+
+    function loadGLBFromURL(url){
+      loader.load(url, (gltf)=>{
+        if (avatar) { avatarRoot.remove(avatar); avatar.traverse(o=>{ if (o.isMesh) { o.geometry.dispose(); if (o.material?.dispose) o.material.dispose(); }}); }
+        avatar = gltf.scene;
+        avatar.traverse(o=>{
+          if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+        });
+        // Try to face the camera (assumes model faces +Z or -Z)
+        avatar.rotation.y = Math.PI; // common fix for models facing backwards; adjust if needed
+        // Scale to a reasonable size if model is too big/small
+        const box = new THREE.Box3().setFromObject(avatar);
+        const size = new THREE.Vector3(); box.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+        const scale = 1.2 / maxDim;
+        avatar.scale.setScalar(scale);
+        // Re-center at avatarRoot origin
+        const center = new THREE.Vector3(); box.getCenter(center);
+        avatar.position.sub(center.multiplyScalar(scale));
+        avatarRoot.add(avatar);
+      });
+    }
+
+    // File input
+    document.getElementById("file").addEventListener("change", (e)=>{
+      const f = e.target.files?.[0];
+      if (!f) return;
+      const url = URL.createObjectURL(f);
+      loadGLBFromURL(url);
+    });
+
+    // Sample model (CC0 “Damaged Helmet” as a placeholder)
+    document.getElementById("loadSample").addEventListener("click", ()=>{
+      loadGLBFromURL("https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb");
+    });
+
+    // Resize
+    window.addEventListener("resize", ()=>{
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ---------- MEDIAPIPE + CONTROL ----------
+    const video   = document.getElementById("vid");
+    const overlay = document.getElementById("overlay");
+    const octx    = overlay.getContext("2d");
+    const camDot  = document.getElementById("camDot");
+
+    let showBBox = false;
+    window.addEventListener("keydown", (e)=>{
+      if (e.key.toLowerCase() === "b") {
+        showBBox = !showBBox;
+        overlay.style.display = showBBox ? "block" : "none";
+      }
+    });
+
+    // Smoother for viewport mapping -> avatar rotation
+    const smoother = (alpha=0.18) => {
+      let sx=null, sy=null; 
+      return (x,y)=>{ if(sx==null){sx=x; sy=y;} sx += alpha*(x-sx); sy += alpha*(y-sy); return [sx,sy]; };
+    };
+    const smoothXY = smoother(0.18);
+
+    async function setupCam() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480 } });
+      video.srcObject = stream;
+      await video.play();
+    }
+
+    // MediaPipe Tasks – FaceDetector
+    import { FaceDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+    );
+
+    const detector = await FaceDetector.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath:
+          "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite"
+      },
+      runningMode: "VIDEO",
+      minDetectionConfidence: 0.5,
+      minSuppressionThreshold: 0.3
+    });
+
+    await setupCam();
+
+    // Optional bbox overlay (mirrored)
+    function drawBox(bb) {
+      const W = overlay.width = 640;
+      const H = overlay.height = 480;
+      octx.clearRect(0,0,W,H);
+      const x = W - (bb.originX + bb.width); // flip X for mirrored preview
+      const y = bb.originY;
+      octx.lineWidth = 2;
+      octx.strokeStyle = "rgba(0,200,255,0.9)";
+      octx.strokeRect(x, y, bb.width, bb.height);
+      octx.beginPath(); octx.arc(x+bb.width/2, y+bb.height/2, 3, 0, Math.PI*2); octx.fillStyle = "rgba(0,200,255,1)"; octx.fill();
+    }
+
+    // Face → rotation mapping
+    // mx,my are normalized [0..1] with mirrored X (so left/right feels natural).
+    // We convert to offsets around center (-0.5..+0.5) and map to small angles.
+    const yawMax   = THREE.MathUtils.degToRad(20); // left/right (Y axis)
+    const pitchMax = THREE.MathUtils.degToRad(12); // up/down (X axis)
+    const clamp = (v,min,max)=> Math.max(min, Math.min(max, v));
+
+    // For smooth animation, track current rotation separately
+    const current = { x: 0, y: 0 };
+    const lerp = (a,b,t)=> a + (b - a) * t;
+
+    // Render loop
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+      // Ease avatarRoot toward current rotation target
+      avatarRoot.rotation.x = lerp(avatarRoot.rotation.x, current.x, 0.15);
+      avatarRoot.rotation.y = lerp(avatarRoot.rotation.y, current.y, 0.15);
+    }
+    animate();
+
+    // Vision loop
+    function tickVision() {
+      const now = performance.now();
+      const res = detector.detectForVideo(video, now);
+      if (res?.detections?.length) {
+        const best = res.detections.reduce((a,b)=> (a.categories?.[0]?.score||0) >= (b.categories?.[0]?.score||0) ? a : b);
+        const bb = best.boundingBox;
+
+        // bbox center in normalized coords
+        const cx = (bb.originX + bb.width * 0.5) / video.videoWidth;
+        const cy = (bb.originY + bb.height * 0.5) / video.videoHeight;
+
+        // mirrored X for natural movement
+        const mx = 1 - cx;
+        const my = cy;
+
+        // map to viewport (not strictly needed; we just want offsets)
+        const [sx, sy] = smoothXY(mx, my);
+
+        // offsets around center (-0.5..+0.5)
+        const dx = (sx - 0.5);
+        const dy = (sy - 0.5);
+
+        // target rotations
+        const targetYaw   = clamp( dx * 2 * yawMax,   -yawMax,   yawMax);   // Y axis
+        const targetPitch = clamp(-dy * 2 * pitchMax, -pitchMax, pitchMax); // X axis (invert: up is negative pitch)
+
+        current.x = targetPitch;
+        current.y = targetYaw;
+
+        camDot.style.background = "#2ecc71";
+        camDot.style.boxShadow  = "0 0 10px rgba(46,204,113,.9)";
+        if (showBBox) drawBox(bb); else octx.clearRect(0,0,overlay.width,overlay.height);
+      } else {
+        // Ease back to neutral
+        current.x = lerp(current.x, 0, 0.05);
+        current.y = lerp(current.y, 0, 0.05);
+        camDot.style.background = "#e74c3c";
+        camDot.style.boxShadow  = "0 0 10px rgba(231,76,60,.8)";
+        octx.clearRect(0,0,overlay.width,overlay.height);
+      }
+      requestAnimationFrame(tickVision);
+    }
+    requestAnimationFrame(tickVision);
+  </script>
+</body>
+</html>
+

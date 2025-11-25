@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Minecraft Clone</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial; }
+        canvas { display: block; }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: white;
+        }
+        #crosshair::before {
+            width: 2px;
+            height: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #crosshair::after {
+            width: 20px;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+        #block-selector {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            gap: 10px;
+        }
+        .block-option {
+            width: 40px;
+            height: 40px;
+            border: 2px solid transparent;
+            border-radius: 3px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        .block-option.selected {
+            border-color: white;
+        }
+        #reset-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,0,0,0.7);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        #reset-btn:hover {
+            background: rgba(255,0,0,0.9);
+        }
+    </style>
+</head>
+<body>
+    <div id="crosshair"></div>
+    <div id="ui">
+        <div>WASD: Move | Mouse: Look</div>
+        <div>Space: Jump | LClick: Remove | RClick: Place</div>
+        <div>1,2,3: Select Block Type</div>
+    </div>
+    <div id="block-selector">
+        <div class="block-option selected" data-type="grass" style="background: #4CAF50;"></div>
+        <div class="block-option" data-type="dirt" style="background: #795548;"></div>
+        <div class="block-option" data-type="stone" style="background: #9E9E9E;"></div>
+    </div>
+    <button id="reset-btn">Reset World</button>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.min.js"></script>
+    <script>
+        // Block class
+        class Block {
+            constructor(x, y, z, type = 'grass') {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.type = type;
+                this.mesh = null;
+                
+                this.createMesh();
+            }
+            
+            createMesh() {
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                
+                const colors = {
+                    'grass': 0x4CAF50,
+                    'dirt': 0x795548,
+                    'stone': 0x9E9E9E
+                };
+
+                // Create canvas for texture
+                const canvas = document.createElement('canvas');
+                canvas.width = 64;
+                canvas.height = 64;
+                const context = canvas.getContext('2d');
+
+                // Base color
+                const color = colors[this.type] || 0x4CAF50;
+                const r = (color >> 16) & 255;
+                const g = (color >> 8) & 255;
+                const b = color & 255;
+
+                // Fill with base color
+                context.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                context.fillRect(0, 0, 64, 64);
+
+                // Add texture pattern (simulated noise/pattern)
+                context.globalAlpha = 0.3;
+                for (let i = 0; i < 200; i++) {
+                    const x = Math.random() * 64;
+                    const y = Math.random() * 64;
+                    const size = Math.random() * 3 + 1;
+                    const brightness = Math.random() * 50 - 25;
+                    
+                    context.fillStyle = `rgb(${Math.max(0, Math.min(255, r + brightness))}, 
+                                            ${Math.max(0, Math.min(255, g + brightness))}, 
+                                            ${Math.max(0, Math.min(255, b + brightness))})`;
+                    context.fillRect(x, y, size, size);
+                }
+
+                // Create texture from canvas
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(1, 1);
+
+                const material = new THREE.MeshPhongMaterial({ 
+                    map: texture,
+                    color: new THREE.Color(color)
+                });
+                
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.set(this.x, this.y, this.z);
+                
+                // Enable shadows
+                this.mesh.castShadow = true;
+                this.mesh.receiveShadow = true;
+            }
+            
+            addToScene(scene) {
+                if (this.mesh) {
+                    scene.add(this.mesh);
+                }
+            }
+            
+            removeFromScene(scene) {
+                if (this.mesh) {
+                    scene.remove(this.mesh);
+                }
+            }
+            
+            getBoundingBox() {
+                return new THREE.Box3().setFromObject(this.mesh);
+            }
+
+            serialize() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    z: this.z,
+                    type: this.type
+                };
+            }
+        }
+
+        // Game class
+        class MinecraftGame {
+            constructor() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x87CEEB);
+                
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(0, 2, 5);
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                document.body.appendChild(this.renderer.domElement);
+                
+                this.controls = null;
+                this.blocks = [];
+                this.moveState = { forward: false, backward: false, left: false, right: false, jump: false };
+                this.velocity = new THREE.Vector3();
+                
+                // Block selection
+                this.selectedBlockType = 'grass';
+                
+                // Physics properties
+                this.onGround = false;
+                this.gravity = -20;
+                this.jumpForce = 8;
+                this.playerHeight = 1.8;
+                this.playerRadius = 0.3;
+                
+                // Raycasting
+                this.raycaster = new THREE.Raycaster();
+                this.raycaster.far = 10;
+                
+                this.setupLights();
+                this.setupControls();
+                this.setupEventListeners();
+                this.setupUI();
+                
+                // Load saved world or create default
+                this.loadWorld();
+                
+                this.clock = new THREE.Clock();
+                this.animate();
+            }
+            
+            setupLights() {
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(50, 50, 50);
+                directionalLight.castShadow = true;
+                
+                // Shadow properties
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                directionalLight.shadow.camera.near = 0.5;
+                directionalLight.shadow.camera.far = 500;
+                directionalLight.shadow.camera.left = -50;
+                directionalLight.shadow.camera.right = 50;
+                directionalLight.shadow.camera.top = 50;
+                directionalLight.shadow.camera.bottom = -50;
+                
+                this.scene.add(directionalLight);
+            }
+            
+            createDefaultWorld() {
+                // Clear existing blocks
+                this.blocks.forEach(block => block.removeFromScene(this.scene));
+                this.blocks = [];
+                
+                const gridSize = 10;
+                
+                // Create floor
+                for (let x = -gridSize/2; x < gridSize/2; x++) {
+                    for (let z = -gridSize/2; z < gridSize/2; z++) {
+                        let type = 'grass';
+                        if (Math.random() > 0.8) type = 'dirt';
+                        if (Math.random() > 0.95) type = 'stone';
+                        
+                        const block = new Block(x, -0.5, z, type);
+                        block.addToScene(this.scene);
+                        this.blocks.push(block);
+                    }
+                }
+                
+                // Add some raised blocks
+                for (let i = 0; i < 5; i++) {
+                    const x = Math.floor(Math.random() * 8 - 4);
+                    const z = Math.floor(Math.random() * 8 - 4);
+                    const block = new Block(x, 0.5, z, 'stone');
+                    block.addToScene(this.scene);
+                    this.blocks.push(block);
+                }
+                
+                this.saveWorld();
+            }
+            
+            setupControls() {
+                this.controls = new THREE.PointerLockControls(this.camera, document.body);
+                
+                const instructions = document.createElement('div');
+                instructions.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0,0,0,0.8);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    text-align: center;
+                    font-family: Arial;
+                `;
+                instructions.innerHTML = `
+                    <h2>Minecraft Clone</h2>
+                    <p>Click to play</p>
+                    <p>WASD: Move | Mouse: Look around</p>
+                    <p>Space: Jump | Left Click: Remove | Right Click: Place</p>
+                    <p>1,2,3: Select Block Type | World auto-saves</p>
+                `;
+                document.body.appendChild(instructions);
+                
+                const startGame = () => {
+                    this.controls.lock();
+                    instructions.style.display = 'none';
+                };
+                
+                document.body.addEventListener('click', startGame);
+                
+                this.controls.addEventListener('lock', () => {
+                    instructions.style.display = 'none';
+                });
+                
+                this.controls.addEventListener('unlock', () => {
+                    instructions.style.display = 'block';
+                });
+            }
+            
+            setupUI() {
+                // Block selector
+                const blockOptions = document.querySelectorAll('.block-option');
+                blockOptions.forEach(option => {
+                    option.addEventListener('click', () => {
+                        blockOptions.forEach(opt => opt.classList.remove('selected'));
+                        option.classList.add('selected');
+                        this.selectedBlockType = option.dataset.type;
+                    });
+                });
+
+                // Reset button
+                document.getElementById('reset-btn').addEventListener('click', () => {
+                    if (confirm('Are you sure you want to reset the world?')) {
+                        this.createDefaultWorld();
+                    }
+                });
+            }
+            
+            setupEventListeners() {
+                document.addEventListener('keydown', (event) => {
+                    switch (event.code) {
+                        case 'KeyW':
+                            this.moveState.forward = true;
+                            break;
+                        case 'KeyS':
+                            this.moveState.backward = true;
+                            break;
+                        case 'KeyA':
+                            this.moveState.left = true;
+                            break;
+                        case 'KeyD':
+                            this.moveState.right = true;
+                            break;
+                        case 'Space':
+                            if (this.onGround) {
+                                this.moveState.jump = true;
+                            }
+                            event.preventDefault();
+                            break;
+                        case 'Digit1':
+                            this.selectBlockType('grass');
+                            break;
+                        case 'Digit2':
+                            this.selectBlockType('dirt');
+                            break;
+                        case 'Digit3':
+                            this.selectBlockType('stone');
+                            break;
+                    }
+                });
+                
+                document.addEventListener('keyup', (event) => {
+                    switch (event.code) {
+                        case 'KeyW':
+                            this.moveState.forward = false;
+                            break;
+                        case 'KeyS':
+                            this.moveState.backward = false;
+                            break;
+                        case 'KeyA':
+                            this.moveState.left = false;
+                            break;
+                        case 'KeyD':
+                            this.moveState.right = false;
+                            break;
+                        case 'Space':
+                            this.moveState.jump = false;
+                            break;
+                    }
+                });
+
+                // Mouse click events
+                document.addEventListener('mousedown', (event) => {
+                    if (!this.controls.isLocked) return;
+                    
+                    if (event.button === 0) { // Left click
+                        this.removeBlockAtPointer();
+                    } else if (event.button === 2) { // Right click
+                        this.placeBlockAtPointer();
+                        event.preventDefault();
+                    }
+                });
+
+                document.addEventListener('contextmenu', (event) => {
+                    event.preventDefault();
+                });
+                
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+
+                // Auto-save when leaving page
+                window.addEventListener('beforeunload', () => {
+                    this.saveWorld();
+                });
+            }
+
+            selectBlockType(type) {
+                this.selectedBlockType = type;
+                const blockOptions = document.querySelectorAll('.block-option');
+                blockOptions.forEach(option => {
+                    option.classList.toggle('selected', option.dataset.type === type);
+                });
+            }
+
+            saveWorld() {
+                const worldData = {
+                    blocks: this.blocks.map(block => block.serialize()),
+                    playerPosition: {
+                        x: this.camera.position.x,
+                        y: this.camera.position.y,
+                        z: this.camera.position.z
+                    }
+                };
+                localStorage.setItem('minecraftWorld', JSON.stringify(worldData));
+                console.log('World saved!');
+            }
+
+            loadWorld() {
+                const saved = localStorage.getItem('minecraftWorld');
+                if (saved) {
+                    try {
+                        const worldData = JSON.parse(saved);
+                        
+                        // Clear existing blocks
+                        this.blocks.forEach(block => block.removeFromScene(this.scene));
+                        this.blocks = [];
+                        
+                        // Load blocks
+                        worldData.blocks.forEach(blockData => {
+                            const block = new Block(blockData.x, blockData.y, blockData.z, blockData.type);
+                            block.addToScene(this.scene);
+                            this.blocks.push(block);
+                        });
+                        
+                        // Load player position
+                        if (worldData.playerPosition) {
+                            this.camera.position.set(
+                                worldData.playerPosition.x,
+                                worldData.playerPosition.y,
+                                worldData.playerPosition.z
+                            );
+                        }
+                        
+                        console.log('World loaded!');
+                    } catch (e) {
+                        console.error('Error loading world:', e);
+                        this.createDefaultWorld();
+                    }
+                } else {
+                    this.createDefaultWorld();
+                }
+            }
+
+            removeBlockAtPointer() {
+                this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+                const blockMeshes = this.blocks.map(block => block.mesh);
+                const intersects = this.raycaster.intersectObjects(blockMeshes);
+                
+                if (intersects.length > 0) {
+                    const intersection = intersects[0];
+                    const blockMesh = intersection.object;
+                    
+                    const blockIndex = this.blocks.findIndex(block => block.mesh === blockMesh);
+                    if (blockIndex !== -1) {
+                        const block = this.blocks[blockIndex];
+                        block.removeFromScene(this.scene);
+                        this.blocks.splice(blockIndex, 1);
+                        this.saveWorld();
+                        console.log('Block removed!');
+                    }
+                }
+            }
+
+            placeBlockAtPointer() {
+                this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+                const blockMeshes = this.blocks.map(block => block.mesh);
+                const intersects = this.raycaster.intersectObjects(blockMeshes);
+                
+                if (intersects.length > 0) {
+                    const intersection = intersects[0];
+                    const face = intersection.face;
+                    const blockMesh = intersection.object;
+                    
+                    const normal = intersection.face.normal.clone();
+                    normal.transformDirection(blockMesh.matrixWorld);
+                    
+                    const hitBlock = this.blocks.find(block => block.mesh === blockMesh);
+                    if (!hitBlock) return;
+                    
+                    const newPosition = new THREE.Vector3(
+                        hitBlock.x + Math.round(normal.x),
+                        hitBlock.y + Math.round(normal.y),
+                        hitBlock.z + Math.round(normal.z)
+                    );
+                    
+                    const positionOccupied = this.blocks.some(block => 
+                        block.x === newPosition.x && 
+                        block.y === newPosition.y && 
+                        block.z === newPosition.z
+                    );
+                    
+                    const playerPosition = this.camera.position.clone();
+                    const distanceToPlayer = newPosition.distanceTo(playerPosition);
+                    
+                    if (!positionOccupied && distanceToPlayer > 1.5) {
+                        const newBlock = new Block(newPosition.x, newPosition.y, newPosition.z, this.selectedBlockType);
+                        newBlock.addToScene(this.scene);
+                        this.blocks.push(newBlock);
+                        this.saveWorld();
+                        console.log(`Block placed at (${newPosition.x}, ${newPosition.y}, ${newPosition.z})`);
+                    }
+                }
+            }
+            
+            checkCollision(newPosition) {
+                const playerBox = new THREE.Box3(
+                    new THREE.Vector3(
+                        newPosition.x - this.playerRadius,
+                        newPosition.y - this.playerHeight,
+                        newPosition.z - this.playerRadius
+                    ),
+                    new THREE.Vector3(
+                        newPosition.x + this.playerRadius,
+                        newPosition.y,
+                        newPosition.z + this.playerRadius
+                    )
+                );
+                
+                for (const block of this.blocks) {
+                    const blockBox = block.getBoundingBox();
+                    if (playerBox.intersectsBox(blockBox)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            updateMovement(delta) {
+                if (!this.controls.isLocked) return;
+                
+                const speed = 5.0;
+                
+                const cameraDirection = new THREE.Vector3();
+                this.camera.getWorldDirection(cameraDirection);
+                cameraDirection.y = 0;
+                cameraDirection.normalize();
+                
+                const cameraRight = new THREE.Vector3();
+                cameraRight.crossVectors(this.camera.up, cameraDirection).normalize();
+                
+                this.velocity.x = 0;
+                this.velocity.z = 0;
+                
+                if (this.moveState.forward) {
+                    this.velocity.add(cameraDirection.clone().multiplyScalar(speed * delta));
+                }
+                if (this.moveState.backward) {
+                    this.velocity.sub(cameraDirection.clone().multiplyScalar(speed * delta));
+                }
+                if (this.moveState.left) {
+                    this.velocity.add(cameraRight.clone().multiplyScalar(speed * delta));
+                }
+                if (this.moveState.right) {
+                    this.velocity.sub(cameraRight.clone().multiplyScalar(speed * delta));
+                }
+                
+                const oldPosition = this.camera.position.clone();
+                const newHorizontalPos = oldPosition.clone().add(this.velocity);
+                if (!this.checkCollision(newHorizontalPos)) {
+                    this.camera.position.x = newHorizontalPos.x;
+                    this.camera.position.z = newHorizontalPos.z;
+                }
+                
+                if (this.moveState.jump && this.onGround) {
+                    this.velocity.y = this.jumpForce;
+                    this.onGround = false;
+                    this.moveState.jump = false;
+                }
+                
+                this.velocity.y += this.gravity * delta;
+                
+                const newVerticalPos = this.camera.position.clone();
+                newVerticalPos.y += this.velocity.y * delta;
+                
+                const gridSize = 10;
+                const isOutsideGrid = Math.abs(this.camera.position.x) > gridSize/2 || 
+                                    Math.abs(this.camera.position.z) > gridSize/2;
+                
+                if (isOutsideGrid) {
+                    if (!this.checkCollision(newVerticalPos)) {
+                        this.camera.position.y = newVerticalPos.y;
+                    }
+                    this.onGround = false;
+                } else {
+                    if (!this.checkCollision(newVerticalPos)) {
+                        this.camera.position.y = newVerticalPos.y;
+                        this.onGround = false;
+                    } else {
+                        if (this.velocity.y < 0) {
+                            this.onGround = true;
+                            this.velocity.y = 0;
+                        } else {
+                            this.velocity.y = 0;
+                        }
+                    }
+                }
+                
+                if (this.camera.position.y < -10) {
+                    this.camera.position.set(0, 5, 0);
+                    this.velocity.set(0, 0, 0);
+                }
+
+                // Auto-save every 10 seconds
+                if (Math.floor(this.clock.getElapsedTime()) % 10 === 0) {
+                    this.saveWorld();
+                }
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                const delta = Math.min(this.clock.getDelta(), 0.1);
+                
+                if (this.controls.isLocked) {
+                    this.updateMovement(delta);
+                }
+                
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Start the game
+        new MinecraftGame();
+    </script>
+</body>
+</html>

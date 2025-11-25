@@ -1,0 +1,37 @@
+{
+  "1080p": {
+    "filename": "viaje_original.MP4",
+    "resolution": "1920x1080",
+    "width": 1920,
+    "height": 1080,
+    "full_path": "viaje_original.MP4"
+  },
+  "720p": {
+    "filename": "viaje_720p.MP4",
+    "resolution": "1280x720",
+    "width": 1280,
+    "height": 720,
+    "full_path": "viaje_720p.MP4"
+  },
+  "480p": {
+    "filename": "viaje_480p.MP4",
+    "resolution": "854x480",
+    "width": 854,
+    "height": 480,
+    "full_path": "viaje_480p.MP4"
+  },
+  "360p": {
+    "filename": "viaje_360p.MP4",
+    "resolution": "640x360",
+    "width": 640,
+    "height": 360,
+    "full_path": "viaje_360p.MP4"
+  },
+  "240p": {
+    "filename": "viaje_240p.MP4",
+    "resolution": "426x240",
+    "width": 426,
+    "height": 240,
+    "full_path": "viaje_240p.MP4"
+  }
+}

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Bounce AI Radial Visualizer</title>
+    <style>
+        body{
+            margin:0;
+            height:100vh;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            gap:1rem;
+            background:#111;
+            color:#eee;
+            font-family:sans-serif;
+        }
+        .layout{
+            display:flex;
+            gap:2rem;
+            align-items:center;
+            justify-content:center;
+        }
+        canvas{
+            background:#111;
+            border-radius:50%;
+        }
+        .panel{
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            gap:0.5rem;
+        }
+        button{
+            padding:0.5rem 1rem;
+            border-radius:999px;
+            border:none;
+            cursor:pointer;
+            font-size:1rem;
+        }
+        #textoHumano, #textoIA{
+            min-height:1.5em;
+            font-size:0.9rem;
+            max-width:250px;
+            text-align:center;
+            color:#ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="panel">
+            <canvas id="canvasHumano" width="350" height="350"></canvas>
+            <button id="btnMicro">Iniciar micrófono</button>
+            <div id="textoHumano"></div>
+        </div>
+        <div class="panel">
+            <canvas id="canvasIA" width="350" height="350"></canvas>
+            <button id="btnHablar">Hablar &rarr; IA repite</button>
+            <div id="textoIA"></div>
+        </div>
+    </div>
+
+    <script>
+        // ----------------------------------------------------
+        //  CONFIGURACIÓN VISUAL COMÚN (tomado del original)
+        // ----------------------------------------------------
+        const numRings       = 24;
+        const ringWidth      = 6;
+        const innerRadius    = 30;
+        const maxOpacity     = 0.9;
+        const minOpacity     = 0.15;
+        const minSpanFactor  = 0.3;   // span base * esto con poco sonido
+        const maxSpanFactor  = 2.0;   // span base * esto con mucho sonido
+        const audioAngleBoost = 0.02; // cuánto desplaza el ángulo la energía
+        const baseBgAlpha    = 0.18;  // estela
+
+        // Limitamos el span para que JAMÁS llegue a círculo completo
+        const maxSpanAngular = Math.PI * 1.8; // < 2π
+
+        // ----------------------------------------------------
+        //  CLASE VISUALIZADOR RADIAL
+        // ----------------------------------------------------
+        class RadialVisualizer {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext("2d");
+                this.W = canvas.width;
+                this.H = canvas.height;
+
+                this.rings = [];
+                for (let i = 0; i < numRings; i++) {
+                    this.rings.push(this._crearAnillo(i));
+                }
+            }
+
+            _crearAnillo(i) {
+                const ring = {};
+                ring.type = Math.floor(Math.random() * 4); // 0..3
+                ring.r = innerRadius + i * ringWidth * 1.3;
+                ring.baseSpan = Math.random() * Math.PI * 1.5 + Math.PI * 0.3; // 0.3π..1.8π
+                ring.phase = Math.random() * Math.PI * 2;
+                ring.speed = (Math.random() - 0.5) * 0.01; // velocidad base permanente
+                return ring;
+            }
+
+            /**
+             * Dibuja un frame de la animación.
+             * @param {function(number):number} getEnergyForRing función que devuelve [0..1]
+             *        dado el índice de anillo.
+             */
+            draw(getEnergyForRing) {
+                const ctx = this.ctx;
+                const W = this.W;
+                const H = this.H;
+
+                // Fondo con alpha para la estela
+                ctx.fillStyle = `rgba(0,0,0,${baseBgAlpha})`;
+                ctx.fillRect(0, 0, W, H);
+
+                ctx.save();
+                ctx.translate(W / 2, H / 2);
+
+                for (let i = 0; i < this.rings.length; i++) {
+                    const ring = this.rings[i];
+                    const energy = Math.max(0, Math.min(1, getEnergyForRing(i) || 0));
+
+                    // Span base modulado por audio
+                    const spanFactor = minSpanFactor + (maxSpanFactor - minSpanFactor) * energy;
+                    let span = ring.baseSpan * spanFactor;
+
+                    // EVITAR CÍRCULOS COMPLETOS
+                    if (span > maxSpanAngular) {
+                        span = maxSpanAngular;
+                    }
+
+                    ring.phase += ring.speed + energy * audioAngleBoost;
+
+                    const a1 = ring.phase;
+                    const a2 = ring.phase + span;
+
+                    const lwBase = ringWidth + energy * 4;
+                    const opacity = minOpacity + (maxOpacity - minOpacity) * energy;
+
+                    switch (ring.type) {
+                        case 0: // arco simple
+                            ctx.lineWidth = lwBase;
+                            ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+                            ctx.beginPath();
+                            ctx.arc(0, 0, ring.r, a1, a2, false);
+                            ctx.stroke();
+                            ctx.closePath();
+                            break;
+
+                        case 1: // área tipo "quesito"
+                            ctx.fillStyle = `rgba(255,255,255,${opacity * 0.7})`;
+                            ctx.beginPath();
+                            ctx.moveTo(0, 0);
+                            ctx.arc(0, 0, ring.r, a1, a2, false);
+                            ctx.closePath();
+                            ctx.fill();
+                            break;
+
+                        case 2: // muchos trocitos + puntas marcadas
+                            ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+                            ctx.lineWidth = lwBase;
+                            const step = 0.08;
+                            for (let a = a1; a < a2; a += step) {
+                                ctx.beginPath();
+                                ctx.arc(0, 0, ring.r, a, a + step * 0.5, false);
+                                ctx.stroke();
+                                ctx.closePath();
+                            }
+
+                            // remarcar puntas
+                            ctx.lineWidth = lwBase + 6;
+                            ctx.beginPath();
+                            ctx.arc(0, 0, ring.r, a1, a1 + 0.03, false);
+                            ctx.stroke();
+                            ctx.closePath();
+                            ctx.beginPath();
+                            ctx.arc(0, 0, ring.r, a2 - 0.03, a2, false);
+                            ctx.stroke();
+                            ctx.closePath();
+                            break;
+
+                        case 3: // arco fino + puntos en extremos
+                            ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+                            ctx.lineWidth = 1 + energy * 2;
+                            ctx.beginPath();
+                            ctx.arc(0, 0, ring.r, a1, a2, false);
+                            ctx.stroke();
+                            ctx.closePath();
+
+                            const x1 = Math.cos(a1) * ring.r;
+                            const y1 = Math.sin(a1) * ring.r;
+                            const x2 = Math.cos(a2) * ring.r;
+                            const y2 = Math.sin(a2) * ring.r;
+
+                            const puntoR = 3 + energy * 4;
+                            ctx.beginPath();
+                            ctx.arc(x1, y1, puntoR, 0, Math.PI * 2, true);
+                            ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+                            ctx.fill();
+                            ctx.closePath();
+
+                            ctx.beginPath();
+                            ctx.arc(x2, y2, puntoR, 0, Math.PI * 2, true);
+                            ctx.fill();
+                            ctx.closePath();
+                            break;
+                    }
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // ----------------------------------------------------
+        //  VISUALIZADOR HUMANO (MICRÓFONO)
+        // ----------------------------------------------------
+        const canvasHumano = document.getElementById("canvasHumano");
+        const visHumano = new RadialVisualizer(canvasHumano);
+
+        let audioCtxHumano = null;
+        let analyserHumano = null;
+        let dataHumano = null;
+
+        async function initMicrofono() {
+            if (audioCtxHumano) return;
+
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtxHumano = new AudioContext();
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: false
+            });
+
+            const source = audioCtxHumano.createMediaStreamSource(stream);
+
+            analyserHumano = audioCtxHumano.createAnalyser();
+            analyserHumano.fftSize = 1024;
+            const bufferLength = analyserHumano.frequencyBinCount;
+            dataHumano = new Uint8Array(bufferLength);
+
+            source.connect(analyserHumano);
+        }
+
+        function getEnergyHumanoForRing(ringIndex) {
+            if (!analyserHumano || !dataHumano) return 0;
+            analyserHumano.getByteFrequencyData(dataHumano);
+            const len = dataHumano.length;
+
+            const bandSize = Math.floor(len / numRings) || 1;
+            const start = ringIndex * bandSize;
+            const end = Math.min(start + bandSize, len);
+
+            let sum = 0;
+            for (let i = start; i < end; i++) {
+                sum += dataHumano[i];
+            }
+            const avg = sum / (end - start || 1);
+            return avg / 255; // 0..1
+        }
+
+        // ----------------------------------------------------
+        //  VISUALIZADOR IA (SPEECH SYNTHESIS APROXIMADO)
+        // ----------------------------------------------------
+        const canvasIA = document.getElementById("canvasIA");
+        const visIA = new RadialVisualizer(canvasIA);
+
+        let iaHablando = false;
+        let iaEnergyGlobal = 0;   // energía aproximada en [0..1]
+        let tiempoIA = 0;         // para pequeños patrones
+
+        function getEnergyIAForRing(ringIndex) {
+            // Sin API de waveform de speechSynthesis,
+            // generamos una energía "bonita" cuando la IA está hablando.
+            const baseSilencio = 0.03;
+
+            if (!iaHablando) {
+                // pequeña respiración cuando está callada
+                return baseSilencio + 0.02 * Math.abs(Math.sin(ringIndex + tiempoIA * 0.005));
+            }
+
+            // Energía global decae lentamente
+            iaEnergyGlobal *= 0.98;
+            // Y la reinyectamos un poco mientras "habla"
+            iaEnergyGlobal = Math.min(1, iaEnergyGlobal + 0.02);
+
+            // Diferenciamos por anillo con funciones senoidales
+            const bandNoise = 0.5 + 0.5 * Math.sin(tiempoIA * 0.01 + ringIndex * 0.6);
+            const energy = baseSilencio + iaEnergyGlobal * bandNoise;
+
+            return Math.max(0, Math.min(1, energy));
+        }
+
+        // ----------------------------------------------------
+        //  SPEECH RECOGNITION + SPEECH SYNTHESIS
+        // ----------------------------------------------------
+        const btnMicro = document.getElementById("btnMicro");
+        const btnHablar = document.getElementById("btnHablar");
+        const divTextoHumano = document.getElementById("textoHumano");
+        const divTextoIA = document.getElementById("textoIA");
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = "es-ES";
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+        }
+
+        btnMicro.addEventListener("click", async () => {
+            try {
+                await initMicrofono();
+                btnMicro.disabled = true;
+                btnMicro.textContent = "Micrófono funcionando";
+            } catch (e) {
+                console.error(e);
+                alert("Error al acceder al micrófono");
+            }
+        });
+
+        btnHablar.addEventListener("click", () => {
+            if (!recognition) {
+                alert("Esta API de reconocimiento no está disponible en este navegador.");
+                return;
+            }
+
+            divTextoHumano.textContent = "Escuchando...";
+            recognition.start();
+        });
+
+        if (recognition) {
+            recognition.addEventListener("result", (event) => {
+                const texto = event.results[0][0].transcript;
+                divTextoHumano.textContent = "Tú dijiste: " + texto;
+                // Ahora la IA repite
+                hablarIA(texto);
+            });
+
+            recognition.addEventListener("end", () => {
+                // Nada especial; podríamos reiniciar si quisiéramos.
+            });
+        }
+
+        function hablarIA(texto) {
+            if (!window.speechSynthesis) {
+                alert("speechSynthesis no disponible en este navegador.");
+                return;
+            }
+
+            const utt = new SpeechSynthesisUtterance(texto);
+            utt.lang = "es-ES";
+            divTextoIA.textContent = "IA dice: " + texto;
+
+            iaHablando = true;
+            iaEnergyGlobal = 0.4; // arranque de energía
+
+            utt.onend = () => {
+                iaHablando = false;
+            };
+
+            window.speechSynthesis.speak(utt);
+        }
+
+        // ----------------------------------------------------
+        //  BUCLE GLOBAL DE ANIMACIÓN (AMBOS VISUALIZADORES)
+        // ----------------------------------------------------
+        function loop() {
+            // Humano: usa FFT real del micrófono (si está activo)
+            visHumano.draw(getEnergyHumanoForRing);
+
+            // IA: patrón sintético atado al estado de iaHablando
+            tiempoIA++;
+            visIA.draw(getEnergyIAForRing);
+
+            requestAnimationFrame(loop);
+        }
+        loop();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <style>
+            #contenedorvideo video{
+                border-radius: 10px;
+                width: 100%;
+                height: 100%;
+            }
+            #contenedorvideo{
+                display:flex;
+                position:relative;
+                width: 800px;
+                height: 500px;
+                justify-content: center;
+                align-items: center;
+            }
+            #contenedorvideo video{
+                position: absolute;
+                top:0px;
+                left:0px;
+            }
+            #contenedorvideo #controlesvideo{
+                position:absolute;
+                padding: 20px;
+                background: rgba(0,0,0,0.5);
+                border-radius: 40px;
+                backdrop-filter: blur(5px);
+                opacity:0;
+                transition:all 1s;
+            }
+            #contenedorvideo #controlesvideo:hover{
+               opacity:1;
+            }
+            #contenedorvideo #controlesvideo button{
+                width: 30px;
+                height: 30px;
+                border: none;
+                background: white;
+                color:black;
+                text-align: center;
+                border-radius: 30px;
+            }
+            
+        </style>
+     </head>
+     <body>
+        <div id="contenedorvideo">
+        <video src="viaje.mp4" controls></video>
+        <div id="controlesvideo">
+        <button id="rebobinar">Rebobinar</button>
+        <button id="menosdiez">-10</button>
+        <button id="reproducir">Reproducir</button>
+        <button id="parar">Parar</button>
+        <button id="masdiez">+10</button>
+        </div>
+        </div>
+         <script>
+             let video = document.querySelector("video");
+             let boton = document.querySelector("#reproducir");
+             let botonparar = document.querySelector("#parar");
+             let botonrebobinar = document.querySelector("#rebobinar");
+             let botonmenosdiez = document.querySelector("#menosdiez");
+             let botonmasdiez = document.querySelector("#masdiez");
+             boton.onclick = function(){
+                 video.play();
+             }
+             botonparar.onclick = function(){
+                 video.pause();
+             }
+             botonrebobinar.onclick = function(){
+                 video.currentTime = 0
+             }
+             botonmenosdiez.onclick = function(){
+                 video.currentTime -= 10
+             }
+             botonmasdiez.onclick = function(){
+                 video.currentTime += 10
+             }
+            
+         </script>
+   </body>
+</html>

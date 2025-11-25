@@ -10,9 +10,6 @@ conexion = mysql.connector.connect(
 cursor = conexion.cursor()
 
 
-  
-
-
 cursor.execute('''
   ALTER TABLE clientes
   ADD PRIMARY KEY (`Identificador`);

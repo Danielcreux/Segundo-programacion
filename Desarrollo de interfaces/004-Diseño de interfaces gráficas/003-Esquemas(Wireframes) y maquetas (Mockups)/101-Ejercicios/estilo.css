@@ -1,0 +1,15 @@
+/* 
+  Estilos globales de toda la web
+  Los estilos de cada componente se encuentran dentro de los componentes
+*/
+
+body,html{
+  padding:0px;
+  margin:0px;
+  font-family:sans-serif;
+}
+main{
+  width:800px;
+  margin:auto;
+  padding:20px;
+}
