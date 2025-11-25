@@ -32,7 +32,7 @@ from pathlib import Path
 TRANSCRIPTS_ROOT = Path("transcripts")
 
 # Modelo de Ollama
-OLLAMA_MODEL = "qwen2.5:3b-instruct"
+OLLAMA_MODEL = "qwen3-vl:235b-cloud"
 
 # Longitud máxima aproximada del texto que se manda al modelo
 # (por si tus transcripciones son muy largas; si quieres, pon None para desactivar)
