@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Bounce AI – Dual Radial Visualizer</title>
+    <style>
+        body{
+            margin:0;
+            height:100vh;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            background:#111;
+            color:#eee;
+            font-family:sans-serif;
+            gap:1rem;
+        }
+        .row{
+            display:flex;
+            gap:2rem;
+            align-items:center;
+            justify-content:center;
+        }
+        canvas{
+            background:#111;
+            border-radius:50%;
+        }
+        button{
+            padding:0.5rem 1rem;
+            border-radius:999px;
+            border:none;
+            cursor:pointer;
+            font-size:1rem;
+        }
+        .labels{
+            display:flex;
+            justify-content:space-between;
+            width:100%;
+            max-width:900px;
+            font-size:0.9rem;
+            opacity:0.8;
+        }
+        .labels span{
+            flex:1;
+            text-align:center;
+        }
+        .text-row{
+            max-width:900px;
+            width:100%;
+            display:flex;
+            flex-direction:column;
+            gap:0.35rem;
+            font-size:0.9rem;
+        }
+        .bubble{
+            background:#222;
+            padding:0.5rem 0.75rem;
+            border-radius:0.5rem;
+            min-height:1.4rem;
+            word-break:break-word;
+        }
+        .bubble span.label{
+            opacity:0.6;
+            font-size:0.8rem;
+            display:block;
+            margin-bottom:0.2rem;
+            text-transform:uppercase;
+            letter-spacing:0.06em;
+        }
+        .labels,.text-row{
+          display:none;
+        }
+        #startBtn{
+          opacity:0.1;
+        }
+    </style>
+</head>
+<body>
+    <button id="startBtn">Start bounce AI (mic + speech)</button>
+
+    <div class="row">
+        <canvas id="humanCanvas" width="400" height="400"></canvas>
+        <canvas id="aiCanvas" width="400" height="400"></canvas>
+    </div>
+
+    <div class="labels">
+        <span>👤 Humano (micrófono)</span>
+        <span>🤖 “IA” (speech synthesis)</span>
+    </div>
+
+    <div class="text-row">
+        <div class="bubble">
+            <span class="label">Tú dices</span>
+            <span id="humanText"></span>
+        </div>
+        <div class="bubble">
+            <span class="label">La “IA” repite</span>
+            <span id="aiText"></span>
+        </div>
+    </div>
+
+    <script>
+        // -------------------- CONFIG VISUAL --------------------
+        const numRings       = 24;
+        const ringWidth      = 6;
+        const innerRadius    = 30;
+        const maxOpacity     = 0.9;
+        const minOpacity     = 0.15;
+        const minSpanFactor  = 0.3;   // span base * this when no sound
+        const maxSpanFactor  = 2.0;   // span base * this with loud sound
+        const audioAngleBoost = 0.02; // how much audio pushes angle
+        const baseBgAlpha    = 0.18;  // trail
+
+        // -------------------- CANVASES --------------------
+        const humanCanvas = document.getElementById("humanCanvas");
+        const aiCanvas    = document.getElementById("aiCanvas");
+        const hctx = humanCanvas.getContext("2d");
+        const actx = aiCanvas.getContext("2d");
+        const HW = humanCanvas.width;
+        const HH = humanCanvas.height;
+        const AW = aiCanvas.width;
+        const AH = aiCanvas.height;
+
+        // -------------------- RING CLASS --------------------
+        class Ring {
+            constructor(i, innerRadiusLocal, ringWidthLocal) {
+                this.type = Math.floor(Math.random() * 4); // 0..3
+                this.r = innerRadiusLocal + i * ringWidthLocal * 1.3;
+                this.baseSpan = Math.random() * Math.PI * 1.5 + Math.PI * 0.3;
+                this.phase = Math.random() * Math.PI * 2;
+                this.speed = (Math.random() - 0.5) * 0.01; // base angular speed
+
+                // extra per-ring noise phase for AI visualizer
+                this.noisePhase = Math.random() * Math.PI * 2;
+                this.noiseSpeed = 0.01 + Math.random() * 0.02;
+            }
+        }
+
+        const humanRings = [];
+        const aiRings    = [];
+        for (let i = 0; i < numRings; i++) {
+            humanRings.push(new Ring(i, innerRadius, ringWidth));
+            aiRings.push(new Ring(i, innerRadius, ringWidth));
+        }
+
+        // -------------------- AUDIO – HUMAN (MIC) --------------------
+        let audioCtx = null;
+        let analyserHuman = null;
+        let dataArrayHuman = null;
+
+        async function initHumanAudio() {
+            if (audioCtx) return; // already initialized
+
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            const source = audioCtx.createMediaStreamSource(stream);
+
+            analyserHuman = audioCtx.createAnalyser();
+            analyserHuman.fftSize = 1024;
+            const bufferLength = analyserHuman.frequencyBinCount;
+            dataArrayHuman = new Uint8Array(bufferLength);
+
+            source.connect(analyserHuman);
+        }
+
+        function getBandEnergyForRing(ringIndex) {
+            if (!analyserHuman || !dataArrayHuman) return 0;
+
+            analyserHuman.getByteFrequencyData(dataArrayHuman);
+            const len = dataArrayHuman.length;
+
+            const bandSize = Math.floor(len / numRings) || 1;
+            const start = ringIndex * bandSize;
+            const end = Math.min(start + bandSize, len);
+
+            let sum = 0;
+            for (let i = start; i < end; i++) {
+                sum += dataArrayHuman[i];
+            }
+
+            const avg = sum / (end - start || 1);
+            return avg / 255; // 0..1
+        }
+
+        // -------------------- "AI" AUDIO ENVELOPE (FAKE ANALYSER) --------------------
+        // We can't access speechSynthesis raw PCM, so we approximate with a smooth,
+        // noisy envelope that behaves similar to the mic visualizer.
+        let aiSpeaking = false;
+        let aiLevel = 0;     // global energy 0..1
+        let aiPhase = 0;     // global noise phase
+
+        function updateAiEnvelope() {
+            // Smooth approach to a "target" level when speaking / silence
+            const target = aiSpeaking ? 0.7 : 0.0;
+            const speed  = aiSpeaking ? 0.05 : 0.03; // approach speed
+
+            aiLevel += (target - aiLevel) * speed;
+            aiPhase += 0.03;
+        }
+
+        function getAiEnergyForRing(ringIndex) {
+            // energy ~ aiLevel with per-ring variation
+            const ring = aiRings[ringIndex];
+            ring.noisePhase += ring.noiseSpeed * 0.5;
+
+            // base noise between 0.7 and 1.0 when level is high, but scaled by aiLevel
+            const n = 0.5 + 0.5 * Math.sin(aiPhase + ringIndex * 0.7 + ring.noisePhase);
+            // mix with aiLevel to avoid all-or-nothing
+            const energy = aiLevel * (0.4 + 0.6 * n); // 0 .. ~ aiLevel
+
+            return energy; // 0..~1
+        }
+
+        // -------------------- SPEECH: RECOGNITION + SYNTHESIS --------------------
+        const humanTextEl = document.getElementById("humanText");
+        const aiTextEl    = document.getElementById("aiText");
+
+        let recognition = null;
+        let listening = false;
+
+        function initRecognition() {
+            const SpeechRec =
+                window.SpeechRecognition ||
+                window.webkitSpeechRecognition;
+
+            if (!SpeechRec) {
+                alert("webkitSpeechRecognition no está disponible en este navegador.");
+                return;
+            }
+
+            recognition = new SpeechRec();
+            recognition.lang = "es-ES";
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.trim();
+                humanTextEl.textContent = transcript;
+
+                // Bounce: IA repeats the same text in Spanish
+                speakAI(transcript);
+            };
+
+            recognition.onerror = (e) => {
+                console.error("Recognition error:", e);
+            };
+
+            recognition.onend = () => {
+                if (listening) {
+                    // Restart recognition to keep bounce AI going
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.warn("Restart recognition error:", e);
+                    }
+                }
+            };
+        }
+
+        function speakAI(text) {
+            if (!("speechSynthesis" in window)) {
+                alert("Speech Synthesis no está disponible en este navegador.");
+                return;
+            }
+
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = "es-ES";
+
+            utter.onstart = () => {
+                aiSpeaking = true;
+                aiTextEl.textContent = text;
+            };
+
+            utter.onend = () => {
+                aiSpeaking = false;
+            };
+
+            // stop any current speech
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utter);
+        }
+
+        // -------------------- ANIMATION DRAW --------------------
+        function drawVisualizer(ctx, rings, W, H, energyFn) {
+            // background with alpha trail
+            ctx.fillStyle = `rgba(0,0,0,${baseBgAlpha})`;
+            ctx.fillRect(0, 0, W, H);
+
+            ctx.save();
+            ctx.translate(W / 2, H / 2);
+
+            for (let i = 0; i < rings.length; i++) {
+                const ring = rings[i];
+
+                const energy = energyFn(i); // 0..1
+
+                const spanFactor = minSpanFactor + (maxSpanFactor - minSpanFactor) * energy;
+                const span = ring.baseSpan * spanFactor;
+
+                ring.phase += ring.speed + energy * audioAngleBoost;
+
+                const a1 = ring.phase;
+                const a2 = ring.phase + span;
+
+                const lw = ringWidth + energy * 4;
+                const opacity = minOpacity + (maxOpacity - minOpacity) * energy;
+
+                switch (ring.type) {
+                    case 0: // arco simple
+                        ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+                        ctx.lineWidth = lw;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, ring.r, a1, a2, false);
+                        ctx.stroke();
+                        ctx.closePath();
+                        break;
+
+                    case 1: // área tipo "quesito"
+                        ctx.fillStyle = `rgba(255,255,255,${opacity * 0.7})`;
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.arc(0, 0, ring.r, a1, a2, false);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+
+                    case 2: // trocitos + puntas marcadas
+                        ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+                        ctx.lineWidth = lw;
+                        const step = 0.08;
+                        for (let a = a1; a < a2; a += step) {
+                            ctx.beginPath();
+                            ctx.arc(0, 0, ring.r, a, a + step * 0.5, false);
+                            ctx.stroke();
+                            ctx.closePath();
+                        }
+
+                        // remarcar puntas
+                        ctx.lineWidth = lw + 6;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, ring.r, a1, a1 + 0.03, false);
+                        ctx.stroke();
+                        ctx.closePath();
+                        ctx.beginPath();
+                        ctx.arc(0, 0, ring.r, a2 - 0.03, a2, false);
+                        ctx.stroke();
+                        ctx.closePath();
+                        break;
+
+                    case 3: // arco fino + puntos en extremos
+                        ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+                        ctx.lineWidth = 1 + energy * 2;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, ring.r, a1, a2, false);
+                        ctx.stroke();
+                        ctx.closePath();
+
+                        const x1 = Math.cos(a1) * ring.r;
+                        const y1 = Math.sin(a1) * ring.r;
+                        const x2 = Math.cos(a2) * ring.r;
+                        const y2 = Math.sin(a2) * ring.r;
+
+                        const puntoR = 3 + energy * 4;
+                        ctx.beginPath();
+                        ctx.arc(x1, y1, puntoR, 0, Math.PI * 2, true);
+                        ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+                        ctx.fill();
+                        ctx.closePath();
+
+                        ctx.beginPath();
+                        ctx.arc(x2, y2, puntoR, 0, Math.PI * 2, true);
+                        ctx.fill();
+                        ctx.closePath();
+                        break;
+                }
+            }
+
+            ctx.restore();
+        }
+
+        function animate() {
+            // update fake AI envelope before drawing
+            updateAiEnvelope();
+
+            // human visualizer (real mic analyser)
+            drawVisualizer(hctx, humanRings, HW, HH, getBandEnergyForRing);
+
+            // AI visualizer (smooth/noisy envelope, similar thresholds)
+            drawVisualizer(actx, aiRings, AW, AH, getAiEnergyForRing);
+
+            requestAnimationFrame(animate);
+        }
+
+        // -------------------- START BUTTON --------------------
+        document.getElementById("startBtn").addEventListener("click", async () => {
+            try {
+                await initHumanAudio();
+                initRecognition();
+                listening = true;
+                if (recognition) {
+                    recognition.start();
+                }
+                document.getElementById("startBtn").style.display = "none";
+                animate();
+            } catch (e) {
+                console.error(e);
+                alert("Error inicializando audio o reconocimiento.");
+            }
+        });
+    </script>
+</body>
+</html>
+

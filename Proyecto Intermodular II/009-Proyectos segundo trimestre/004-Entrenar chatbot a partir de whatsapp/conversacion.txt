@@ -1,0 +1,104 @@
+Conversación con María - CFGS
+
+[28/09/2023 10:15] Ana: Hola María! ¿Cómo estás? Quería preguntarte sobre los ciclos formativos porque sé que estás estudiando uno
+[28/09/2023 10:16] María: Hola Ana! Bien, gracias :) Sí, estoy en segundo de Desarrollo de Aplicaciones Web. ¿En qué puedo ayudarte?
+[28/09/2023 10:17] Ana: Me estoy planteando hacer un ciclo formativo pero tengo muchas dudas. No sé si hacer uno de grado medio o superior
+[28/09/2023 10:18] María: Te explico: los grados medios duran 2 años y te dan acceso a grados superiores. Los superiores son 2 años y dan acceso a la universidad
+[28/09/2023 10:19] María: Depende de lo que quieras estudiar y si tienes el título de bachillerato o no
+[28/09/2023 10:20] Ana: Tengo bachillerato, pero no sé si quiero ir a la universidad directamente. Me gusta más la parte práctica
+[28/09/2023 10:21] María: Entonces los ciclos son perfectos! Son muy prácticos y con buena salida laboral. ¿Qué te interesa?
+[28/09/2023 10:22] Ana: Me gusta la informática y también he visto algo de marketing. ¿Qué ciclos hay en esas áreas?
+[28/09/2023 10:23] María: En informática tienes:
+- CFGS Desarrollo de Aplicaciones Web
+- CFGS Desarrollo de Aplicaciones Multiplataforma
+- CFGS Administración de Sistemas Informáticos en Red
+- CFGS Ciberseguridad
+[28/09/2023 10:24] María: En marketing:
+- CFGS Marketing y Publicidad
+- CFGS Comercio Internacional
+- CFGS Transporte y Logística
+[28/09/2023 10:25] Ana: Vaya, hay más de lo que pensaba! ¿Y cómo son las clases? ¿Mucha teoría?
+[28/09/2023 10:26] María: En mi experiencia, es 70% práctica y 30% teoría. Hacemos proyectos reales, programamos, configuramos servidores...
+[28/09/2023 10:27] María: Además, al final hay prácticas en empresa de 3 meses, que es lo mejor para coger experiencia
+[28/09/2023 10:28] Ana: Suena bien! ¿Y es difícil entrar? ¿Hay que hacer alguna prueba?
+[28/09/2023 10:29] María: Con bachillerato entras directamente por nota media. Sin bachillerato hay que hacer prueba de acceso. La demanda es alta en informática
+[28/09/2023 10:30] Ana: ¿Y qué nota suele hacer falta? Mi media es de 7.8
+[28/09/2023 10:31] María: Con 7.8 entras en casi todos, aunque para Desarrollo Web el año pasado la nota de corte fue 8.1 en algunos sitios
+[28/09/2023 10:32] María: Pero hay muchos centros, seguro que encuentras plaza
+[28/09/2023 10:33] Ana: ¿Y cómo son los horarios? ¿Se puede compaginar con trabajo?
+[28/09/2023 10:34] María: Hay turno de mañana (8:00-15:00) y en algunos centros turno de tarde (15:00-22:00). También hay modalidad semipresencial
+[28/09/2023 10:35] María: Yo trabajo los fines de semana y voy a clase por la mañana. Es cansado pero se puede
+[28/09/2023 10:36] Ana: ¿Y qué salidas laborales tiene realmente? Mis padres están preocupados por eso
+[28/09/2023 10:37] María: En informática hay mucha demanda. Mis compañeros de promoción anterior el 80% encontró trabajo en menos de 3 meses
+[28/09/2023 10:38] María: Los sueldos de entrada están entre 18k-24k €, y con experiencia suben rápido
+[28/09/2023 10:39] Ana: Eso está bien para empezar. ¿Y las prácticas en empresa son remuneradas?
+[28/09/2023 10:40] María: Sí, por ley tienen que darte una beca. En mi caso son 400€ al mes, pero en algunas empresas pagan más
+[28/09/2023 10:41] María: Lo importante es que muchas empresas cogen a los becarios después de las prácticas
+[28/09/2023 10:42] Ana: ¿Y qué me recomiendas? ¿Grado medio o ir directamente al superior?
+[28/09/2023 10:43] María: Con tu bachillerato ve directamente al superior. Los medios son más básicos y para gente sin bachillerato
+[28/09/2023 10:44] María: Además, con el superior tienes más salidas y mejor sueldo
+[28/09/2023 10:45] Ana: Vale, tengo que mirar bien las fechas de preinscripción. ¿Cuándo suele ser?
+[28/09/2023 10:46] María: Depende de cada comunidad, pero generalmente:
+- Junio/julio para el curso que viene
+- Septiembre para plazas sobrantes
+[28/09/2023 10:47] María: Te recomiendo que empieces a mirar en abril/mayo los plazos exactos
+[28/09/2023 10:48] Ana: ¿Y qué documentos necesito para la preinscripción?
+[28/09/2023 10:49] María: DNI, certificado de notas de bachillerato, y luego depende del centro. Algunos piden foto, solicitud específica...
+[28/09/2023 10:50] María: Lo mejor es mirar en la web de educación de tu comunidad autónoma
+[28/09/2023 10:51] Ana: ¿Y se puede solicitar en varios centros a la vez?
+[28/09/2023 10:52] María: Sí, haces una lista ordenada por preferencia. Te asignan plaza según tu nota y tus preferencias
+[28/09/2023 10:53] Ana: Perfecto! Otra duda: ¿hay que comprar muchos libros? ¿Es caro el material?
+[28/09/2023 10:54] María: En mi ciclo casi todo el material es digital. Los profes comparten apuntes y usamos software libre. El mayor gasto es un portátil bueno
+[28/09/2023 10:55] María: Yo me gasté 600€ en un portátil y con eso tengo para todo el ciclo
+[28/09/2023 10:56] Ana: Eso está bien. ¿Y las asignaturas son muy difíciles? Me preocupa especialmente la programación
+[28/09/2023 10:57] María: Al principio cuesta, pero los profes empiezan desde cero. Lo importante es practicar mucho y no dejar cosas para el final
+[28/09/2023 10:58] María: Yo no sabía programar nada y ahora me defiendo bien. Hay que ser constante nada más
+[28/09/2023 10:59] Ana: ¿Y hay mucho trabajo en grupo? Esa es otra de mis preocupaciones
+[28/09/2023 11:00] María: Sí, hay bastantes proyectos en grupo. Es buena preparación para el mundo laboral donde todo es en equipo
+[28/09/2023 11:01] María: Al principio puede ser un rollo si te toca gente que no trabaja, pero aprendes a organizarte
+[28/09/2023 11:02] Ana: Vale, me lo estoy pensando seriamente. ¿Crees que podría visitar tu centro algún día?
+[28/09/2023 11:03] María: Claro! En marzo suelen hacer jornadas de puertas abiertas. También puedo preguntar si puedes venir un día conmigo a alguna clase
+[28/09/2023 11:04] Ana: Eso sería genial! Así veo cómo es el ambiente
+[28/09/2023 11:05] María: Te aviso cuando sepa algo. Mientras tanto, te paso unos enlaces con información oficial
+[28/09/2023 11:06] María: https://www.todofp.es (este es el oficial del ministerio)
+[28/09/2023 11:07] María: Y te recomiendo seguir en Instagram a @fp_informatica_ que comparten mucha info útil
+[28/09/2023 11:08] Ana: Muchísimas gracias María! Me has aclarado un montón de dudas. Voy a mirar toda la información
+[28/09/2023 11:09] María: De nada! Cualquier otra duda me preguntas. Ánimo con la decisión!
+[28/09/2023 11:10] Ana: Gracias! Hablamos pronto 😊
+
+[15/10/2023 16:20] Ana: Hola María! Perdona que te moleste otra vez. Estoy mirando los módulos del ciclo de DAW y tengo dudas con las asignaturas
+[15/10/2023 16:21] María: Hola! No es molestia :) ¿Qué dudas tienes?
+[15/10/2023 16:22] Ana: Veo que hay asignaturas de programación, bases de datos, lenguajes de marcas... ¿Cuáles son las más difíciles?
+[15/10/2023 16:23] María: Depende de cada persona. A mí me costó más Bases de Datos al principio, pero luego le coges el tranquillo
+[15/10/2023 16:24] María: Programación es la más importante, se da durante los dos años. Empiezas con Java y luego PHP, JavaScript...
+[15/10/2023 16:25] Ana: ¿Y se dan muchos proyectos reales? Me interesa eso de hacer cosas prácticas
+[15/10/2023 16:26] María: Sí, en primero hacemos una web completa para un cliente ficticio, y en segundo un proyecto más completo con app móvil
+[15/10/2023 16:27] María: Lo bueno es que al terminar tienes portfolio para mostrar en las entrevistas
+[15/10/2023 16:28] Ana: Genial! Otra cosa: ¿hay que saber inglés? Veo que algunas asignaturas tienen nombres en inglés
+[15/10/2023 16:29] María: No es obligatorio, pero ayuda mucho. La documentación técnica está en inglés y las empresas valoran mucho el inglés técnico
+[15/10/2023 16:30] María: En algunos centros hay asignatura de inglés técnico opcional
+[15/10/2023 16:31] Ana: Vale, mi inglés es regular pero puedo mejorarlo. ¿Y qué me dices del horario de tarde? Es el que me iría mejor
+[15/10/2023 16:32] María: El de tarde suele tener menos plazas pero también menos demanda. La calidad es la misma, mismos profes y mismo temario
+[15/10/2023 16:33] Ana: Perfecto! Creo que me decanto por DAW en turno de tarde. Ahora toca esperar a la preinscripción
+[15/10/2023 16:34] María: Me alegro! Si necesitas ayuda con la solicitud me dices. Yo pasé por eso el año pasado
+[15/10/2023 16:35] Ana: Gracias María, eres un sol! Te tendré al tanto de cómo va todo
+[15/10/2023 16:36] María: De nada! Suerte con todo 💪
+
+[12/04/2024 09:30] Ana: Buenos días María! Ya se abrió la preinscripción y he solicitado DAW en tres centros. Cruzando los dedos!
+[12/04/2024 09:31] María: Qué bien! ¿En qué centros has puesto?
+[12/04/2024 09:32] Ana: 1. IES Tu centro (el tuyo)
+2. IES Tecnológico
+3. IES Sistemas Informáticos
+[12/04/2024 09:33] María: Ojalá entres en el mío! Sería genial tenerte de compañera el año que viene
+[12/04/2024 09:34] Ana: Ojalá! Por cierto, ¿sabes cuándo suelen publicar las listas?
+[12/04/2024 09:35] María: El año pasado fue a finales de junio. Te llegará un email cuando salgan
+[12/04/2024 09:36] Ana: Vale, toca esperar entonces. ¡Muchas gracias por toda tu ayuda!
+[12/04/2024 09:37] María: Para eso estamos! Cualquier cosa me escribes 😊
+
+[28/06/2024 11:15] Ana: MARÍA!!! ME HAN ADMITIDO EN TU CENTRO!!! 😍
+[28/06/2024 11:16] María: NO ME DIGAS!!! ENHORABUENA!!! 🎉🎉🎉
+[28/06/2024 11:17] María: Estoy super contenta! Vas a ver cómo te encanta
+[28/06/2024 11:18] Ana: No me lo creo aún! Tenía nota justa pero al final entré. Ahora toca formalizar la matrícula
+[28/06/2024 11:19] María: Si necesitas ayuda con los papeles me dices. La matrícula suele ser en julio
+[28/06/2024 11:20] Ana: Gracias! Te aviso si tengo dudas. Qué ilusión ser compañeras!
+[28/06/2024 11:21] María: A mí también me hace mucha ilusión! Bienvenida al mundo FP! 💻

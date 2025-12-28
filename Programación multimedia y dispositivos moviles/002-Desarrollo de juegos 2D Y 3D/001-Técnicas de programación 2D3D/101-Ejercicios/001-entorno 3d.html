@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Parallax Box with Head Tracking</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+  <!-- Mediapipe Tasks Vision (FaceLandmarker) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js"></script>
+
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    #video {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      width: 200px;
+      transform: scaleX(-1); /* mirror for natural feeling */
+      opacity: 0.4;          /* debug; later set to 0 or remove */
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline></video>
+
+  <a-scene>
+    <!-- Camera rig so we can move the rig instead of the camera alone -->
+    <a-entity id="rig" position="0 0 3">
+      <a-entity id="cam" camera look-controls="enabled: false"></a-entity>
+    </a-entity>
+
+    <!-- Inside of a box -->
+    <a-box position="0 0 -2" depth="0.05" height="4" width="6" color="#222"></a-box> <!-- back wall -->
+    <a-box position="0 -2 0" rotation="90 0 0" depth="0.05" height="4" width="6" color="#333"></a-box> <!-- floor -->
+    <a-box position="0 2 0" rotation="-90 0 0" depth="0.05" height="4" width="6" color="#333"></a-box> <!-- ceiling -->
+    <a-box position="-3 0 0" rotation="0 90 0" depth="0.05" height="4" width="4" color="#444"></a-box> <!-- left -->
+    <a-box position="3 0 0" rotation="0 -90 0" depth="0.05" height="4" width="4" color="#444"></a-box> <!-- right -->
+
+    <!-- Some primitives inside -->
+    <a-sphere position="-1 0 -1" radius="0.4" color="#FF4444"></a-sphere>
+    <a-box position="1 -0.5 -1.5" depth="0.6" height="0.6" width="0.6" color="#44FF44"></a-box>
+    <a-cylinder position="0 0.5 -2.5" radius="0.3" height="1" color="#4444FF"></a-cylinder>
+
+    <!-- Light -->
+    <a-entity light="type: point; intensity: 1.5" position="0 1 1"></a-entity>
+  </a-scene>
+
+  <script type="module">
+    import {
+      FaceLandmarker,
+      FilesetResolver,
+      DrawingUtils
+    } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+
+    const video = document.getElementById("video");
+    let faceLandmarker;
+    let running = false;
+    let lastVideoTime = -1;
+
+    async function initCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 }
+      });
+      video.srcObject = stream;
+      return new Promise(resolve => {
+        video.onloadedmetadata = () => resolve();
+      });
+    }
+
+    async function initFaceLandmarker() {
+      const filesetResolver = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+      );
+
+      faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+        baseOptions: {
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+        },
+        runningMode: "VIDEO",
+        numFaces: 1
+      });
+    }
+
+    function getHeadCenterFromLandmarks(landmarks) {
+      // landmarks: 3D points in image coords [0..1]
+      // We’ll simply average some key points (eyes + nose) as a crude head center.
+      const indices = [1, 33, 263,  noseIndex()];
+      function noseIndex() { return 1; } // You could look up the correct index if you like.
+
+      let x = 0, y = 0;
+      let count = 0;
+      for (const i of indices) {
+        if (!landmarks[i]) continue;
+        x += landmarks[i].x;
+        y += landmarks[i].y;
+        count++;
+      }
+      if (!count) return null;
+      return { x: x / count, y: y / count }; // still in [0..1]
+    }
+
+    function mapHeadToCamera(headCenter, videoWidth, videoHeight) {
+      // headCenter.x,y in [0..1]; convert to [-1,1]
+      const nx = headCenter.x * 2 - 1;   // left=-1, right=1
+      const ny = headCenter.y * 2 - 1;   // top=-1, bottom=1
+
+      // Tunable offsets in scene units
+      const maxX = 0.6;
+      const maxY = 0.4;
+      const baseZ = 3;     // base distance
+      const maxZOffset = 0.5;
+
+      // For now, fake Z from how off-center they are (just to get some motion)
+      const distanceFromCenter = Math.sqrt(nx*nx + ny*ny); // 0..approx1.4
+      const nz = Math.min(distanceFromCenter, 1.0);
+
+      // Map: move rig opposite head movement for window effect
+      const camX = -nx * maxX;
+      const camY = ny * maxY;
+      const camZ = baseZ + nz * maxZOffset;
+
+      return { x: camX, y: camY, z: camZ };
+    }
+
+    function smooth(prev, next, factor = 0.15) {
+      if (!prev) return next;
+      return {
+        x: prev.x + (next.x - prev.x) * factor,
+        y: prev.y + (next.y - prev.y) * factor,
+        z: prev.z + (next.z - prev.z) * factor,
+      };
+    }
+
+    let smoothedCamPos = null;
+    const rigEl = document.getElementById("rig");
+
+    async function processVideoFrame() {
+      if (!running) return;
+
+      const nowMs = performance.now();
+      const videoTime = video.currentTime;
+      if (videoTime === lastVideoTime) {
+        requestAnimationFrame(processVideoFrame);
+        return;
+      }
+      lastVideoTime = videoTime;
+
+      const results = faceLandmarker.detectForVideo(video, nowMs);
+
+      if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+        const landmarks = results.faceLandmarks[0];
+        const center = getHeadCenterFromLandmarks(landmarks);
+        if (center) {
+          const camPos = mapHeadToCamera(
+            center,
+            video.videoWidth,
+            video.videoHeight
+          );
+          smoothedCamPos = smooth(smoothedCamPos, camPos);
+          rigEl.setAttribute(
+            "position",
+            `${smoothedCamPos.x} ${smoothedCamPos.y} ${smoothedCamPos.z}`
+          );
+        }
+      }
+
+      requestAnimationFrame(processVideoFrame);
+    }
+
+    (async () => {
+      await initCamera();
+      await initFaceLandmarker();
+      running = true;
+      processVideoFrame();
+    })();
+  </script>
+</body>
+</html>
+

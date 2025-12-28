@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>Red 3D de personas</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <style>
+      body,html{
+        margin:0;
+        padding:0;
+        font-family:sans-serif;
+        overflow:hidden;
+      }
+      #controles{
+        position:fixed;
+        top:10px;
+        left:10px;
+        padding:8px 10px;
+        background:rgba(255,255,255,0.9);
+        border:1px solid #ccc;
+        border-radius:4px;
+        font-size:12px;
+        z-index:10;
+        max-height:90vh;
+        overflow:auto;
+      }
+      #controles label{
+        display:block;
+        margin-bottom:4px;
+      }
+      #controles input[type=range]{
+        width:150px;
+      }
+      #controles span.valor{
+        display:inline-block;
+        width:24px;
+        text-align:right;
+        margin-left:4px;
+      }
+      #controles .fila{
+        margin-top:4px;
+        margin-bottom:4px;
+      }
+      #propiedades .bloque-prop{
+        border-top:1px solid #ddd;
+        margin-top:4px;
+        padding-top:4px;
+      }
+      #propiedades .titulo-prop{
+        font-weight:bold;
+        margin-bottom:2px;
+      }
+      #propiedades label{
+        display:inline-block;
+        margin-right:8px;
+        margin-bottom:2px;
+      }
+      #ayudaTeclas{
+        font-size:11px;
+        margin-top:6px;
+        color:#555;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Panel de control en 2D -->
+    <div id="controles">
+      <label>
+        Grosor mínimo
+        <input id="grosorMin" type="range" min="1" max="10" value="1">
+        <span id="grosorMinValor" class="valor">1</span>
+      </label>
+      <label>
+        Grosor máximo
+        <input id="grosorMax" type="range" min="1" max="20" value="6">
+        <span id="grosorMaxValor" class="valor">6</span>
+      </label>
+
+      <div class="fila">
+        <label>
+          <input id="chkMostrarLineas" type="checkbox" checked>
+          Mostrar conexiones
+        </label>
+      </div>
+
+      <div class="fila">
+        <div><strong>Propiedades</strong> (detectadas del JSON)</div>
+        <div id="propiedades"></div>
+      </div>
+
+      <div id="ayudaTeclas">
+        Navegación:<br>
+        W/A/S/D: mover plano XZ<br>
+        Ratón: mirar alrededor<br>
+        Q/E: subir/bajar (vuelo)<br>
+      </div>
+    </div>
+
+    <!-- Escena A-Frame -->
+    <a-scene background="color: #ECECEC">
+      <!-- Cámara + controles FPS + "vuelo" con Q/E (lo añadimos en JS) -->
+      <a-entity id="rig" position="0 3 15">
+        <a-entity camera look-controls wasd-controls position="0 0 0"></a-entity>
+      </a-entity>
+
+      <!-- Luces -->
+      <a-entity light="type: ambient; color: #BBB"></a-entity>
+      <a-entity light="type: directional; color: #FFF; intensity: 0.7" position="1 2 0"></a-entity>
+
+      <!-- Contenedor de conexiones (líneas) -->
+      <a-entity id="conexiones"></a-entity>
+
+      <!-- Contenedor de nodos (se rellenará desde JS) -->
+      <a-entity id="nodos"></a-entity>
+    </a-scene>
+
+    <script>
+      // ---------- Utilidades ----------
+
+      function distancia3D(x1,y1,z1,x2,y2,z2){
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dz = z2 - z1;
+        return Math.sqrt(dx*dx + dy*dy + dz*dz);
+      }
+
+      function hashCadena(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = (hash * 31 + str.charCodeAt(i)) | 0;
+        }
+        return Math.abs(hash);
+      }
+
+      // ---------- Escena y entidades base ----------
+
+      const escenaEl      = document.querySelector("a-scene");
+      const nodosContEl   = document.getElementById("nodos");
+      const conexionesEl  = document.getElementById("conexiones");
+      const rigEl         = document.getElementById("rig");
+
+      // --- Parámetros físicos 3D ---
+      const LIM_X = 20;  // límites de espacio en X
+      const LIM_Y = 10;  // altura
+      const LIM_Z = 20;  // límites en Z
+
+      // Física (similar a antes, pero 3D)
+      const DISTANCIA_OBJETIVO          = 6;
+      const DISTANCIA_MINIMA            = 1.8;
+      const DISTANCIA_REPULSION_DISTINTO = 14;
+
+      const K_ATRACCION_FUERTE   = 0.0015;
+      const K_ATRACCION_MEDIA    = 0.0009;
+      const K_REPULSION_DISTINTO = 0.001;
+      const K_REPULSION_CORTA    = 0.06;
+
+      const FRICCION   = 0.93;
+      const MAX_FUERZA = 0.05;
+
+      const RADIO_CONEXION = 12; // distancia máxima para dibujar conexión
+
+      // ---------- Controles UI ----------
+
+      let grosorMin = 1;
+      let grosorMax = 6;
+      let mostrarLineas = true;
+
+      let clavesPropiedades = [];   // nombres de propiedades del JSON
+      let usarEnRelacion    = {};   // {prop: boolean}
+      let mostrarEnEtiqueta = {};   // {prop: boolean}
+
+      const sliderMin = document.getElementById("grosorMin");
+      const sliderMax = document.getElementById("grosorMax");
+      const spanMin   = document.getElementById("grosorMinValor");
+      const spanMax   = document.getElementById("grosorMaxValor");
+      const chkMostrarLineas = document.getElementById("chkMostrarLineas");
+      const divPropiedades   = document.getElementById("propiedades");
+
+      sliderMin.addEventListener("input", () => {
+        grosorMin = parseFloat(sliderMin.value);
+        spanMin.textContent = sliderMin.value;
+        if (grosorMin > grosorMax) {
+          grosorMax = grosorMin;
+          sliderMax.value = grosorMax;
+          spanMax.textContent = grosorMax;
+        }
+      });
+
+      sliderMax.addEventListener("input", () => {
+        grosorMax = parseFloat(sliderMax.value);
+        spanMax.textContent = sliderMax.value;
+        if (grosorMax < grosorMin) {
+          grosorMin = grosorMax;
+          sliderMin.value = grosorMin;
+          spanMin.textContent = grosorMin;
+        }
+      });
+
+      chkMostrarLineas.addEventListener("change", () => {
+        mostrarLineas = chkMostrarLineas.checked;
+      });
+
+      function crearControlesPropiedades(claves){
+        divPropiedades.innerHTML = "";
+        clavesPropiedades = claves.slice();
+
+        clavesPropiedades.forEach(prop => {
+          if (!(prop in usarEnRelacion))    usarEnRelacion[prop] = true;
+          if (!(prop in mostrarEnEtiqueta)) mostrarEnEtiqueta[prop] = true;
+
+          const bloque = document.createElement("div");
+          bloque.className = "bloque-prop";
+
+          const titulo = document.createElement("div");
+          titulo.className = "titulo-prop";
+          titulo.textContent = prop;
+          bloque.appendChild(titulo);
+
+          // Usar en relación
+          const lblUsar = document.createElement("label");
+          const chkUsar = document.createElement("input");
+          chkUsar.type = "checkbox";
+          chkUsar.checked = usarEnRelacion[prop];
+          chkUsar.addEventListener("change", () => {
+            usarEnRelacion[prop] = chkUsar.checked;
+            // Reactivar todas las partículas al cambiar condiciones
+            particulas.forEach(p => {
+              p.fija = false;
+              p.estableFrames = 0;
+            });
+          });
+          lblUsar.appendChild(chkUsar);
+          lblUsar.appendChild(document.createTextNode(" Usar en relación"));
+          bloque.appendChild(lblUsar);
+
+          // Mostrar en etiqueta
+          const lblMostrar = document.createElement("label");
+          const chkMostrar = document.createElement("input");
+          chkMostrar.type = "checkbox";
+          chkMostrar.checked = mostrarEnEtiqueta[prop];
+          chkMostrar.addEventListener("change", () => {
+            mostrarEnEtiqueta[prop] = chkMostrar.checked;
+          });
+          lblMostrar.appendChild(chkMostrar);
+          lblMostrar.appendChild(document.createTextNode(" Mostrar en etiqueta"));
+          bloque.appendChild(lblMostrar);
+
+          divPropiedades.appendChild(bloque);
+        });
+      }
+
+      // ---------- Datos y nodos 3D ----------
+
+      let particulas = []; // cada partícula: {x,y,z,vx,vy,vz,ax,ay,az,fija,estableFrames,datos, nodeEl, textEl, sphereEl}
+      let numeroParticulas = 0;
+
+      function construirEtiqueta(datos){
+        const lineas = [];
+        for (const prop of clavesPropiedades){
+          if (!mostrarEnEtiqueta[prop]) continue;
+          const val = (datos[prop] !== undefined && datos[prop] !== null) ? String(datos[prop]) : "";
+          lineas.push(val);
+        }
+        return lineas.join("\n");
+      }
+
+      function crearNodos3D(personas){
+        particulas = [];
+        numeroParticulas = personas.length;
+
+        for (let i = 0; i < personas.length; i++){
+          const persona = personas[i];
+
+          const x = (Math.random() - 0.5) * LIM_X * 2;
+          const y = Math.random() * LIM_Y + 1; // un poco por encima del suelo
+          const z = (Math.random() - 0.5) * LIM_Z * 2;
+
+          const nodo = document.createElement("a-entity");
+          nodo.setAttribute("position", `${x} ${y} ${z}`);
+
+          const sphere = document.createElement("a-sphere");
+          sphere.setAttribute("radius", "0.4");
+          sphere.setAttribute("color", "#FFFFFF");
+          sphere.setAttribute("metalness", "0.1");
+          sphere.setAttribute("roughness", "0.8");
+          nodo.appendChild(sphere);
+
+          const texto = document.createElement("a-entity");
+          texto.setAttribute("text", {
+            value: construirEtiqueta(persona),
+            align: "center",
+            color: "#111",
+            width: 2,
+            wrapCount: 16
+          });
+          texto.setAttribute("position", "0 0.8 0");
+          nodo.appendChild(texto);
+
+          nodosContEl.appendChild(nodo);
+
+          particulas.push({
+            x:x, y:y, z:z,
+            vx:(Math.random()-0.5)*0.1,
+            vy:(Math.random()-0.5)*0.1,
+            vz:(Math.random()-0.5)*0.1,
+            ax:0, ay:0, az:0,
+            fija:false,
+            estableFrames:0,
+            datos:persona,
+            nodeEl:nodo,
+            textEl:texto,
+            sphereEl:sphere
+          });
+        }
+      }
+
+      // ---------- Física 3D en el hilo principal ----------
+
+      function pasoFisica(){
+        const n = numeroParticulas;
+        if (n === 0) return;
+
+        // Reiniciar aceleraciones
+        for (let i = 0; i < n; i++){
+          particulas[i].ax = 0;
+          particulas[i].ay = 0;
+          particulas[i].az = 0;
+        }
+
+        // Fuerzas de interacción
+        for (let i = 0; i < n; i++){
+          const p = particulas[i];
+          if (p.fija) continue;
+
+          let fx = 0, fy = 0, fz = 0;
+
+          for (let j = 0; j < n; j++){
+            if (i === j) continue;
+            const q = particulas[j];
+
+            const d = distancia3D(p.x,p.y,p.z, q.x,q.y,q.z);
+            if (d === 0) continue;
+
+            const dx = q.x - p.x;
+            const dy = q.y - p.y;
+            const dz = q.z - p.z;
+            if (d > Math.sqrt((LIM_X*2)**2 + (LIM_Y*2)**2 + (LIM_Z*2)**2)) continue;
+
+            const ux = dx / d;
+            const uy = dy / d;
+            const uz = dz / d;
+
+            // Repulsión fuerte a corta distancia
+            if (d < DISTANCIA_MINIMA){
+              const intensidad = (DISTANCIA_MINIMA - d) * K_REPULSION_CORTA;
+              fx -= ux * intensidad;
+              fy -= uy * intensidad;
+              fz -= uz * intensidad;
+              continue;
+            }
+
+            // Coincidencias según propiedades activas
+            const propsCoinciden = [];
+            let hayPropsRelacionActivas = false;
+            for (const prop of clavesPropiedades){
+              if (!usarEnRelacion[prop]) continue;
+              hayPropsRelacionActivas = true;
+              if (p.datos[prop] === q.datos[prop]){
+                propsCoinciden.push(prop);
+              }
+            }
+
+            if (propsCoinciden.length > 1){
+              // Atracción fuerte
+              const delta = d - DISTANCIA_OBJETIVO;
+              fx += ux * delta * K_ATRACCION_FUERTE;
+              fy += uy * delta * K_ATRACCION_FUERTE;
+              fz += uz * delta * K_ATRACCION_FUERTE;
+            } else if (propsCoinciden.length === 1){
+              // Atracción media
+              const delta = d - DISTANCIA_OBJETIVO;
+              fx += ux * delta * K_ATRACCION_MEDIA;
+              fy += uy * delta * K_ATRACCION_MEDIA;
+              fz += uz * delta * K_ATRACCION_MEDIA;
+            } else {
+              // Sin coincidencias: ligera repulsión si está relativamente cerca
+              if (d < DISTANCIA_REPULSION_DISTINTO){
+                const intensidad = (DISTANCIA_REPULSION_DISTINTO - d) * K_REPULSION_DISTINTO;
+                fx -= ux * intensidad;
+                fy -= uy * intensidad;
+                fz -= uz * intensidad;
+              }
+            }
+          }
+
+          // Limitar fuerza total
+          const modF = Math.sqrt(fx*fx + fy*fy + fz*fz);
+          if (modF > MAX_FUERZA){
+            fx = fx / modF * MAX_FUERZA;
+            fy = fy / modF * MAX_FUERZA;
+            fz = fz / modF * MAX_FUERZA;
+          }
+
+          p.ax = fx;
+          p.ay = fy;
+          p.az = fz;
+        }
+
+        // Integración y rebotes
+        for (let i = 0; i < n; i++){
+          const p = particulas[i];
+          if (!p.fija){
+            p.vx += p.ax;
+            p.vy += p.ay;
+            p.vz += p.az;
+
+            p.vx *= FRICCION;
+            p.vy *= FRICCION;
+            p.vz *= FRICCION;
+
+            p.x += p.vx;
+            p.y += p.vy;
+            p.z += p.vz;
+
+            // Rebotes con caja
+            const REBOTE = -0.5;
+
+            if (p.x > LIM_X){
+              p.x = LIM_X;
+              p.vx *= REBOTE;
+            }
+            if (p.x < -LIM_X){
+              p.x = -LIM_X;
+              p.vx *= REBOTE;
+            }
+            if (p.z > LIM_Z){
+              p.z = LIM_Z;
+              p.vz *= REBOTE;
+            }
+            if (p.z < -LIM_Z){
+              p.z = -LIM_Z;
+              p.vz *= REBOTE;
+            }
+            if (p.y > LIM_Y){
+              p.y = LIM_Y;
+              p.vy *= REBOTE;
+            }
+            if (p.y < 0.5){
+              p.y = 0.5;
+              p.vy *= REBOTE;
+            }
+
+            // Estabilidad
+            const vel = Math.sqrt(p.vx*p.vx + p.vy*p.vy + p.vz*p.vz);
+            const fuer = Math.sqrt(p.ax*p.ax + p.ay*p.ay + p.az*p.az);
+
+            if (vel < 0.02 && fuer < 0.002){
+              p.estableFrames++;
+              if (p.estableFrames > 60){
+                p.fija = true;
+                p.vx = p.vy = p.vz = 0;
+              }
+            } else {
+              p.estableFrames = 0;
+            }
+          }
+
+          // Actualizar posición en la escena
+          p.nodeEl.setAttribute("position", `${p.x} ${p.y} ${p.z}`);
+          // Actualizar etiqueta (por si cambian los toggles)
+          p.textEl.setAttribute("text", "value", construirEtiqueta(p.datos));
+        }
+      }
+
+      // ---------- Conexiones 3D ----------
+
+      function actualizarConexiones(){
+        conexionesEl.innerHTML = "";
+        if (!mostrarLineas) return;
+
+        const n = numeroParticulas;
+        for (let i = 0; i < n; i++){
+          const a = particulas[i];
+          for (let j = i+1; j < n; j++){
+            const b = particulas[j];
+
+            const d = distancia3D(a.x,a.y,a.z,b.x,b.y,b.z);
+            if (d > RADIO_CONEXION) continue;
+
+            // Coincidencias en propiedades activas
+            const propsCoinciden = [];
+            let hayPropsRelacionActivas = false;
+            for (const prop of clavesPropiedades){
+              if (!usarEnRelacion[prop]) continue;
+              hayPropsRelacionActivas = true;
+              if (a.datos[prop] === b.datos[prop]){
+                propsCoinciden.push(prop);
+              }
+            }
+
+            let clave = "ninguna";
+            if (propsCoinciden.length === 1){
+              clave = propsCoinciden[0];
+            } else if (propsCoinciden.length > 1){
+              clave = propsCoinciden.slice().sort().join("+");
+            } else if (!hayPropsRelacionActivas){
+              clave = "sin-prop-relacion";
+            }
+
+            const h = hashCadena(clave) % 360;
+            const color = `hsl(${h}, 70%, 50%)`;
+
+            const lineaEl = document.createElement("a-entity");
+            lineaEl.setAttribute("line", {
+              start: `${a.x} ${a.y} ${a.z}`,
+              end:   `${b.x} ${b.y} ${b.z}`,
+              color: color
+            });
+            conexionesEl.appendChild(lineaEl);
+          }
+        }
+      }
+
+      // ---------- Bucle principal ----------
+
+      function bucle(){
+        pasoFisica();
+        actualizarConexiones();
+        requestAnimationFrame(bucle);
+      }
+
+      // ---------- "Fly" con Q/E (subida/bajada del rig) ----------
+
+      window.addEventListener("keydown", (e) => {
+        const paso = 0.4;
+        const pos = rigEl.object3D.position;
+        if (e.key === "q" || e.key === "Q"){
+          pos.y += paso;
+        } else if (e.key === "e" || e.key === "E"){
+          pos.y -= paso;
+        }
+      });
+
+      // ---------- Carga de datos y arranque ----------
+
+      fetch("personas.json")
+        .then(r => r.json())
+        .then(personas => {
+          // Detectar propiedades
+          const setClaves = new Set();
+          personas.forEach(p => {
+            Object.keys(p).forEach(k => setClaves.add(k));
+          });
+          const claves = Array.from(setClaves);
+          crearControlesPropiedades(claves);
+
+          // Crear nodos 3D
+          crearNodos3D(personas);
+
+          // Arrancar bucle
+          requestAnimationFrame(bucle);
+        })
+        .catch(err => {
+          console.error("Error al cargar personas.json:", err);
+        });
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,22 @@
+[
+  {
+    "label": "Spain",
+    "value": 323.0,
+    "color": "#0d1f44"
+  },
+  {
+    "label": "France",
+    "value": 405.0,
+    "color": "#162b58"
+  },
+  {
+    "label": "Italy",
+    "value": 493.0,
+    "color": "#1f386f"
+  },
+  {
+    "label": "Germany",
+    "value": 861.0,
+    "color": "#2a4788"
+  }
+]

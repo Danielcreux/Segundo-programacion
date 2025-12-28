@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>Red de personas</title>
+    <style>
+      body,html{
+        margin:0;
+        padding:0;
+        background:#ffffff;
+        font-family: sans-serif;
+        overflow:hidden;
+      }
+      #contLienzos{
+        position:fixed;
+        inset:0;
+      }
+      canvas{
+        position:absolute;
+        inset:0;
+      }
+      #controles{
+        position:fixed;
+        top:10px;
+        left:10px;
+        padding:8px 10px;
+        background:rgba(255,255,255,0.9);
+        border:1px solid #ccc;
+        border-radius:4px;
+        font-size:12px;
+        z-index:10;
+        max-height:90vh;
+        overflow:auto;
+      }
+      #controles label{
+        display:block;
+        margin-bottom:4px;
+      }
+      #controles input[type=range]{
+        width:150px;
+      }
+      #controles span.valor{
+        display:inline-block;
+        width:24px;
+        text-align:right;
+        margin-left:4px;
+      }
+      #controles .fila{
+        margin-top:4px;
+        margin-bottom:4px;
+      }
+      #controles #propiedades .bloque-prop{
+        border-top:1px solid #ddd;
+        margin-top:4px;
+        padding-top:4px;
+      }
+      #controles #propiedades .titulo-prop{
+        font-weight:bold;
+        margin-bottom:2px;
+      }
+      #controles #propiedades label{
+        display:inline-block;
+        margin-right:8px;
+        margin-bottom:2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controles">
+      <label>
+        Grosor mínimo
+        <input id="grosorMin" type="range" min="1" max="10" value="1">
+        <span id="grosorMinValor" class="valor">1</span>
+      </label>
+      <label>
+        Grosor máximo
+        <input id="grosorMax" type="range" min="1" max="20" value="6">
+        <span id="grosorMaxValor" class="valor">6</span>
+      </label>
+
+      <div class="fila">
+        <label>
+          <input id="chkMostrarLineas" type="checkbox" checked>
+          Mostrar conexiones
+        </label>
+      </div>
+
+      <div class="fila">
+        <div><strong>Propiedades</strong> (detectadas del JSON)</div>
+        <div id="propiedades"></div>
+      </div>
+    </div>
+
+    <div id="contLienzos">
+      <canvas id="lienzoLineas"></canvas>
+      <canvas id="lienzoNodos"></canvas>
+    </div>
+
+    <script>
+      // --- Utilidades generales ---
+      function distancia2D(x1, y1, x2, y2) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      // Hash sencillo de cadenas
+      function hashCadena(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = (hash * 31 + str.charCodeAt(i)) | 0;
+        }
+        return Math.abs(hash);
+      }
+
+      // --- Lienzos ---
+      const lienzoLineas = document.getElementById("lienzoLineas");
+      const lienzoNodos  = document.getElementById("lienzoNodos");
+      const ctxLineas    = lienzoLineas.getContext("2d");
+      const ctxNodos     = lienzoNodos.getContext("2d");
+
+      let ancho = window.innerWidth;
+      let alto  = window.innerHeight;
+
+      function redimensionarLienzos(){
+        ancho = window.innerWidth;
+        alto  = window.innerHeight;
+        lienzoLineas.width  = ancho;
+        lienzoLineas.height = alto;
+        lienzoNodos.width   = ancho;
+        lienzoNodos.height  = alto;
+      }
+      redimensionarLienzos();
+      window.addEventListener("resize", redimensionarLienzos);
+
+      ctxNodos.textAlign = "center";
+      ctxNodos.textBaseline = "middle";
+
+      // --- Controles globales ---
+      let grosorMin = 1;
+      let grosorMax = 6;
+      let mostrarLineas = true;
+
+      // Propiedades dinámicas (según JSON)
+      let clavesPropiedades = [];     // lista de nombres de propiedades
+      let usarEnRelacion = {};        // {prop: boolean} -> usar en física
+      let mostrarEnEtiqueta = {};     // {prop: boolean} -> mostrar texto
+
+      const sliderMin = document.getElementById("grosorMin");
+      const sliderMax = document.getElementById("grosorMax");
+      const spanMin   = document.getElementById("grosorMinValor");
+      const spanMax   = document.getElementById("grosorMaxValor");
+      const chkMostrarLineas = document.getElementById("chkMostrarLineas");
+      const divPropiedades   = document.getElementById("propiedades");
+
+      sliderMin.addEventListener("input", () => {
+        grosorMin = parseFloat(sliderMin.value);
+        spanMin.textContent = sliderMin.value;
+        if (grosorMin > grosorMax) {
+          grosorMax = grosorMin;
+          sliderMax.value = grosorMax;
+          spanMax.textContent = grosorMax;
+        }
+      });
+
+      sliderMax.addEventListener("input", () => {
+        grosorMax = parseFloat(sliderMax.value);
+        spanMax.textContent = sliderMax.value;
+        if (grosorMax < grosorMin) {
+          grosorMin = grosorMax;
+          sliderMin.value = grosorMin;
+          spanMin.textContent = grosorMin;
+        }
+      });
+
+      chkMostrarLineas.addEventListener("change", () => {
+        mostrarLineas = chkMostrarLineas.checked;
+      });
+
+      function crearControlesPropiedades(claves){
+        divPropiedades.innerHTML = "";
+        clavesPropiedades = claves.slice();
+
+        clavesPropiedades.forEach(prop => {
+          if (!(prop in usarEnRelacion))     usarEnRelacion[prop] = true;
+          if (!(prop in mostrarEnEtiqueta))  mostrarEnEtiqueta[prop] = true;
+
+          const bloque = document.createElement("div");
+          bloque.className = "bloque-prop";
+
+          const titulo = document.createElement("div");
+          titulo.className = "titulo-prop";
+          titulo.textContent = prop;
+          bloque.appendChild(titulo);
+
+          // Usar en relación (física)
+          const lblUsar = document.createElement("label");
+          const chkUsar = document.createElement("input");
+          chkUsar.type = "checkbox";
+          chkUsar.checked = usarEnRelacion[prop];
+          chkUsar.addEventListener("change", () => {
+            usarEnRelacion[prop] = chkUsar.checked;
+
+            // Cuando cambian las condiciones de relación,
+            // reactivamos todas las partículas.
+            particulas.forEach(p => {
+              p.fija = false;
+              p.estableFrames = 0;
+            });
+
+            if (workerListo && worker) {
+              worker.postMessage({ tipo: "reactivar" });
+            }
+          });
+          lblUsar.appendChild(chkUsar);
+          lblUsar.appendChild(document.createTextNode(" Usar en relación"));
+          bloque.appendChild(lblUsar);
+
+          // Mostrar en etiqueta
+          const lblMostrar = document.createElement("label");
+          const chkMostrar = document.createElement("input");
+          chkMostrar.type = "checkbox";
+          chkMostrar.checked = mostrarEnEtiqueta[prop];
+          chkMostrar.addEventListener("change", () => {
+            mostrarEnEtiqueta[prop] = chkMostrar.checked;
+          });
+          lblMostrar.appendChild(chkMostrar);
+          lblMostrar.appendChild(document.createTextNode(" Mostrar en etiqueta"));
+          bloque.appendChild(lblMostrar);
+
+          divPropiedades.appendChild(bloque);
+        });
+      }
+
+      // --- Partículas (solo dibujo en el hilo principal) ---
+      let particulas = [];
+      let numeroParticulas = 0;
+
+      class Particula {
+        constructor(x, y, a, persona){
+          this.x = x;
+          this.y = y;
+          this.vx = Math.cos(a) * 0.5;
+          this.vy = Math.sin(a) * 0.5;
+          this.ax = 0;
+          this.ay = 0;
+          this.fija = false;
+          this.estableFrames = 0;
+          this.datos = persona;   // objeto con propiedades arbitrarias
+        }
+
+        dibujarNodos(){
+          // propiedades visibles
+          const propsVisibles = clavesPropiedades.filter(p => mostrarEnEtiqueta[p]);
+          const numLineas = Math.max(propsVisibles.length, 1);
+          const altoLinea = 11;
+          const altoTotal = numLineas * altoLinea + 6;
+          const radioY = altoTotal / 2;
+          const anchoPastilla = 55;
+
+          ctxNodos.lineWidth = 1;
+          ctxNodos.lineCap   = "butt";
+          ctxNodos.strokeStyle = "black";
+          ctxNodos.fillStyle   = "white";
+
+          ctxNodos.beginPath();
+          ctxNodos.moveTo(this.x - anchoPastilla, this.y - radioY);
+          ctxNodos.lineTo(this.x + anchoPastilla, this.y - radioY);
+          ctxNodos.arc(this.x + anchoPastilla, this.y, radioY, -Math.PI/2, Math.PI/2);
+          ctxNodos.lineTo(this.x - anchoPastilla, this.y + radioY);
+          ctxNodos.arc(this.x - anchoPastilla, this.y, radioY, Math.PI/2, -Math.PI/2);
+          ctxNodos.fill();
+          ctxNodos.stroke();
+
+          ctxNodos.fillStyle = "black";
+          const inicioY = this.y - ((numLineas - 1) * altoLinea) / 2;
+          let indiceLinea = 0;
+
+          propsVisibles.forEach((prop, idx) => {
+            const valor = (this.datos[prop] !== undefined && this.datos[prop] !== null)
+                          ? String(this.datos[prop])
+                          : "";
+            const yTexto = inicioY + indiceLinea * altoLinea;
+            ctxNodos.font = (idx === 0 ? "12px sans-serif" : "10px sans-serif");
+            ctxNodos.fillText(valor, this.x, yTexto);
+            indiceLinea++;
+          });
+        }
+
+        dibujarLineas(){
+          if (!mostrarLineas) return;
+
+          ctxLineas.lineCap = "round";
+
+          for (let i = 0; i < numeroParticulas; i++){
+            const p = particulas[i];
+            if (p === this) continue;
+            const d = distancia2D(this.x, this.y, p.x, p.y);
+            if (d >= 160) continue;
+
+            // Coincidencias en propiedades activas
+            const propsCoinciden = [];
+            let hayPropsRelacionActivas = false;
+
+            for (const prop of clavesPropiedades) {
+              if (!usarEnRelacion[prop]) continue;
+              hayPropsRelacionActivas = true;
+              if (this.datos[prop] === p.datos[prop]) {
+                propsCoinciden.push(prop);
+              }
+            }
+
+            // clave de relación para el color
+            let clave = "ninguna";
+            if (propsCoinciden.length === 1) {
+              clave = propsCoinciden[0];
+            } else if (propsCoinciden.length > 1) {
+              clave = propsCoinciden.slice().sort().join("+");
+            } else if (!hayPropsRelacionActivas) {
+              clave = "sin-prop-relacion";
+            }
+
+            const h = hashCadena(clave) % 360;
+            const alpha = 0.30 + 0.5 * (1 - d / 160);
+            ctxLineas.strokeStyle = `hsla(${h}, 70%, 50%, ${alpha})`;
+
+            const x1 = this.x;
+            const y1 = this.y;
+            const x2 = p.x;
+            const y2 = p.y;
+
+            // Segmentar la línea para crear gradiente de grosor
+            const segmentos = 20;
+            for (let s = 0; s < segmentos; s++){
+              const t1 = s / segmentos;
+              const t2 = (s + 1) / segmentos;
+
+              const sx1 = x1 + (x2 - x1) * t1;
+              const sy1 = y1 + (y2 - y1) * t1;
+              const sx2 = x1 + (x2 - x1) * t2;
+              const sy2 = y1 + (y2 - y1) * t2;
+
+              const tc = (t1 + t2) / 2;
+              // grosor máximo en extremos, mínimo en el centro
+              const factor = 4 * (tc - 0.5) * (tc - 0.5); // [0,1]
+              const w = grosorMin + (grosorMax - grosorMin) * factor;
+
+              ctxLineas.lineWidth = w;
+              ctxLineas.beginPath();
+              ctxLineas.moveTo(sx1, sy1);
+              ctxLineas.lineTo(sx2, sy2);
+              ctxLineas.stroke();
+            }
+          }
+        }
+      }
+
+      // --- Web Worker para la física ---
+      let worker = null;
+      let workerListo = false;
+
+      function iniciarWorker(particulasIniciales, claves){
+        worker = new Worker("worker.js");
+
+        worker.onmessage = (e) => {
+          const datos = e.data;
+          if (datos.tipo === "estado") {
+            const arr = datos.particulas;
+            for (let i = 0; i < arr.length && i < particulas.length; i++){
+              const src = arr[i];
+              const dst = particulas[i];
+              dst.x = src.x;
+              dst.y = src.y;
+              dst.vx = src.vx;
+              dst.vy = src.vy;
+              dst.ax = src.ax;
+              dst.ay = src.ay;
+              dst.fija = src.fija;
+              dst.estableFrames = src.estableFrames;
+            }
+
+            // Dibujar con el estado recibido
+            dibujarFrame();
+
+            // Pedir siguiente paso de física
+            if (workerListo) {
+              worker.postMessage({
+                tipo: "paso",
+                usarEnRelacion: usarEnRelacion,
+                clavesPropiedades: clavesPropiedades
+              });
+            }
+          } else if (datos.tipo === "iniciado") {
+            workerListo = true;
+            // Primer paso de física
+            worker.postMessage({
+              tipo: "paso",
+              usarEnRelacion: usarEnRelacion,
+              clavesPropiedades: clavesPropiedades
+            });
+          }
+        };
+
+        // Enviar estado inicial al worker
+        const particulasPlano = particulasIniciales.map(p => ({
+          x: p.x,
+          y: p.y,
+          vx: p.vx,
+          vy: p.vy,
+          ax: 0,
+          ay: 0,
+          fija: false,
+          estableFrames: 0,
+          datos: p.datos
+        }));
+
+        worker.postMessage({
+          tipo: "inicializar",
+          particulas: particulasPlano,
+          clavesPropiedades: claves,
+          usarEnRelacion: usarEnRelacion,
+          ancho: ancho,
+          alto: alto
+        });
+      }
+
+      // --- Dibujo de un frame completo ---
+      function dibujarFrame(){
+        ctxLineas.clearRect(0, 0, ancho, alto);
+        ctxNodos.clearRect(0, 0, ancho, alto);
+
+        for (let i = 0; i < numeroParticulas; i++){
+          particulas[i].dibujarLineas();
+        }
+        for (let i = 0; i < numeroParticulas; i++){
+          particulas[i].dibujarNodos();
+        }
+
+        requestAnimationFrame(() => {});
+      }
+
+      // --- Cargar JSON y arrancar ---
+      fetch("personas.json")
+        .then(r => r.json())
+        .then(personas => {
+          particulas = [];
+          numeroParticulas = personas.length;
+
+          // Detectar todas las propiedades
+          const conjuntoClaves = new Set();
+          personas.forEach(p => {
+            Object.keys(p).forEach(k => conjuntoClaves.add(k));
+          });
+          const claves = Array.from(conjuntoClaves);
+
+          // Crear controles dinámicos
+          crearControlesPropiedades(claves);
+
+          // Crear objetos Particula en el hilo principal
+          for (let i = 0; i < personas.length; i++){
+            const persona = personas[i];
+            particulas.push(
+              new Particula(
+                Math.random() * ancho,
+                Math.random() * alto,
+                Math.random() * Math.PI * 2,
+                persona
+              )
+            );
+          }
+
+          // Iniciar worker con la física
+          iniciarWorker(particulas, clavesPropiedades);
+        })
+        .catch(err => {
+          console.error("Error al cargar personas.json:", err);
+        });
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Parallax Box with Head Tracking</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    #video {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      width: 220px;
+      transform: scaleX(-1); /* mirror for natural feeling */
+      opacity: 0.4;          /* set to 0 or display:none when you no longer need it */
+      z-index: 10;
+      border: 2px solid #444;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Debug webcam preview -->
+  <video id="video" autoplay playsinline></video>
+
+  <!-- 3D scene -->
+  <a-scene>
+    <!-- Camera rig near the "window" of the box -->
+    <a-entity id="rig" position="0 0 0.8">
+      <a-entity id="cam" camera look-controls="enabled: false"></a-entity>
+    </a-entity>
+
+    <!-- Front frame (window) of the box at z = -1 -->
+    <a-box position="0 0 -1"
+           depth="0.03"
+           height="3"
+           width="4"
+           color="#555"
+           material="side:double; metalness:0.2; roughness:0.6">
+    </a-box>
+
+    <!-- Box interior (walls, floor, ceiling) -->
+    <a-box position="0 0 -5"
+           depth="0.05"
+           height="3"
+           width="4"
+           color="#222">
+    </a-box> <!-- back wall -->
+
+    <a-box position="0 -1.5 -3"
+           rotation="90 0 0"
+           depth="0.05"
+           height="4"
+           width="4"
+           color="#333">
+    </a-box> <!-- floor -->
+
+    <a-box position="0 1.5 -3"
+           rotation="-90 0 0"
+           depth="0.05"
+           height="4"
+           width="4"
+           color="#333">
+    </a-box> <!-- ceiling -->
+
+    <a-box position="-2 0 -3"
+           rotation="0 90 0"
+           depth="0.05"
+           height="3"
+           width="4"
+           color="#444">
+    </a-box> <!-- left wall -->
+
+    <a-box position="2 0 -3"
+           rotation="0 -90 0"
+           depth="0.05"
+           height="3"
+           width="4"
+           color="#444">
+    </a-box> <!-- right wall -->
+
+    <!-- PRIMITIVES: multiple rows and depths for strong parallax -->
+
+    <!-- Row 1 (near) -->
+    <a-sphere   position="-1.2 -0.4 -2.0" radius="0.25" color="#ff4444"></a-sphere>
+    <a-box      position=" 0.0 -0.6 -2.5" depth="0.5" height="0.5" width="0.5" color="#44ff44"></a-box>
+    <a-cylinder position=" 1.2 -0.4 -2.2" radius="0.2" height="0.7" color="#4444ff"></a-cylinder>
+
+    <!-- Row 2 (mid) -->
+    <a-torus-knot position="-0.8 0.4 -3.0" radius="0.25" radius-tubular="0.06" color="#ffcc00"></a-torus-knot>
+    <a-octahedron position=" 0.6 0.2 -3.3" radius="0.2" color="#00ffcc"></a-octahedron>
+    <a-dodecahedron position=" 1.4 0.5 -3.8" radius="0.25" color="#ff00aa"></a-dodecahedron>
+
+    <!-- Row 3 (farther) -->
+    <a-sphere   position="-1.5 0.9 -4.2" radius="0.18" color="#ffaa88"></a-sphere>
+    <a-box      position="-0.2 1.0 -4.5" depth="0.4" height="0.4" width="0.4" color="#88ffaa"></a-box>
+    <a-cylinder position=" 0.9 1.1 -4.8" radius="0.18" height="0.6" color="#88aaff"></a-cylinder>
+    <a-torus    position=" 0.0 -1.0 -3.8" radius="0.4" radius-tubular="0.07" color="#ff8888"></a-torus>
+
+    <!-- A path of small spheres going deeper into the box -->
+    <a-sphere position="-1.5 -1.0 -2.3" radius="0.06" color="#ffffff"></a-sphere>
+    <a-sphere position="-1.0 -0.9 -2.7" radius="0.06" color="#ffffff"></a-sphere>
+    <a-sphere position="-0.5 -0.8 -3.1" radius="0.06" color="#ffffff"></a-sphere>
+    <a-sphere position=" 0.0 -0.7 -3.5" radius="0.06" color="#ffffff"></a-sphere>
+    <a-sphere position=" 0.5 -0.6 -3.9" radius="0.06" color="#ffffff"></a-sphere>
+    <a-sphere position=" 1.0 -0.5 -4.3" radius="0.06" color="#ffffff"></a-sphere>
+    <a-sphere position=" 1.4 -0.4 -4.7" radius="0.06" color="#ffffff"></a-sphere>
+
+    <!-- Extra primitives for even more visual cues -->
+    <a-ring position="-1.4 0.0 -3.4" radius-inner="0.1" radius-outer="0.25" color="#ffdddd"></a-ring>
+    <a-ring position=" 1.3 -0.1 -3.0" radius-inner="0.1" radius-outer="0.25" color="#ddffdd"></a-ring>
+    <a-cone position=" -0.9 -1.1 -4.0" radius-bottom="0.3" radius-top="0.0" height="0.7" color="#ddddff"></a-cone>
+    <a-cone position="  0.9 -1.2 -4.4" radius-bottom="0.3" radius-top="0.0" height="0.7" color="#ffddff"></a-cone>
+
+    <!-- Lights -->
+    <a-entity light="type: point; intensity: 1.4; distance: 10" position="0 1 0"></a-entity>
+    <a-entity light="type: ambient; intensity: 0.3"></a-entity>
+  </a-scene>
+
+  <!-- All JS as an ES module -->
+  <script type="module">
+    import {
+      FaceLandmarker,
+      FilesetResolver
+    } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js";
+
+    const video = document.getElementById("video");
+    let faceLandmarker = null;
+    let running = false;
+    let lastVideoTime = -1;
+
+    // Initialize webcam
+    async function initCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 }
+      });
+      video.srcObject = stream;
+      return new Promise(resolve => {
+        video.onloadedmetadata = () => resolve();
+      });
+    }
+
+    // Initialize Mediapipe FaceLandmarker
+    async function initFaceLandmarker() {
+      const filesetResolver = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+      );
+
+      faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+        baseOptions: {
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+        },
+        runningMode: "VIDEO",
+        numFaces: 1
+      });
+    }
+
+    // Compute head center as the average of all landmarks (normalized [0..1])
+    function getHeadCenterFromLandmarks(landmarks) {
+      if (!landmarks || !landmarks.length) return null;
+      let sumX = 0;
+      let sumY = 0;
+      const n = landmarks.length;
+      for (let i = 0; i < n; i++) {
+        sumX += landmarks[i].x;
+        sumY += landmarks[i].y;
+      }
+      return { x: sumX / n, y: sumY / n };
+    }
+
+    // Map head position -> camera rig position
+    // head left  -> camera right
+    // head right -> camera left
+    // head up    -> camera down
+    // head down  -> camera up
+    function mapHeadToCamera(headCenter) {
+      const nx = headCenter.x * 2 - 1;   // -1 = left, +1 = right
+      const ny = headCenter.y * 2 - 1;   // -1 = top,  +1 = bottom
+
+      // Tunable movement range in scene units
+      const maxX = 0.5;   // side-to-side camera movement
+      const maxY = 0.3;   // up-down camera movement
+      const baseZ = 0.8;  // base camera distance
+      const maxZOffset = 0.25;
+
+      // Inversion for parallax "window" effect
+      const camX = -nx * maxX;   // head left -> camera right
+      const camY = ny * maxY;    // head up (ny=-1) -> camY negative (down)
+
+      // Optional: small Z variation depending on distance from screen center
+      const distanceFromCenter = Math.min(Math.sqrt(nx * nx + ny * ny), 1.0);
+      const camZ = baseZ + distanceFromCenter * maxZOffset;
+
+      return { x: camX, y: camY, z: camZ };
+    }
+
+    // Simple exponential smoothing for camera movement
+    function smooth(prev, next, factor) {
+      if (!prev) return next;
+      return {
+        x: prev.x + (next.x - prev.x) * factor,
+        y: prev.y + (next.y - prev.y) * factor,
+        z: prev.z + (next.z - prev.z) * factor
+      };
+    }
+
+    let smoothedCamPos = null;
+    const rigEl = document.getElementById("rig");
+
+    async function processVideoFrame() {
+      if (!running) return;
+
+      const nowMs = performance.now();
+      const videoTime = video.currentTime;
+
+      // Avoid re-processing the same frame
+      if (videoTime === lastVideoTime) {
+        requestAnimationFrame(processVideoFrame);
+        return;
+      }
+      lastVideoTime = videoTime;
+
+      const results = faceLandmarker.detectForVideo(video, nowMs);
+
+      if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+        const landmarks = results.faceLandmarks[0];
+        const center = getHeadCenterFromLandmarks(landmarks);
+
+        if (center) {
+          const camPos = mapHeadToCamera(center);
+          smoothedCamPos = smooth(smoothedCamPos, camPos, 0.18); // smoothing factor
+
+          rigEl.setAttribute(
+            "position",
+            smoothedCamPos.x + " " +
+            smoothedCamPos.y + " " +
+            smoothedCamPos.z
+          );
+        }
+      }
+
+      requestAnimationFrame(processVideoFrame);
+    }
+
+    // Bootstrap everything
+    (async function start() {
+      try {
+        await initCamera();
+        await initFaceLandmarker();
+        running = true;
+        processVideoFrame();
+      } catch (e) {
+        console.error("Error initializing:", e);
+      }
+    })();
+  </script>
+</body>
+</html>
+

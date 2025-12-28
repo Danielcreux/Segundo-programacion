@@ -1,0 +1,22 @@
+[
+  {
+    "label": "CPU",
+    "value": 383.0,
+    "color": "#0a1a3c"
+  },
+  {
+    "label": "GPU",
+    "value": 111.0,
+    "color": "#132a58"
+  },
+  {
+    "label": "RAM",
+    "value": 189.0,
+    "color": "#1f3c74"
+  },
+  {
+    "label": "Disk",
+    "value": 139.0,
+    "color": "#2b4e8f"
+  }
+]

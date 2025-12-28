@@ -1,0 +1,459 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      body,html{
+        margin:0;
+        padding:0;
+        background:#ffffff;
+        font-family: sans-serif;
+      }
+      #controls{
+        position:fixed;
+        top:10px;
+        left:10px;
+        padding:8px 10px;
+        background:rgba(255,255,255,0.9);
+        border:1px solid #ccc;
+        border-radius:4px;
+        font-size:12px;
+        z-index:10;
+      }
+      #controls label{
+        display:block;
+        margin-bottom:4px;
+      }
+      #controls input[type=range]{
+        width:150px;
+      }
+      #controls span.value{
+        display:inline-block;
+        width:24px;
+        text-align:right;
+        margin-left:4px;
+      }
+      #controls .row{
+        margin-top:4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <label>
+        Min thickness
+        <input id="minThickness" type="range" min="1" max="10" value="1">
+        <span id="minThicknessValue" class="value">1</span>
+      </label>
+      <label>
+        Max thickness
+        <input id="maxThickness" type="range" min="1" max="20" value="6">
+        <span id="maxThicknessValue" class="value">6</span>
+      </label>
+
+      <div class="row">
+        <label><input id="chkNameRelation" type="checkbox" checked> Use name relation</label>
+        <label><input id="chkHobbyRelation" type="checkbox" checked> Use hobby relation</label>
+      </div>
+      <div class="row">
+        <label><input id="chkShowName" type="checkbox" checked> Show name</label>
+        <label><input id="chkShowHobby" type="checkbox" checked> Show hobby</label>
+        <label><input id="chkShowLines" type="checkbox" checked> Show connections</label>
+      </div>
+    </div>
+
+    <canvas></canvas>
+
+    <script>
+      function distance2D(x1, y1, x2, y2) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      // Simple hash function for strings
+      function hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = (hash * 31 + str.charCodeAt(i)) | 0; // keep in 32 bits
+        }
+        return Math.abs(hash);
+      }
+
+      let anchura = window.innerWidth;
+      let altura = window.innerHeight;
+      let lienzo = document.querySelector("canvas");
+      let contexto = lienzo.getContext("2d");
+      lienzo.width = anchura;
+      lienzo.height = altura;
+      contexto.textAlign = "center";
+      contexto.textBaseline = "middle";
+
+      // Global line thickness controls
+      let minLineThickness = 1;
+      let maxLineThickness = 6;
+
+      // Global property toggles
+      let useNameRelation  = true;
+      let useHobbyRelation = true;
+      let showName         = true;
+      let showHobby        = true;
+      let showLines        = true;
+
+      const minSlider = document.getElementById("minThickness");
+      const maxSlider = document.getElementById("maxThickness");
+      const minValueSpan = document.getElementById("minThicknessValue");
+      const maxValueSpan = document.getElementById("maxThicknessValue");
+
+      const chkNameRelation  = document.getElementById("chkNameRelation");
+      const chkHobbyRelation = document.getElementById("chkHobbyRelation");
+      const chkShowName      = document.getElementById("chkShowName");
+      const chkShowHobby     = document.getElementById("chkShowHobby");
+      const chkShowLines     = document.getElementById("chkShowLines");
+
+      minSlider.addEventListener("input", () => {
+        minLineThickness = parseFloat(minSlider.value);
+        minValueSpan.textContent = minSlider.value;
+
+        // Ensure min <= max
+        if (minLineThickness > maxLineThickness) {
+          maxLineThickness = minLineThickness;
+          maxSlider.value = maxLineThickness;
+          maxValueSpan.textContent = maxLineThickness;
+        }
+      });
+
+      maxSlider.addEventListener("input", () => {
+        maxLineThickness = parseFloat(maxSlider.value);
+        maxValueSpan.textContent = maxSlider.value;
+
+        // Ensure max >= min
+        if (maxLineThickness < minLineThickness) {
+          minLineThickness = maxLineThickness;
+          minSlider.value = minLineThickness;
+          minValueSpan.textContent = minLineThickness;
+        }
+      });
+
+      chkNameRelation.addEventListener("change", () => {
+        useNameRelation = chkNameRelation.checked;
+      });
+      chkHobbyRelation.addEventListener("change", () => {
+        useHobbyRelation = chkHobbyRelation.checked;
+      });
+      chkShowName.addEventListener("change", () => {
+        showName = chkShowName.checked;
+      });
+      chkShowHobby.addEventListener("change", () => {
+        showHobby = chkShowHobby.checked;
+      });
+      chkShowLines.addEventListener("change", () => {
+        showLines = chkShowLines.checked;
+      });
+
+      let particulas = [];
+      let numeroparticulas = 0;
+
+      class Particula{
+        // persona: { nombre, hobbie }
+        constructor(x,y,a,persona){
+          this.x = x;
+          this.y = y;
+          this.v = 0.5;        // velocidad base inicial
+
+          // velocidad inicial a partir del ángulo
+          this.vx = Math.cos(a) * this.v;
+          this.vy = Math.sin(a) * this.v;
+
+          // aceleración (fuerzas acumuladas)
+          this.ax = 0;
+          this.ay = 0;
+
+          this.nombre = persona.nombre;
+          this.hobbie = persona.hobbie;
+
+          // control de estabilidad
+          this.fija = false;
+          this.estableFrames = 0;
+        }
+
+        dibuja(){
+          contexto.lineWidth = 1;
+          contexto.lineCap = "butt";
+          let anchopastilla = 35;
+          let altopastilla = 12;
+          contexto.strokeStyle = "black";
+          contexto.beginPath();
+          contexto.moveTo(this.x-anchopastilla,this.y-altopastilla);
+          contexto.lineTo(this.x+anchopastilla,this.y-altopastilla);
+          contexto.arc(this.x+anchopastilla,this.y,altopastilla,0-Math.PI/2,Math.PI-Math.PI/2);
+          contexto.lineTo(this.x-anchopastilla,this.y+altopastilla);
+          contexto.arc(this.x-anchopastilla,this.y,altopastilla,Math.PI-Math.PI/2,0-Math.PI/2);
+          contexto.fillStyle = "white";
+          contexto.strokeStyle = "black";
+          contexto.fill();
+          contexto.stroke();
+          contexto.fillStyle = "black";
+
+          // textos según flags
+          let baseY = this.y;
+          let offset = 0;
+
+          contexto.font = "12px sans-serif";
+          if (showName) {
+            contexto.fillText(this.nombre, this.x, baseY - 4);
+            offset += 6;
+          }
+          if (showHobby) {
+            contexto.font = "10px sans-serif";
+            const yHobbie = showName ? (baseY + 7) : baseY + 2;
+            contexto.fillText(this.hobbie, this.x, yHobbie);
+          }
+        }
+
+        lineas(){
+          if (!showLines) return;
+
+          contexto.lineCap = "round";
+
+          for(let i = 0; i < numeroparticulas; i++){
+            const p = particulas[i];
+            if (p === this) continue;
+            const d = distance2D(this.x, this.y, p.x, p.y);
+            if(d < 160){
+
+              // coincidencias, condicionadas por los toggles
+              const mismoNombre = useNameRelation  && (p.nombre === this.nombre);
+              const mismoHobbie = useHobbyRelation && (p.hobbie === this.hobbie);
+
+              // claves de relación
+              let key = "ninguno";
+              if (mismoNombre && mismoHobbie) key = "ambos";
+              else if (mismoNombre)          key = "nombre";
+              else if (mismoHobbie)          key = "hobbie";
+
+              // hash → color hue
+              const h = hashString(key) % 360;
+              const alpha = 0.30 + 0.5 * (1 - d / 160); // más cerca -> más opaco
+              contexto.strokeStyle = `hsla(${h}, 70%, 50%, ${alpha})`;
+
+              // Coordenadas de extremo a extremo
+              const x1 = this.x;
+              const y1 = this.y;
+              const x2 = p.x;
+              const y2 = p.y;
+
+              // Número de segmentos para el gradiente de grosor
+              const segments = 20; // sube/baja para más/menos suavidad
+
+              for (let s = 0; s < segments; s++) {
+                const t1 = s / segments;
+                const t2 = (s + 1) / segments;
+
+                // puntos extremos del segmento [t1, t2]
+                const sx1 = x1 + (x2 - x1) * t1;
+                const sy1 = y1 + (y2 - y1) * t1;
+                const sx2 = x1 + (x2 - x1) * t2;
+                const sy2 = y1 + (y2 - y1) * t2;
+
+                // t central del segmento
+                const tc = (t1 + t2) / 2;
+
+                // Grosor: max en los extremos (t≈0 o t≈1), min en el centro (t≈0.5)
+                // f(tc) = 4*(tc-0.5)^2 va de 1 en extremos a 0 en el centro
+                const factor = 4 * (tc - 0.5) * (tc - 0.5); // [0,1]
+                const w = minLineThickness + (maxLineThickness - minLineThickness) * factor;
+
+                contexto.lineWidth = w;
+                contexto.beginPath();
+                contexto.moveTo(sx1, sy1);
+                contexto.lineTo(sx2, sy2);
+                contexto.stroke();
+              }
+            }
+          }
+        }
+
+        interacciones(particulas) {
+          if (this.fija) {
+            this.ax = 0;
+            this.ay = 0;
+            return;
+          }
+
+          // radio de búsqueda: toda la pantalla (diagonal)
+          let rangoGlobal = Math.sqrt(anchura*anchura + altura*altura);
+
+          // parámetros de interacción
+          let distanciaObjetivo = 120;         // distancia "ideal" entre iguales
+          let distanciaMinima = 70;            // distancia mínima para evitar solapamiento
+          let distanciaRepulsionDistinto = 220; // hasta aquí repelen distinto
+
+          // factores según coincidencia
+          let kAtraccionFuerte = 0.0015;  // mismo nombre + mismo hobbie
+          let kAtraccionMedia  = 0.0009;  // mismo nombre o mismo hobbie
+          let kRepulsionDistinto = 0.001; // repulsión suave entre distintos
+          let kRepulsionCorta = 0.06;     // repulsión fuerte muy cercana
+
+          let fx = 0;
+          let fy = 0;
+
+          for (let p of particulas) {
+            if (p === this) continue;
+
+            let d = distance2D(this.x, this.y, p.x, p.y);
+            if (d === 0 || d > rangoGlobal) continue;
+
+            let dx = p.x - this.x;
+            let dy = p.y - this.y;
+
+            let ux = dx / d;
+            let uy = dy / d;
+
+            // repulsión fuerte para evitar solapamiento
+            if (d < distanciaMinima) {
+              let intensidad = (distanciaMinima - d) * kRepulsionCorta;
+              fx -= ux * intensidad;
+              fy -= uy * intensidad;
+              continue;
+            }
+
+            const mismoNombre = useNameRelation  && (p.nombre === this.nombre);
+            const mismoHobbie = useHobbyRelation && (p.hobbie === this.hobbie);
+
+            if (mismoNombre && mismoHobbie) {
+              // máxima atracción hacia una distancia objetivo
+              let delta = d - distanciaObjetivo;
+              fx += ux * delta * kAtraccionFuerte;
+              fy += uy * delta * kAtraccionFuerte;
+
+            } else if (mismoNombre || mismoHobbie) {
+              // atracción media (comparten al menos un factor activo)
+              let delta = d - distanciaObjetivo;
+              fx += ux * delta * kAtraccionMedia;
+              fy += uy * delta * kAtraccionMedia;
+
+            } else {
+              // repulsión entre completamente distintos (o cuando ambos factores están desactivados)
+              if (d < distanciaRepulsionDistinto) {
+                let intensidad = (distanciaRepulsionDistinto - d) * kRepulsionDistinto;
+                fx -= ux * intensidad;
+                fy -= uy * intensidad;
+              }
+            }
+          }
+
+          // limitar la fuerza total
+          const maxForce = 0.05;
+          let fmag = Math.sqrt(fx*fx + fy*fy);
+          if (fmag > maxForce) {
+            fx = fx / fmag * maxForce;
+            fy = fy / fmag * maxForce;
+          }
+
+          this.ax = fx;
+          this.ay = fy;
+        }
+
+        mueve(){
+          if (this.fija) return;
+
+          this.vx += this.ax;
+          this.vy += this.ay;
+
+          const friccion = 0.93;
+          this.vx *= friccion;
+          this.vy *= friccion;
+
+          this.x += this.vx;
+          this.y += this.vy;
+
+          const speed  = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+          const fuerza = Math.sqrt(this.ax*this.ax + this.ay*this.ay);
+
+          if (speed < 0.02 && fuerza < 0.002) {
+            this.estableFrames++;
+            if (this.estableFrames > 60) {
+              this.fija = true;
+              this.vx = 0;
+              this.vy = 0;
+            }
+          } else {
+            this.estableFrames = 0;
+          }
+        }
+
+        rebote(){
+          if (this.fija) return;
+
+          const reboteFactor = -0.5;
+
+          if (this.x > anchura) {
+            this.x = anchura;
+            this.vx *= reboteFactor;
+          }
+          if (this.x < 0) {
+            this.x = 0;
+            this.vx *= reboteFactor;
+          }
+
+          if (this.y > altura) {
+            this.y = altura;
+            this.vy *= reboteFactor;
+          }
+          if (this.y < 0) {
+            this.y = 0;
+            this.vy *= reboteFactor;
+          }
+        }
+      }
+
+      function bucle(){
+        contexto.clearRect(0,0,anchura,altura);
+
+        for (let i = 0; i < numeroparticulas; i++) {
+          particulas[i].interacciones(particulas);
+        }
+
+        for (let i = 0; i < numeroparticulas; i++) {
+          particulas[i].mueve();
+          particulas[i].rebote();
+        }
+
+        for (let i = 0; i < numeroparticulas; i++) {
+          particulas[i].lineas();
+        }
+        for (let i = 0; i < numeroparticulas; i++) {
+          particulas[i].dibuja();
+        }
+
+        requestAnimationFrame(bucle);
+      }
+
+      // Cargar JSON y, cuando esté listo, crear partículas y arrancar simulación
+      fetch("personas.json")
+        .then(respuesta => respuesta.json())
+        .then(personas => {
+          particulas = [];
+          numeroparticulas = personas.length;
+
+          for (let i = 0; i < personas.length; i++) {
+            let persona = personas[i];
+            particulas.push(
+              new Particula(
+                Math.random()*anchura,
+                Math.random()*altura,
+                Math.random()*Math.PI*2,
+                persona
+              )
+            );
+          }
+
+          requestAnimationFrame(bucle);
+        })
+        .catch(error => {
+          console.error("Error al cargar personas.json:", error);
+        });
+    </script>
+  </body>
+</html>
+

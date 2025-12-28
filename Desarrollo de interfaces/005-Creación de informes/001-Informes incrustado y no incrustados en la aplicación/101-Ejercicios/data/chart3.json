@@ -1,0 +1,22 @@
+[
+  {
+    "label": "Red",
+    "value": 920.0,
+    "color": "#0a1330"
+  },
+  {
+    "label": "Green",
+    "value": 379.0,
+    "color": "#142047"
+  },
+  {
+    "label": "Blue",
+    "value": 213.0,
+    "color": "#1f2e5e"
+  },
+  {
+    "label": "Yellow",
+    "value": 181.0,
+    "color": "#2b3d7a"
+  }
+]

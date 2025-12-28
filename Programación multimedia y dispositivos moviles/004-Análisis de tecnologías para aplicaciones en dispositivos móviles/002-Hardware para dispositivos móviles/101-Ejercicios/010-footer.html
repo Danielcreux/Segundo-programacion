@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <title>TAMEify</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+    <style>
+      body,html{background:#121212;color:white;font-family:sans-serif;padding:5px;}
+      body{display:flex;flex-direction:column;gap:20px;}
+      header button{background:magenta;color:white;padding:10px;border:none;border-radius:30px;min-width:40px;}
+      #favoritas{
+        display:grid;
+        grid-template-columns:auto auto;
+        gap:10px;
+      }
+      section article img{
+        height:40px;
+      }
+      section article{
+        gap:20px;
+        display:flex;
+        align-items:center;
+        background:#292929;
+        border-radius:10px;
+      }
+      section article p{
+        font-weight:bold;
+      }
+      #reproductor{
+        width:91%;
+        background:#541010;
+        height:50px;
+        border-radius:10px;
+        padding:10px;
+        position:fixed;
+        top:80%;
+        box-sizing:border-box;
+        transition:all 1s;
+        overflow:hidden;
+      }
+      .pantallacompleta{
+        position:absolute !important;
+        top:0px !important;
+        left:0px;
+        width:100% !important;
+        height:100% !important;
+      }
+      #pantalla_lista{display:none;}
+      #pantalla_lista img{
+        width:100%;
+      }
+      .cancion{
+        display:flex;
+      }
+      .cancion .datostexto{flex:7;}
+      .cancion>p{flex:1;}
+      footer{
+        display:flex;
+        position:fixed;
+        width:100%;
+        bottom:0px;
+        left:0px;
+      }
+      footer button{
+        width:100%;
+        border:none;
+        background:black;
+        color:white;
+      }
+      footer button .emoji{
+        font-size:32px;
+      }
+      #pantalla_inicio{
+        display:flex;
+        flex-direction:column;
+        gap:20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="pantallas">
+      <div id="pantalla_inicio">
+        <header>  
+          <button>J</button>
+          <button>Todos</button>
+          <button>Música</button>
+          <button>Podcasts</button>
+        </header>
+        <section id="favoritas">
+          
+         
+        </section>
+      </div>
+      <div id="pantalla_lista">
+        <img 
+          src=""
+          onerror="this.onerror=null; this.src='img/placeholder.png';"
+          alt="Miniatura de la lista"
+        >
+        <h3>Titulo de la lista</h3>
+        
+        <article class="cancion">
+          <div class="datostexto">
+            <h4>Titulo de la cancion</h4>
+            <p>Titulo del disco</p>
+          </div>
+          <p>...</p>
+        </article>
+        <article class="cancion">
+          <div class="datostexto">
+            <h4>Titulo de la cancion</h4>
+            <p>Titulo del disco</p>
+          </div>
+          <p>...</p>
+        </article>
+        <article class="cancion">
+          <div class="datostexto">
+            <h4>Titulo de la cancion</h4>
+            <p>Titulo del disco</p>
+          </div>
+          <p>...</p>
+        </article>
+        <article class="cancion">
+          <div class="datostexto">
+            <h4>Titulo de la cancion</h4>
+            <p>Titulo del disco</p>
+          </div>
+          <p>...</p>
+        </article>
+        <article class="cancion">
+          <div class="datostexto">
+            <h4>Titulo de la cancion</h4>
+            <p>Titulo del disco</p>
+          </div>
+          <p>...</p>
+        </article>
+        <article class="cancion">
+          <div class="datostexto">
+            <h4>Titulo de la cancion</h4>
+            <p>Titulo del disco</p>
+          </div>
+          <p>...</p>
+        </article>
+      </div>
+    </div>
+    <section id="reproductor">
+      <h3>Artista</h3>
+      <img src="joshue.jpeg">
+      <audio src="musica.mp3" controls>
+    </section>
+    <footer>
+      <button>
+        <div class="emoji">🏠</div>
+        <p>Inicio</p>
+      </button>
+      <button>
+        <div class="emoji">🔍</div>
+        <p>Buscar</p>
+      </button>
+      <button>
+        <div class="emoji">📚</div>
+        <p>Tu biblioteca</p>
+      </button>
+      <button>
+        <div class="emoji">➕</div>
+        <p>Crear</p>
+      </button>
+    </footer>
+    <div id="templates">
+      <template id="elemento_lista">
+        <article>
+        <img 
+          src="..."
+          onerror="this.onerror=null; this.src='img/placeholder.png';"
+          alt="Miniatura de la lista"
+          >
+        <p>...</p>
+      </article>
+      </template>
+    </div>
+    <script>
+      /////////////////////////// REPRODUCTOR
+      let reproductor = document.querySelector("#reproductor");
+      reproductor.onclick = function(){
+        this.classList.add("pantallacompleta")
+      }
+      /////////////////////////// POBLAR LISTA
+      let contenedor = document.querySelector("#favoritas")
+      
+      fetch("api/favoritos.json")
+      .then(function(respuesta){return respuesta.json()})
+      .then(function(datos){
+        console.log(datos)
+        datos.favorites.forEach(function(dato){
+          let plantilla = document.querySelector("#elemento_lista")
+          let instancia = plantilla.content.cloneNode(true)
+          let articulo = instancia.querySelector("article")
+          articulo.querySelector("p").textContent = dato.artist
+          articulo.querySelector("img").setAttribute("src",dato.image)
+          contenedor.appendChild(instancia)
+          articulo.onclick = function(){
+            console.log("Has hecho click en un articulo");
+            document.querySelector("#pantalla_inicio").style.display = "none"
+            document.querySelector("#pantalla_lista").style.display = "block"
+          }
+        })
+      })
+    </script>
+  </body>
+</html>

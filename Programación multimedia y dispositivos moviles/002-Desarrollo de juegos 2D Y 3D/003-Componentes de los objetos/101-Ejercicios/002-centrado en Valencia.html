@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenStreetMap Demo</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        // Initialize the map and set its view to Madrid, Spain
+        const map = L.map('map').setView([39.4759729, -0.418349], 13);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Add a marker to the map
+        L.marker([39.4759729, -0.418349]).addTo(map)
+            .bindPopup('Valencia, Spain')
+            .openPopup();
+    </script>
+</body>
+</html>
+

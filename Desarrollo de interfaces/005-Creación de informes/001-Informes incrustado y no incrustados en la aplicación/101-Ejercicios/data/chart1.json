@@ -1,0 +1,22 @@
+[
+  {
+    "label": "Alpha",
+    "value": 334.0,
+    "color": "#0a1a3c"
+  },
+  {
+    "label": "Beta",
+    "value": 118.0,
+    "color": "#10244d"
+  },
+  {
+    "label": "Gamma",
+    "value": 870.0,
+    "color": "#1a3366"
+  },
+  {
+    "label": "Delta",
+    "value": 428.0,
+    "color": "#244280"
+  }
+]

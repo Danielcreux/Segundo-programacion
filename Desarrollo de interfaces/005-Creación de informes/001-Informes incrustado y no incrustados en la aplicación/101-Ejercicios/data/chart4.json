@@ -1,0 +1,22 @@
+[
+  {
+    "label": "Jan",
+    "value": 623.0,
+    "color": "#0c1638"
+  },
+  {
+    "label": "Feb",
+    "value": 403.0,
+    "color": "#14224c"
+  },
+  {
+    "label": "Mar",
+    "value": 1120.0,
+    "color": "#1d3062"
+  },
+  {
+    "label": "Apr",
+    "value": 376.0,
+    "color": "#2a437f"
+  }
+]

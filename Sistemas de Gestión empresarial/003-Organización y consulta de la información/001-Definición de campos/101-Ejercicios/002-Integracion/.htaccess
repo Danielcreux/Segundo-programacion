@@ -1,0 +1,6 @@
+RewriteEngine On
+RewriteBase /dam2526/Segundo/Sistemas%20de%20gesti%C3%B3n%20empresarial/003-Organizaci%C3%B3n%20y%20consulta%20de%20la%20informaci%C3%B3n/001-Definici%C3%B3n%20de%20campos/101-Ejercicios/
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]

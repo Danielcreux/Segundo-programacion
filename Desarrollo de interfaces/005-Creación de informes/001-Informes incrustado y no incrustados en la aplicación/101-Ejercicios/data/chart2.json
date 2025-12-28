@@ -1,0 +1,22 @@
+[
+  {
+    "label": "North",
+    "value": 207.0,
+    "color": "#0d1f44"
+  },
+  {
+    "label": "South",
+    "value": 191.0,
+    "color": "#132a58"
+  },
+  {
+    "label": "East",
+    "value": 364.0,
+    "color": "#1e3b73"
+  },
+  {
+    "label": "West",
+    "value": 339.0,
+    "color": "#294c8f"
+  }
+]

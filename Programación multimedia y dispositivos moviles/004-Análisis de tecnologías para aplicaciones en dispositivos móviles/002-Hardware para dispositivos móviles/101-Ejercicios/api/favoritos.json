@@ -1,0 +1,37 @@
+{
+  "favorites": [
+    {
+      "artist": "Daft Punk",
+      "image": "https://example.com/images/daft_punk.jpg"
+    },
+    {
+      "artist": "Coldplay",
+      "image": "https://example.com/images/coldplay.jpg"
+    },
+    {
+      "artist": "Hans Zimmer",
+      "image": "https://example.com/images/hans_zimmer.jpg"
+    },
+    {
+      "artist": "Arctic Monkeys",
+      "image": "https://example.com/images/arctic_monkeys.jpg"
+    },
+    {
+      "artist": "Lana Del Rey",
+      "image": "https://example.com/images/lana_del_rey.jpg"
+    },
+    {
+      "artist": "The Weeknd",
+      "image": "https://example.com/images/the_weeknd.jpg"
+    },
+    {
+      "artist": "Nils Frahm",
+      "image": "https://example.com/images/nils_frahm.jpg"
+    },
+    {
+      "artist": "Imagine Dragons",
+      "image": "https://example.com/images/imagine_dragons.jpg"
+    }
+  ]
+}
+

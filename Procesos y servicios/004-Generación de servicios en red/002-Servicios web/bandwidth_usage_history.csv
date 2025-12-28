@@ -1,0 +1,9 @@
+date,interface,bytes_sent,bytes_recv,packets_sent,packets_recv
+2025-12-02 20:38:41,Ethernet,0,0,0,0
+2025-12-02 20:38:41,Ethernet 2,0,0,0,0
+2025-12-02 20:38:41,Conexión de área local* 2,0,0,0,0
+2025-12-02 20:38:41,Wi-Fi,60780326,1601691920,321601,1279789
+2025-12-02 20:38:41,Loopback Pseudo-Interface 1,0,0,0,0
+2025-12-02 20:38:41,Conexión de área local* 3,73381,1368,549,9
+2025-12-02 20:38:41,isatap.{7D6D8CFA-6257-4167-8C4D-3089C280FF3D},0,0,0,0
+2025-12-02 20:38:41,isatap.{923A0227-EBB2-44FE-AB3F-700E8DD8A54D},0,0,0,0

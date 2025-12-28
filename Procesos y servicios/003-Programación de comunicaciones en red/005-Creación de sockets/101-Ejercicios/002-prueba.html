@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WSS test</title>
+</head>
+<body>
+  <input id="msg" style="width: 300px"
+         value='{"type":"test","text":"Hello from client"}'>
+  <button id="send">Send JSON</button>
+  <pre id="log"></pre>
+
+  <script>
+    const log = (m) => {
+      document.getElementById("log").textContent += m + "\n";
+    };
+
+    const ws = new WebSocket("wss://jocarsa.com:8766");
+
+    ws.onopen = () => log("Connected");
+    ws.onmessage = (event) => {
+      log("Received: " + event.data);
+      // Here you would normally do:
+      // const data = JSON.parse(event.data);
+      // and handle that JSON
+    };
+    ws.onerror = (e) => log("Error: " + e);
+    ws.onclose = () => log("Disconnected");
+
+    document.getElementById("send").onclick = () => {
+      const txt = document.getElementById("msg").value;
+      try {
+        const obj = JSON.parse(txt);
+        ws.send(JSON.stringify(obj));
+        log("Sent: " + JSON.stringify(obj));
+      } catch (err) {
+        log("Invalid JSON: " + err.message);
+      }
+    };
+  </script>
+</body>
+</html>
+

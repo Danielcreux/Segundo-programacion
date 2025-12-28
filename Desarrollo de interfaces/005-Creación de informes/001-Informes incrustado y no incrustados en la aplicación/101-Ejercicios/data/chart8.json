@@ -1,0 +1,22 @@
+[
+  {
+    "label": "Sales",
+    "value": 554.0,
+    "color": "#0a1534"
+  },
+  {
+    "label": "Purchasing",
+    "value": 816.0,
+    "color": "#121f48"
+  },
+  {
+    "label": "Logistics",
+    "value": 10.0,
+    "color": "#1c2b61"
+  },
+  {
+    "label": "Warehouse",
+    "value": 603.0,
+    "color": "#283c7e"
+  }
+]

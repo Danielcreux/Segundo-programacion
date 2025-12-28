@@ -20,7 +20,7 @@ except ImportError:
 # ==========================
 # CONFIGURACIÓN
 # ==========================
-MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"       # mismo modelo base que en entrenar.py
+MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"        # mismo modelo base que en entrenar.py
 LORA_DIR   = "./qwen25-05b-jvc"             # carpeta donde entrenar.py guardó el LoRA o el modelo
 MAX_NEW_TOKENS = 256
 TEMPERATURE    = 0.7

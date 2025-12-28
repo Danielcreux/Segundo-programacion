@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>Red 3D de personas</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <style>
+      body,html{
+        margin:0;
+        padding:0;
+        font-family:sans-serif;
+        overflow:hidden;
+      }
+      #controles{
+        position:fixed;
+        top:10px;
+        left:10px;
+        padding:8px 10px;
+        background:rgba(255,255,255,0.9);
+        border:1px solid #ccc;
+        border-radius:4px;
+        font-size:12px;
+        z-index:10;
+        max-height:90vh;
+        overflow:auto;
+      }
+      #controles label{
+        display:block;
+        margin-bottom:4px;
+      }
+      #controles input[type=range]{
+        width:150px;
+      }
+      #controles span.valor{
+        display:inline-block;
+        width:24px;
+        text-align:right;
+        margin-left:4px;
+      }
+      #controles .fila{
+        margin-top:4px;
+        margin-bottom:4px;
+      }
+      #propiedades .bloque-prop{
+        border-top:1px solid #ddd;
+        margin-top:4px;
+        padding-top:4px;
+      }
+      #propiedades .titulo-prop{
+        font-weight:bold;
+        margin-bottom:2px;
+      }
+      #propiedades label{
+        display:inline-block;
+        margin-right:8px;
+        margin-bottom:2px;
+      }
+      #ayudaTeclas{
+        font-size:11px;
+        margin-top:6px;
+        color:#555;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Panel de control -->
+    <div id="controles">
+      <label>
+        Grosor mínimo
+        <input id="grosorMin" type="range" min="1" max="10" value="1">
+        <span id="grosorMinValor" class="valor">1</span>
+      </label>
+      <label>
+        Grosor máximo
+        <input id="grosorMax" type="range" min="1" max="20" value="6">
+        <span id="grosorMaxValor" class="valor">6</span>
+      </label>
+
+      <div class="fila">
+        <label>
+          <input id="chkMostrarLineas" type="checkbox" checked>
+          Mostrar conexiones
+        </label>
+      </div>
+
+      <div class="fila">
+        <div><strong>Propiedades</strong> (detectadas del JSON)</div>
+        <div id="propiedades"></div>
+      </div>
+
+      <div id="ayudaTeclas">
+        Navegación (fly):<br>
+        W/A/S/D: mover en plano XZ<br>
+        Q/E: subir / bajar<br>
+        Ratón: mirar alrededor<br>
+        Clic en esfera: zoom suave a esa persona
+      </div>
+    </div>
+
+    <!-- Escena A-Frame -->
+    <a-scene background="color: #ECECEC">
+      <!-- Cámara con look-controls + cursor/mouse + raycaster -->
+      <a-entity id="rig"
+                camera
+                look-controls
+                position="0 3 15"
+                cursor="rayOrigin: mouse"
+                raycaster="objects: .clickable; far: 100">
+      </a-entity>
+
+      <!-- Luces -->
+      <a-entity light="type: ambient; color: #BBB"></a-entity>
+      <a-entity light="type: directional; color: #FFF; intensity: 0.7" position="1 2 0"></a-entity>
+
+      <!-- Contenedor de conexiones -->
+      <a-entity id="conexiones"></a-entity>
+
+      <!-- Contenedor de nodos -->
+      <a-entity id="nodos"></a-entity>
+    </a-scene>
+
+    <script>
+      const THREE = AFRAME.THREE;
+
+      // ---------- Utilidades ----------
+      function distancia3D(x1,y1,z1,x2,y2,z2){
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const dz = z2 - z1;
+        return Math.sqrt(dx*dx + dy*dy + dz*dz);
+      }
+
+      function hashCadena(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = (hash * 31 + str.charCodeAt(i)) | 0;
+        }
+        return Math.abs(hash);
+      }
+
+      // ---------- Escena y entidades ----------
+      const escenaEl      = document.querySelector("a-scene");
+      const nodosContEl   = document.getElementById("nodos");
+      const conexionesEl  = document.getElementById("conexiones");
+      const rigEl         = document.getElementById("rig");
+
+      // ---------- Parámetros espaciales y físicos ----------
+      const LIM_X = 20;
+      const LIM_Y = 10;
+      const LIM_Z = 20;
+
+      const DISTANCIA_OBJETIVO          = 6;
+      const DISTANCIA_MINIMA            = 1.8;
+      const DISTANCIA_REPULSION_DISTINTO = 14;
+
+      const K_ATRACCION_FUERTE   = 0.0015;
+      const K_ATRACCION_MEDIA    = 0.0009;
+      const K_REPULSION_DISTINTO = 0.001;
+      const K_REPULSION_CORTA    = 0.06;
+
+      const FRICCION   = 0.93;
+      const MAX_FUERZA = 0.05;
+
+      const RADIO_CONEXION           = 12;
+      const MAX_CONEXIONES_POR_NODO  = 2;
+      const ACTUALIZAR_LINEAS_CADA   = 10; // frames
+
+      // ---------- Controles UI ----------
+      let grosorMin = 1;
+      let grosorMax = 6;
+      let mostrarLineas = true;
+
+      let clavesPropiedades = [];
+      let usarEnRelacion    = {};
+      let mostrarEnEtiqueta = {};
+
+      const sliderMin = document.getElementById("grosorMin");
+      const sliderMax = document.getElementById("grosorMax");
+      const spanMin   = document.getElementById("grosorMinValor");
+      const spanMax   = document.getElementById("grosorMaxValor");
+      const chkMostrarLineas = document.getElementById("chkMostrarLineas");
+      const divPropiedades   = document.getElementById("propiedades");
+
+      sliderMin.addEventListener("input", () => {
+        grosorMin = parseFloat(sliderMin.value);
+        spanMin.textContent = sliderMin.value;
+        if (grosorMin > grosorMax) {
+          grosorMax = grosorMin;
+          sliderMax.value = grosorMax;
+          spanMax.textContent = grosorMax;
+        }
+      });
+
+      sliderMax.addEventListener("input", () => {
+        grosorMax = parseFloat(sliderMax.value);
+        spanMax.textContent = sliderMax.value;
+        if (grosorMax < grosorMin) {
+          grosorMin = grosorMax;
+          sliderMin.value = grosorMin;
+          spanMin.textContent = grosorMin;
+        }
+      });
+
+      chkMostrarLineas.addEventListener("change", () => {
+        mostrarLineas = chkMostrarLineas.checked;
+      });
+
+      let etiquetasSucias = false; // para no recalcular texto cada frame
+
+      function crearControlesPropiedades(claves){
+        divPropiedades.innerHTML = "";
+        clavesPropiedades = claves.slice();
+
+        clavesPropiedades.forEach(prop => {
+          if (!(prop in usarEnRelacion))    usarEnRelacion[prop] = true;
+          if (!(prop in mostrarEnEtiqueta)) mostrarEnEtiqueta[prop] = true;
+
+          const bloque = document.createElement("div");
+          bloque.className = "bloque-prop";
+
+          const titulo = document.createElement("div");
+          titulo.className = "titulo-prop";
+          titulo.textContent = prop;
+          bloque.appendChild(titulo);
+
+          // Usar en relación
+          const lblUsar = document.createElement("label");
+          const chkUsar = document.createElement("input");
+          chkUsar.type = "checkbox";
+          chkUsar.checked = usarEnRelacion[prop];
+          chkUsar.addEventListener("change", () => {
+            usarEnRelacion[prop] = chkUsar.checked;
+            // Reactivar partículas
+            particulas.forEach(p => {
+              p.fija = false;
+              p.estableFrames = 0;
+            });
+          });
+          lblUsar.appendChild(chkUsar);
+          lblUsar.appendChild(document.createTextNode(" Usar en relación"));
+          bloque.appendChild(lblUsar);
+
+          // Mostrar en etiqueta
+          const lblMostrar = document.createElement("label");
+          const chkMostrar = document.createElement("input");
+          chkMostrar.type = "checkbox";
+          chkMostrar.checked = mostrarEnEtiqueta[prop];
+          chkMostrar.addEventListener("change", () => {
+            mostrarEnEtiqueta[prop] = chkMostrar.checked;
+            etiquetasSucias = true;
+          });
+          lblMostrar.appendChild(chkMostrar);
+          lblMostrar.appendChild(document.createTextNode(" Mostrar en etiqueta"));
+          bloque.appendChild(lblMostrar);
+
+          divPropiedades.appendChild(bloque);
+        });
+
+        etiquetasSucias = true;
+      }
+
+      // ---------- Datos y nodos ----------
+      let particulas = [];
+      let numeroParticulas = 0;
+
+      function construirEtiqueta(datos){
+        const lineas = [];
+        for (const prop of clavesPropiedades){
+          if (!mostrarEnEtiqueta[prop]) continue;
+          const val = (datos[prop] !== undefined && datos[prop] !== null) ? String(datos[prop]) : "";
+          lineas.push(val);
+        }
+        return lineas.join("\n");
+      }
+
+      function crearNodos3D(personas){
+        particulas = [];
+        numeroParticulas = personas.length;
+
+        for (let i = 0; i < personas.length; i++){
+          const persona = personas[i];
+
+          const x = (Math.random() - 0.5) * LIM_X * 2;
+          const y = Math.random() * LIM_Y + 1;
+          const z = (Math.random() - 0.5) * LIM_Z * 2;
+
+          const nodo = document.createElement("a-entity");
+          nodo.setAttribute("position", `${x} ${y} ${z}`);
+
+          const sphere = document.createElement("a-sphere");
+          sphere.setAttribute("radius", "0.4");
+          sphere.setAttribute("color", "#FFFFFF");
+          sphere.setAttribute("metalness", "0.1");
+          sphere.setAttribute("roughness", "0.8");
+          sphere.setAttribute("class", "clickable");
+          nodo.appendChild(sphere);
+
+          const texto = document.createElement("a-entity");
+          texto.setAttribute("text", {
+            value: construirEtiqueta(persona),
+            align: "center",
+            color: "#111",
+            width: 2,
+            wrapCount: 16
+          });
+          texto.setAttribute("position", "0 0.8 0");
+          nodo.appendChild(texto);
+
+          nodosContEl.appendChild(nodo);
+
+          const pObj = {
+            x:x, y:y, z:z,
+            vx:(Math.random()-0.5)*0.1,
+            vy:(Math.random()-0.5)*0.1,
+            vz:(Math.random()-0.5)*0.1,
+            ax:0, ay:0, az:0,
+            fija:false,
+            estableFrames:0,
+            datos:persona,
+            nodeEl:nodo,
+            textEl:texto,
+            sphereEl:sphere
+          };
+
+          // Click -> zoom a este nodo
+          sphere.addEventListener("click", () => {
+            zoomACentroDeParticula(pObj);
+          });
+
+          particulas.push(pObj);
+        }
+      }
+
+      // ---------- Física 3D ----------
+      function pasoFisica(dt){
+        const n = numeroParticulas;
+        if (n === 0) return;
+
+        // Reiniciar aceleraciones
+        for (let i = 0; i < n; i++){
+          particulas[i].ax = 0;
+          particulas[i].ay = 0;
+          particulas[i].az = 0;
+        }
+
+        // Fuerzas
+        for (let i = 0; i < n; i++){
+          const p = particulas[i];
+          if (p.fija) continue;
+
+          let fx = 0, fy = 0, fz = 0;
+
+          for (let j = 0; j < n; j++){
+            if (i === j) continue;
+            const q = particulas[j];
+
+            const d = distancia3D(p.x,p.y,p.z, q.x,q.y,q.z);
+            if (d === 0) continue;
+
+            const dx = q.x - p.x;
+            const dy = q.y - p.y;
+            const dz = q.z - p.z;
+
+            const ux = dx / d;
+            const uy = dy / d;
+            const uz = dz / d;
+
+            // Repulsión fuerte corta distancia
+            if (d < DISTANCIA_MINIMA){
+              const intensidad = (DISTANCIA_MINIMA - d) * K_REPULSION_CORTA;
+              fx -= ux * intensidad;
+              fy -= uy * intensidad;
+              fz -= uz * intensidad;
+              continue;
+            }
+
+            // Coincidencias
+            const propsCoinciden = [];
+            let hayPropsRelacionActivas = false;
+            for (const prop of clavesPropiedades){
+              if (!usarEnRelacion[prop]) continue;
+              hayPropsRelacionActivas = true;
+              if (p.datos[prop] === q.datos[prop]){
+                propsCoinciden.push(prop);
+              }
+            }
+
+            if (propsCoinciden.length > 1){
+              const delta = d - DISTANCIA_OBJETIVO;
+              fx += ux * delta * K_ATRACCION_FUERTE;
+              fy += uy * delta * K_ATRACCION_FUERTE;
+              fz += uz * delta * K_ATRACCION_FUERTE;
+            } else if (propsCoinciden.length === 1){
+              const delta = d - DISTANCIA_OBJETIVO;
+              fx += ux * delta * K_ATRACCION_MEDIA;
+              fy += uy * delta * K_ATRACCION_MEDIA;
+              fz += uz * delta * K_ATRACCION_MEDIA;
+            } else {
+              if (d < DISTANCIA_REPULSION_DISTINTO){
+                const intensidad = (DISTANCIA_REPULSION_DISTINTO - d) * K_REPULSION_DISTINTO;
+                fx -= ux * intensidad;
+                fy -= uy * intensidad;
+                fz -= uz * intensidad;
+              }
+            }
+          }
+
+          // Limitar fuerza
+          const modF = Math.sqrt(fx*fx + fy*fy + fz*fz);
+          if (modF > MAX_FUERZA){
+            fx = fx / modF * MAX_FUERZA;
+            fy = fy / modF * MAX_FUERZA;
+            fz = fz / modF * MAX_FUERZA;
+          }
+
+          p.ax = fx;
+          p.ay = fy;
+          p.az = fz;
+        }
+
+        // Integración
+        for (let i = 0; i < n; i++){
+          const p = particulas[i];
+          if (!p.fija){
+            p.vx += p.ax;
+            p.vy += p.ay;
+            p.vz += p.az;
+
+            p.vx *= FRICCION;
+            p.vy *= FRICCION;
+            p.vz *= FRICCION;
+
+            p.x += p.vx;
+            p.y += p.vy;
+            p.z += p.vz;
+
+            // Caja de límites
+            const REBOTE = -0.5;
+            if (p.x > LIM_X){ p.x = LIM_X; p.vx *= REBOTE; }
+            if (p.x < -LIM_X){ p.x = -LIM_X; p.vx *= REBOTE; }
+            if (p.z > LIM_Z){ p.z = LIM_Z; p.vz *= REBOTE; }
+            if (p.z < -LIM_Z){ p.z = -LIM_Z; p.vz *= REBOTE; }
+            if (p.y > LIM_Y){ p.y = LIM_Y; p.vy *= REBOTE; }
+            if (p.y < 0.5){ p.y = 0.5; p.vy *= REBOTE; }
+
+            // Estabilidad
+            const vel = Math.sqrt(p.vx*p.vx + p.vy*p.vy + p.vz*p.vz);
+            const fuer = Math.sqrt(p.ax*p.ax + p.ay*p.ay + p.az*p.az);
+            if (vel < 0.02 && fuer < 0.002){
+              p.estableFrames++;
+              if (p.estableFrames > 60){
+                p.fija = true;
+                p.vx = p.vy = p.vz = 0;
+              }
+            } else {
+              p.estableFrames = 0;
+            }
+          }
+
+          // Actualizar posición en escena
+          p.nodeEl.setAttribute("position", `${p.x} ${p.y} ${p.z}`);
+
+          // Actualizar etiqueta solo cuando cambian los toggles
+          if (etiquetasSucias){
+            p.textEl.setAttribute("text", "value", construirEtiqueta(p.datos));
+          }
+        }
+
+        if (etiquetasSucias){
+          etiquetasSucias = false;
+        }
+      }
+
+      // ---------- Conexiones 3D (limitadas) ----------
+      function actualizarConexiones(){
+        conexionesEl.innerHTML = "";
+        if (!mostrarLineas) return;
+
+        const n = numeroParticulas;
+        for (let i = 0; i < n; i++){
+          const a = particulas[i];
+          const candidatos = [];
+
+          for (let j = i+1; j < n; j++){
+            const b = particulas[j];
+            const d = distancia3D(a.x,a.y,a.z, b.x,b.y,b.z);
+            if (d > RADIO_CONEXION) continue;
+
+            // Coincidencias
+            const propsCoinciden = [];
+            let hayPropsRelacionActivas = false;
+            for (const prop of clavesPropiedades){
+              if (!usarEnRelacion[prop]) continue;
+              hayPropsRelacionActivas = true;
+              if (a.datos[prop] === b.datos[prop]){
+                propsCoinciden.push(prop);
+              }
+            }
+
+            let clave = "ninguna";
+            if (propsCoinciden.length === 1){
+              clave = propsCoinciden[0];
+            } else if (propsCoinciden.length > 1){
+              clave = propsCoinciden.slice().sort().join("+");
+            } else if (!hayPropsRelacionActivas){
+              clave = "sin-prop-relacion";
+            }
+
+            const h = hashCadena(clave) % 360;
+            const color = `hsl(${h}, 70%, 50%)`;
+
+            candidatos.push({j, d, color});
+          }
+
+          // Ordenar por distancia y quedarnos con los más cercanos
+          candidatos.sort((a,b) => a.d - b.d);
+          const limite = Math.min(MAX_CONEXIONES_POR_NODO, candidatos.length);
+          for (let k = 0; k < limite; k++){
+            const c = candidatos[k];
+            const b = particulas[c.j];
+
+            const lineaEl = document.createElement("a-entity");
+            lineaEl.setAttribute("line", {
+              start: `${a.x} ${a.y} ${a.z}`,
+              end:   `${b.x} ${b.y} ${b.z}`,
+              color: c.color
+            });
+            conexionesEl.appendChild(lineaEl);
+          }
+        }
+      }
+
+      // ---------- Fly controls caseros ----------
+      const flyEstado = {
+        adelante:0,
+        atras:0,
+        izquierda:0,
+        derecha:0,
+        arriba:0,
+        abajo:0
+      };
+      const VELOCIDAD_FLY = 6; // unidades por segundo
+
+      window.addEventListener("keydown", (e) => {
+        switch(e.key.toLowerCase()){
+          case "w": flyEstado.adelante = 1; break;
+          case "s": flyEstado.atras    = 1; break;
+          case "a": flyEstado.izquierda= 1; break;
+          case "d": flyEstado.derecha  = 1; break;
+          case "q": flyEstado.arriba   = 1; break;
+          case "e": flyEstado.abajo    = 1; break;
+        }
+      });
+
+      window.addEventListener("keyup", (e) => {
+        switch(e.key.toLowerCase()){
+          case "w": flyEstado.adelante = 0; break;
+          case "s": flyEstado.atras    = 0; break;
+          case "a": flyEstado.izquierda= 0; break;
+          case "d": flyEstado.derecha  = 0; break;
+          case "q": flyEstado.arriba   = 0; break;
+          case "e": flyEstado.abajo    = 0; break;
+        }
+      });
+
+      function actualizarFly(dt){
+        const obj = rigEl.object3D;
+        const dir = new THREE.Vector3();
+        obj.getWorldDirection(dir);  // dirección hacia "delante" (normalizada por A-Frame)
+        dir.normalize();
+
+        const up = new THREE.Vector3(0,1,0);
+        const right = new THREE.Vector3().crossVectors(dir, up).normalize().negate();
+
+        let move = new THREE.Vector3(0,0,0);
+
+        // ADELANTE / ATRÁS (corregido):
+        // Usamos -dir para que W sea hacia delante visualmente.
+        if (flyEstado.adelante) move.add(dir.clone().multiplyScalar(-1));
+        if (flyEstado.atras)    move.add(dir);
+
+        // IZQUIERDA / DERECHA
+        if (flyEstado.derecha)   move.add(right);
+        if (flyEstado.izquierda) move.add(right.clone().multiplyScalar(-1));
+
+        // ARRIBA / ABAJO
+        if (flyEstado.arriba) move.add(up);
+        if (flyEstado.abajo)  move.add(up.clone().multiplyScalar(-1));
+
+        if (move.lengthSq() > 0){
+          move.normalize().multiplyScalar(VELOCIDAD_FLY * dt);
+          obj.position.add(move);
+        }
+      }
+
+      // ---------- Zoom suave al hacer clic ----------
+      let zoomAnim = null; // {from:Vector3, to:Vector3, t:number, dur:number}
+
+      function zoomACentroDeParticula(p){
+        const rigPos = rigEl.object3D.position.clone();
+        // Punto de destino: cerca de la partícula, un poco desplazado
+        const destino = new THREE.Vector3(p.x, p.y + 1, p.z + 4);
+
+        zoomAnim = {
+          from: rigPos,
+          to: destino,
+          t: 0,
+          dur: 1.0 // segundos
+        };
+      }
+
+      function actualizarZoom(dt){
+        if (!zoomAnim) return;
+        zoomAnim.t += dt / zoomAnim.dur;
+        let t = zoomAnim.t;
+        if (t >= 1){
+          t = 1;
+        }
+
+        // ease in-out quad
+        const ease = t < 0.5
+          ? 2*t*t
+          : -1 + (4 - 2*t)*t;
+
+        const pos = new THREE.Vector3().lerpVectors(zoomAnim.from, zoomAnim.to, ease);
+        rigEl.object3D.position.copy(pos);
+
+        if (zoomAnim.t >= 1){
+          zoomAnim = null;
+        }
+      }
+
+      // ---------- Bucle principal ----------
+      let ultimoTiempo = null;
+      let contadorFrames = 0;
+
+      function bucle(tiempoMs){
+        if (!ultimoTiempo) ultimoTiempo = tiempoMs;
+        const dt = (tiempoMs - ultimoTiempo) / 1000;
+        ultimoTiempo = tiempoMs;
+
+        pasoFisica(dt);
+        actualizarFly(dt);
+        actualizarZoom(dt);
+
+        contadorFrames++;
+        if (contadorFrames % ACTUALIZAR_LINEAS_CADA === 0){
+          actualizarConexiones();
+        }
+
+        requestAnimationFrame(bucle);
+      }
+
+      // ---------- Carga de datos y arranque ----------
+      fetch("personas.json")
+        .then(r => r.json())
+        .then(personas => {
+          const setClaves = new Set();
+          personas.forEach(p => {
+            Object.keys(p).forEach(k => setClaves.add(k));
+          });
+          const claves = Array.from(setClaves);
+          crearControlesPropiedades(claves);
+
+          crearNodos3D(personas);
+
+          requestAnimationFrame(bucle);
+        })
+        .catch(err => {
+          console.error("Error al cargar personas.json:", err);
+        });
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,518 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      body,html{
+        margin:0;
+        padding:0;
+        background:#ffffff;
+        font-family: sans-serif;
+      }
+      #controls{
+        position:fixed;
+        top:10px;
+        left:10px;
+        padding:8px 10px;
+        background:rgba(255,255,255,0.9);
+        border:1px solid #ccc;
+        border-radius:4px;
+        font-size:12px;
+        z-index:10;
+        max-height:90vh;
+        overflow:auto;
+      }
+      #controls label{
+        display:block;
+        margin-bottom:4px;
+      }
+      #controls input[type=range]{
+        width:150px;
+      }
+      #controls span.value{
+        display:inline-block;
+        width:24px;
+        text-align:right;
+        margin-left:4px;
+      }
+      #controls .row{
+        margin-top:4px;
+        margin-bottom:4px;
+      }
+      #propControls .prop-block{
+        border-top:1px solid #ddd;
+        margin-top:4px;
+        padding-top:4px;
+      }
+      #propControls .prop-title{
+        font-weight:bold;
+        margin-bottom:2px;
+      }
+      #propControls label{
+        display:inline-block;
+        margin-right:8px;
+        margin-bottom:2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <label>
+        Min thickness
+        <input id="minThickness" type="range" min="1" max="10" value="1">
+        <span id="minThicknessValue" class="value">1</span>
+      </label>
+      <label>
+        Max thickness
+        <input id="maxThickness" type="range" min="1" max="20" value="6">
+        <span id="maxThicknessValue" class="value">6</span>
+      </label>
+
+      <div class="row">
+        <label><input id="chkShowLines" type="checkbox" checked> Show connections</label>
+      </div>
+
+      <div class="row">
+        <div><strong>Properties</strong> (auto from JSON)</div>
+        <div id="propControls"></div>
+      </div>
+    </div>
+
+    <canvas></canvas>
+
+    <script>
+      function distance2D(x1, y1, x2, y2) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      // Simple hash function for strings
+      function hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = (hash * 31 + str.charCodeAt(i)) | 0; // keep in 32 bits
+        }
+        return Math.abs(hash);
+      }
+
+      let anchura = window.innerWidth;
+      let altura = window.innerHeight;
+      let lienzo = document.querySelector("canvas");
+      let contexto = lienzo.getContext("2d");
+      lienzo.width = anchura;
+      lienzo.height = altura;
+      contexto.textAlign = "center";
+      contexto.textBaseline = "middle";
+
+      // Global line thickness controls
+      let minLineThickness = 1;
+      let maxLineThickness = 6;
+
+      // Dynamic properties (filled after loading JSON)
+      let propertyKeys = [];           // list of property names
+      let relationProps = {};          // {propName: boolean} -> use in physics
+      let showProps = {};              // {propName: boolean} -> show in label
+
+      // Other toggles
+      let showLines = true;
+
+      const minSlider = document.getElementById("minThickness");
+      const maxSlider = document.getElementById("maxThickness");
+      const minValueSpan = document.getElementById("minThicknessValue");
+      const maxValueSpan = document.getElementById("maxThicknessValue");
+      const chkShowLines = document.getElementById("chkShowLines");
+      const propControlsDiv = document.getElementById("propControls");
+
+      minSlider.addEventListener("input", () => {
+        minLineThickness = parseFloat(minSlider.value);
+        minValueSpan.textContent = minSlider.value;
+        if (minLineThickness > maxLineThickness) {
+          maxLineThickness = minLineThickness;
+          maxSlider.value = maxLineThickness;
+          maxValueSpan.textContent = maxLineThickness;
+        }
+      });
+
+      maxSlider.addEventListener("input", () => {
+        maxLineThickness = parseFloat(maxSlider.value);
+        maxValueSpan.textContent = maxSlider.value;
+        if (maxLineThickness < minLineThickness) {
+          minLineThickness = maxLineThickness;
+          minSlider.value = minLineThickness;
+          minValueSpan.textContent = minLineThickness;
+        }
+      });
+
+      chkShowLines.addEventListener("change", () => {
+        showLines = chkShowLines.checked;
+      });
+
+      function createPropertyControls(keys) {
+        propControlsDiv.innerHTML = "";
+        propertyKeys = keys.slice();
+
+        propertyKeys.forEach(prop => {
+          // by default: use in relation and show in label
+          if (!(prop in relationProps)) relationProps[prop] = true;
+          if (!(prop in showProps))     showProps[prop] = true;
+
+          const block = document.createElement("div");
+          block.className = "prop-block";
+
+          const title = document.createElement("div");
+          title.className = "prop-title";
+          title.textContent = prop;
+          block.appendChild(title);
+
+          const labelUse = document.createElement("label");
+          const chkUse = document.createElement("input");
+          chkUse.type = "checkbox";
+          chkUse.checked = relationProps[prop];
+          chkUse.addEventListener("change", () => {
+            relationProps[prop] = chkUse.checked;
+          });
+          labelUse.appendChild(chkUse);
+          labelUse.appendChild(document.createTextNode(" Use in relation"));
+          block.appendChild(labelUse);
+
+          const labelShow = document.createElement("label");
+          const chkShow = document.createElement("input");
+          chkShow.type = "checkbox";
+          chkShow.checked = showProps[prop];
+          chkShow.addEventListener("change", () => {
+            showProps[prop] = chkShow.checked;
+          });
+          labelShow.appendChild(chkShow);
+          labelShow.appendChild(document.createTextNode(" Show in label"));
+          block.appendChild(labelShow);
+
+          propControlsDiv.appendChild(block);
+        });
+      }
+
+      let particulas = [];
+      let numeroparticulas = 0;
+
+      class Particula{
+        // persona: object with arbitrary properties
+        constructor(x,y,a,persona){
+          this.x = x;
+          this.y = y;
+          this.v = 0.5;
+
+          this.vx = Math.cos(a) * this.v;
+          this.vy = Math.sin(a) * this.v;
+
+          this.ax = 0;
+          this.ay = 0;
+
+          this.data = persona; // store all properties
+
+          this.fija = false;
+          this.estableFrames = 0;
+        }
+
+        dibuja(){
+          contexto.lineWidth = 1;
+          contexto.lineCap = "butt";
+
+          // determine how many lines will be drawn (visible props)
+          const visibleProps = propertyKeys.filter(p => showProps[p]);
+          const numLines = Math.max(visibleProps.length, 1);
+          const lineHeight = 11;
+          const totalHeight = numLines * lineHeight + 6; // padding
+          const altopastilla = totalHeight / 2;
+
+          const anchopastilla = 45;
+
+          contexto.strokeStyle = "black";
+          contexto.beginPath();
+          contexto.moveTo(this.x-anchopastilla, this.y-altopastilla);
+          contexto.lineTo(this.x+anchopastilla, this.y-altopastilla);
+          contexto.arc(this.x+anchopastilla, this.y, altopastilla, -Math.PI/2, Math.PI/2);
+          contexto.lineTo(this.x-anchopastilla, this.y+altopastilla);
+          contexto.arc(this.x-anchopastilla, this.y, altopastilla, Math.PI/2, -Math.PI/2);
+          contexto.fillStyle = "white";
+          contexto.strokeStyle = "black";
+          contexto.fill();
+          contexto.stroke();
+          contexto.fillStyle = "black";
+
+          // text lines centered vertically
+          const startY = this.y - ((numLines - 1) * lineHeight) / 2;
+
+          let lineIndex = 0;
+          visibleProps.forEach((prop, idx) => {
+            const value = (this.data[prop] !== undefined && this.data[prop] !== null)
+                          ? String(this.data[prop])
+                          : "";
+            const y = startY + lineIndex * lineHeight;
+            contexto.font = (idx === 0 ? "12px sans-serif" : "10px sans-serif");
+            contexto.fillText(value, this.x, y);
+            lineIndex++;
+          });
+        }
+
+        lineas(){
+          if (!showLines) return;
+
+          contexto.lineCap = "round";
+
+          for(let i = 0; i < numeroparticulas; i++){
+            const p = particulas[i];
+            if (p === this) continue;
+            const d = distance2D(this.x, this.y, p.x, p.y);
+            if(d < 160){
+
+              // Determine matches based on active relation properties
+              const matchedProps = [];
+              let anyRelationPropActive = false;
+
+              for (const prop of propertyKeys) {
+                if (!relationProps[prop]) continue;
+                anyRelationPropActive = true;
+                if (this.data[prop] === p.data[prop]) {
+                  matchedProps.push(prop);
+                }
+              }
+
+              // Build relation key for color
+              let key = "none";
+              if (matchedProps.length === 1) {
+                key = matchedProps[0];
+              } else if (matchedProps.length > 1) {
+                key = matchedProps.slice().sort().join("+");
+              } else if (!anyRelationPropActive) {
+                key = "no-rel-props";
+              }
+
+              const h = hashString(key) % 360;
+              const alpha = 0.30 + 0.5 * (1 - d / 160);
+              contexto.strokeStyle = `hsla(${h}, 70%, 50%, ${alpha})`;
+
+              const x1 = this.x;
+              const y1 = this.y;
+              const x2 = p.x;
+              const y2 = p.y;
+
+              const segments = 20;
+
+              for (let s = 0; s < segments; s++) {
+                const t1 = s / segments;
+                const t2 = (s + 1) / segments;
+
+                const sx1 = x1 + (x2 - x1) * t1;
+                const sy1 = y1 + (y2 - y1) * t1;
+                const sx2 = x1 + (x2 - x1) * t2;
+                const sy2 = y1 + (y2 - y1) * t2;
+
+                const tc = (t1 + t2) / 2;
+
+                // thickness gradient: thick at ends, thin in middle
+                const factor = 4 * (tc - 0.5) * (tc - 0.5); // [0,1]
+                const w = minLineThickness + (maxLineThickness - minLineThickness) * factor;
+
+                contexto.lineWidth = w;
+                contexto.beginPath();
+                contexto.moveTo(sx1, sy1);
+                contexto.lineTo(sx2, sy2);
+                contexto.stroke();
+              }
+            }
+          }
+        }
+
+        interacciones(particulas) {
+          if (this.fija) {
+            this.ax = 0;
+            this.ay = 0;
+            return;
+          }
+
+          const rangoGlobal = Math.sqrt(anchura*anchura + altura*altura);
+
+          const distanciaObjetivo = 120;
+          const distanciaMinima = 70;
+          const distanciaRepulsionDistinto = 220;
+
+          const kAtraccionFuerte   = 0.0015;
+          const kAtraccionMedia    = 0.0009;
+          const kRepulsionDistinto = 0.001;
+          const kRepulsionCorta    = 0.06;
+
+          let fx = 0;
+          let fy = 0;
+
+          for (let p of particulas) {
+            if (p === this) continue;
+
+            let d = distance2D(this.x, this.y, p.x, p.y);
+            if (d === 0 || d > rangoGlobal) continue;
+
+            let dx = p.x - this.x;
+            let dy = p.y - this.y;
+
+            let ux = dx / d;
+            let uy = dy / d;
+
+            // repulsión fuerte para evitar solapamiento
+            if (d < distanciaMinima) {
+              let intensidad = (distanciaMinima - d) * kRepulsionCorta;
+              fx -= ux * intensidad;
+              fy -= uy * intensidad;
+              continue;
+            }
+
+            // determine matches based on active relation properties
+            const matchedProps = [];
+            let anyRelationPropActive = false;
+            for (const prop of propertyKeys) {
+              if (!relationProps[prop]) continue;
+              anyRelationPropActive = true;
+              if (this.data[prop] === p.data[prop]) {
+                matchedProps.push(prop);
+              }
+            }
+
+            if (matchedProps.length > 1) {
+              // strong attraction (several props match)
+              let delta = d - distanciaObjetivo;
+              fx += ux * delta * kAtraccionFuerte;
+              fy += uy * delta * kAtraccionFuerte;
+            } else if (matchedProps.length === 1) {
+              // medium attraction (one prop matches)
+              let delta = d - distanciaObjetivo;
+              fx += ux * delta * kAtraccionMedia;
+              fy += uy * delta * kAtraccionMedia;
+            } else {
+              // no matching active property: repulsion
+              if (d < distanciaRepulsionDistinto) {
+                let intensidad = (distanciaRepulsionDistinto - d) * kRepulsionDistinto;
+                fx -= ux * intensidad;
+                fy -= uy * intensidad;
+              }
+            }
+          }
+
+          const maxForce = 0.05;
+          let fmag = Math.sqrt(fx*fx + fy*fy);
+          if (fmag > maxForce) {
+            fx = fx / fmag * maxForce;
+            fy = fy / fmag * maxForce;
+          }
+
+          this.ax = fx;
+          this.ay = fy;
+        }
+
+        mueve(){
+          if (this.fija) return;
+
+          this.vx += this.ax;
+          this.vy += this.ay;
+
+          const friccion = 0.93;
+          this.vx *= friccion;
+          this.vy *= friccion;
+
+          this.x += this.vx;
+          this.y += this.vy;
+
+          const speed  = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+          const fuerza = Math.sqrt(this.ax*this.ax + this.ay*this.ay);
+
+          if (speed < 0.02 && fuerza < 0.002) {
+            this.estableFrames++;
+            if (this.estableFrames > 60) {
+              this.fija = true;
+              this.vx = 0;
+              this.vy = 0;
+            }
+          } else {
+            this.estableFrames = 0;
+          }
+        }
+
+        rebote(){
+          if (this.fija) return;
+
+          const reboteFactor = -0.5;
+
+          if (this.x > anchura) {
+            this.x = anchura;
+            this.vx *= reboteFactor;
+          }
+          if (this.x < 0) {
+            this.x = 0;
+            this.vx *= reboteFactor;
+          }
+
+          if (this.y > altura) {
+            this.y = altura;
+            this.vy *= reboteFactor;
+          }
+          if (this.y < 0) {
+            this.y = 0;
+            this.vy *= reboteFactor;
+          }
+        }
+      }
+
+      function bucle(){
+        contexto.clearRect(0,0,anchura,altura);
+
+        for (let i = 0; i < numeroparticulas; i++) {
+          particulas[i].interacciones(particulas);
+        }
+
+        for (let i = 0; i < numeroparticulas; i++) {
+          particulas[i].mueve();
+          particulas[i].rebote();
+        }
+
+        for (let i = 0; i < numeroparticulas; i++) {
+          particulas[i].lineas();
+        }
+        for (let i = 0; i < numeroparticulas; i++) {
+          particulas[i].dibuja();
+        }
+
+        requestAnimationFrame(bucle);
+      }
+
+      // Load JSON and start
+      fetch("personas.json")
+        .then(respuesta => respuesta.json())
+        .then(personas => {
+          particulas = [];
+          numeroparticulas = personas.length;
+
+          // detect all property keys (union)
+          const keySet = new Set();
+          personas.forEach(p => {
+            Object.keys(p).forEach(k => keySet.add(k));
+          });
+          const keys = Array.from(keySet);
+          createPropertyControls(keys);
+
+          for (let i = 0; i < personas.length; i++) {
+            let persona = personas[i];
+            particulas.push(
+              new Particula(
+                Math.random()*anchura,
+                Math.random()*altura,
+                Math.random()*Math.PI*2,
+                persona
+              )
+            );
+          }
+
+          requestAnimationFrame(bucle);
+        })
+        .catch(error => {
+          console.error("Error al cargar personas.json:", error);
+        });
+    </script>
+  </body>
+</html>
+
